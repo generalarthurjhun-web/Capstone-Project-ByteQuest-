@@ -1,0 +1,73 @@
+
+===== PAGE 1 / 2 =====
+       
+ELCCSS213-022021 ver. 1.00 
+COMPUTER SYSTEMS SERVICING (CSS) NC II 
+ 
+1 
+Reference No.                 
+ 
+SELF-ASSESSMENT GUIDE 
+ 
+Qualification Title: COMPUTER SYSTEMS SERVICING NC II 
+COC 4 Title MAINTAIN AND REPAIR COMPUTER SYSTEMS AND 
+NETWORKS 
+Instruction: Read each question and check the appropriate box to indicate your 
+answer. 
+Can I? YES NO 
+Plan and prepare for maintenance and repair 
+• Plan and prepare maintenance and/or diagnosis of faults in line with 
+job requirements*   
+• Obtain and check tools, equipment and testing devices for correct 
+operation and safety (hardware and software tools)    
+• Obtain and check  materials necessary to complete the work in 
+accordance with established procedures and check against job 
+requirements 
+  
+• Follow OHS policies and procedures   
+• Check computer systems and networks for maintenance against  
+job/service order instructions and specifications*   
+Maintain computer systems and networks 
+• Use appropriate personal protective equipment in line with standard 
+procedures   
+• Check normal function of computer systems and networks based on 
+manufacturer’s instructions   
+• Perform scheduled/periodic maintenance in accordance with 
+manufacturer’s requirements   
+• Perform necessary repairs/replacements in accordance with 
+established procedures   
+• Respond to unplanned events or conditions in accordance with 
+established procedures   
+Diagnose faults of computer systems and networks 
+• Diagnose faults or problems in the computer systems and networks 
+according to requirements and in line with the standard procedures*   
+• Manage and implement  contingency measures in accor dance with 
+established procedures   
+Rectify/correct defects in computer systems and networks 
+• Replace or correct defective components or parts without damage to 
+the surrounding environment or services*   
+• Make adjustments, if necessary in accordance with established 
+procedures*   
+TESDA-OP-QSO-02-F07 
+Rev. No. 00 03/01/17 
+ 
+===== PAGE 2 / 2 =====
+       
+ELCCSS213-022021 ver. 1.00 
+COMPUTER SYSTEMS SERVICING (CSS) NC II 
+ 
+2 
+Inspect and test the computer systems and networks 
+• Clean and clear  work site of all debris to ensure safety in 
+accordance with company procedures   
+• Follow 5S and 4Rs according to environmental policies   
+• Undertake final inspections to ensure that the testing conducted on 
+the device conforms with the manufacturer’s instructions/manual*   
+• Check and test computer systems and networks to ensure safe 
+operation*   
+• Prepare and complete reports according to company requirements*   
+I agree to undertake assessment in the knowledge that information gathered will only 
+be used for professional development purposes and can only be accessed by 
+concerned assessment personnel and my manager/supervisor. 
+Candidate’s Name & Signature: Date: 
+NOTE: * Critical Aspects of Competency 

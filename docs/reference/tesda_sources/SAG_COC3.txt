@@ -1,0 +1,47 @@
+
+===== PAGE 1 / 1 =====
+ELCCSS213-022021 ver. 1.00 
+COMPUTER SYSTEMS SERVICING (CSS) NC II 
+ 1 
+Reference No.                 
+ 
+SELF-ASSESSMENT GUIDE 
+ 
+Qualification Title: COMPUTER SYSTEMS SERVICING NC II 
+COC 3 SET UP COMPUTER SERVERS 
+Instruction: Read each question and check the appropriate box to indicate your 
+answer. 
+Can I? YES NO 
+Set-up user access 
+• Create user folder in accordance with network operating system 
+features*   
+• Configure user access level based on NOS features and established 
+network access policies and end-user requirements*   
+• Perform security check in accordance with establish ed network 
+access policies/end-user requirements*   
+Configure network services 
+• Check normal functions of server in accordance with manufacturer’s 
+instructions*   
+• Install/update required modules/add -ons based on NOS installation 
+procedures*   
+• Confirm network services to be configured based on user/system 
+requirements*   
+• Check operation of network services based on user/system 
+requirements*   
+• Respond to unplanned events or conditions in accordance with 
+established procedure*   
+Perform testing, documentation and pre-deployment procedures 
+• Perform pre-deployment procedures based on enterprise policies and 
+procedures*   
+• Perform operation and security check based on end -user 
+requirements*   
+• Prepare and complete  reports according to enterprise policies and  
+requirements*   
+I agree to undertake assessment in the knowledge that information gathered will only 
+be used for professional development purposes and can only be accessed by 
+concerned assessment personnel and my manager/supervisor. 
+Candidate’s Name & Signature: Date: 
+NOTE: * Critical Aspects of Competency 
+TESDA-OP-QSO-02-F07 
+Rev. No. 00 03/01/17 
+ 

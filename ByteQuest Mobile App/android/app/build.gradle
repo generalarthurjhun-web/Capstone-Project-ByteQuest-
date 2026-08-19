@@ -1,0 +1,91 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+import java.util.Properties
+
+// Release signing is fail-closed. A local smoke build may opt into the debug
+// key with BYTEQUEST_ALLOW_DEBUG_SIGNING=true; distribution builds require a
+// private, untracked android/key.properties file.
+def signingPropertiesFile = rootProject.file("key.properties")
+def signingProperties = new Properties()
+if (signingPropertiesFile.isFile()) {
+    signingPropertiesFile.withInputStream { signingProperties.load(it) }
+}
+def requiredSigningProperties = ["keyAlias", "keyPassword", "storeFile", "storePassword"]
+def hasReleaseSigning = signingPropertiesFile.isFile() && requiredSigningProperties.every {
+    signingProperties.getProperty(it)?.trim()
+}
+def allowDebugSigning = System.getenv("BYTEQUEST_ALLOW_DEBUG_SIGNING") == "true"
+
+android {
+    namespace = "com.example.bytequest"
+    compileSdk = 36
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+
+    defaultConfig {
+        applicationId = "com.example.bytequest"
+        minSdk = flutter.minSdkVersion
+        targetSdk = 36
+        versionCode = 1
+        versionName = "1.0"
+    }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            release {
+                keyAlias signingProperties.getProperty("keyAlias")
+                keyPassword signingProperties.getProperty("keyPassword")
+                storeFile file(signingProperties.getProperty("storeFile"))
+                storePassword signingProperties.getProperty("storePassword")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            } else if (allowDebugSigning) {
+                signingConfig signingConfigs.debug
+            }
+        }
+    }
+
+    // Do not block debug/test variants during project configuration. Fail only
+    // when a release artifact is actually requested without signing material.
+    afterEvaluate {
+        tasks.matching {
+            it.name == "validateSigningRelease" ||
+                it.name == "packageRelease" ||
+                it.name == "bundleRelease"
+        }.configureEach {
+            doFirst {
+                if (!hasReleaseSigning && !allowDebugSigning) {
+                    throw new GradleException(
+                        "Release signing is not configured. Add android/key.properties with a private " +
+                            "keystore, or explicitly set BYTEQUEST_ALLOW_DEBUG_SIGNING=true for a local smoke build only."
+                    )
+                }
+            }
+        }
+    }
+}
+
+flutter {
+    source = "../.."
+}
+
+dependencies {
+    // No Firebase dependencies - frontend-only prototype
+}

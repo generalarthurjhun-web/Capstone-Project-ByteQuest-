@@ -1,0 +1,220 @@
+
+===== PAGE 1 / 5 =====
+       
+ELCCSS213-022021 ver. 1.00 
+COMPUTER SYSTEMS SERVICING (CSS) NC II 
+ 
+1 
+Reference No.                 
+ 
+SELF-ASSESSMENT GUIDE 
+ 
+Qualification Title: COMPUTER SYSTEMS SERVICING NC II 
+Units of Competency 
+Covered 
+• Install and Configure Computer Systems 
+• Setup Computer Networks 
+• Setup Computer Servers 
+• Maintain and Repair Computer Systems Networks 
+Instruction: Read each question and check the appropriate box to indicate your 
+answer. 
+Can I? YES NO 
+INSTALL AND CONFIGURE COMPUTER SYSTEMS 
+Assemble computer hardware 
+• Plan and prepare unit for assembly*   
+• Identify and obtain  materials necessary to complete the work and 
+check against system requirements*   
+• Obtain tools, equipment and testing devices t o carry out the  work 
+and check for correct operation and safety* 
+  
+• Assemble following computer hardware according to established OH 
+& S policies and procedures and system requirements* 
+­ Motherboard and its components 
+­ Hard drives and its accessories 
+­ Power supply 
+­ Peripherals such as keyboard, mouse, cables 
+  
+• Perform Basic Input Output System(BIOS) configuration based on 
+system requirements*   
+Prepare installer 
+• Create portable bootable devices according to software 
+manufacturer’s instruction*   
+• Prepare customized installers according to software utilization guide 
+and end-user agreement*   
+• Install portable applications according to software  user guide and 
+software license*   
+Install operating system and drivers for peripherals/ devices 
+• Install operating system according to established installation 
+procedure and end-user agreement*   
+• Install and configure  drivers of peripherals and devices  according to 
+manufacturer’s instructions and OS installation procedures*   
+• Access and install  OS and drivers updates/patches based on 
+manufacturer’s recommendations and requirements*   
+• Check quality of work according to established procedures*   
+TESDA-OP-QSO-02-F07 
+Rev. No. 00 03/01/17 
+ 
+===== PAGE 2 / 5 =====
+       
+ELCCSS213-022021 ver. 1.00 
+COMPUTER SYSTEMS SERVICING (CSS) NC II 
+ 
+2 
+Install application software   
+• Install application software based on installation guides, end -user 
+agreement and license agreement *   
+• Carry out variation in application software installation according to 
+manufacturer’s recommendations and requirements*   
+• Access and install  software updates based on manufacturer’s 
+recommendations and requirements*   
+Conduct testing and documentation 
+• Test devices/systems/installation to determine whether they conform 
+to requirements*   
+• Conduct stress test to ensure reliability of equipment   
+• Follow 5S and 3Rs according to environmental policies   
+• Complete and forward  the documentation to appropriate personnel 
+and/or authority   
+SET UP COMPUTER NETWORKS 
+Install network cables 
+• Determine and plan cable routes according to network design *    
+• Identify and obtain network materials necessary to complete the work 
+according to e stablished procedures and check  against system 
+requirements* 
+  
+• Obtain tools, equipment and testing devices needed to carry out the 
+installation work in accordance with e stablished procedures and 
+check for correct operation and safety*  
+  
+• Use appropriate personal protective equipment and follow  OHS 
+policies and procedures   
+• Perform copper cable splicing in accordance with the standards such 
+as the 568A and 568B color coding cabling standards*   
+• Install network cables and cable raceway in accordance with 
+established procedures and installation requirements* (slotted PVC, 
+metallic raceway, flexible conduit) 
+  
+• Perform and check  installation work to ensure compliance with 
+requirements*   
+• Follow 5S and 3Rs according to environmental policies   
+Set network configuration 
+• Check network connectivity of each terminal in accordance with 
+network design*   
+• Diagnose and remedy  network fault or problem in line with  the 
+standard operating procedures*   
+• Configure network interface card (NIC) settings in accordance with 
+network design* 
+- Configure IP address of all devices are configured    
+===== PAGE 3 / 5 =====
+       
+ELCCSS213-022021 ver. 1.00 
+COMPUTER SYSTEMS SERVICING (CSS) NC II 
+ 
+3 
+• Carry out communication checking between terminals in accordance 
+with OS networ k configuration guides* (File sharing, Access network 
+resources) 
+  
+• Respond to unplanned events or conditions in accordance with 
+established procedures*   
+Set router/Wi-Fi/ wireless access point/repeater configuration 
+• Configure and set router*   
+• Configure client device systems settings in accordance with 
+manufacturer’s instructions,  end -user preference and network 
+design* 
+  
+• Configure client  computer wi-fi access*   
+• Configure local area network (LAN) port*   
+• Configure wide area network (WAN) port*   
+• Configure wireless settings*   
+• Configure security/firewall/advance settings*   
+Inspect and test the configured computer networks 
+• Undertake final inspection to ensure that the configuration conforms 
+with the manufacturer’s instructions/manual*   
+• Check computer networks to ensure safe operation*    
+• Prepare/complete reports according to company requirements*   
+SET UP COMPUTER SERVERS 
+Set-up user access 
+• Create user folder in accordance with network operating system 
+features*   
+• Configure user access level based on NOS features and established 
+network access policies and end-user requirements*   
+• Perform security check in accordance with established network 
+access policies/end-user requirements*   
+Configure network services 
+• Check normal functions of se rver in accordance with manufacturer’s 
+instructions*   
+• Install/update required modules/add -ons based on NOS installation 
+procedures*   
+• Confirm network services to be configured based on user/system 
+requirements*   
+• Check operation of network services bas ed on user/system 
+requirements*   
+• Respond to unplanned events or conditions in accordance with 
+established procedure*   
+===== PAGE 4 / 5 =====
+       
+ELCCSS213-022021 ver. 1.00 
+COMPUTER SYSTEMS SERVICING (CSS) NC II 
+ 
+4 
+Perform testing, documentation and pre-deployment procedures 
+• Perform pre-deployment procedures based on enterprise policies and 
+procedures*   
+• Perform operation and security check based on end -user 
+requirements*   
+• Prepare and complete  reports according to enterprise policies and 
+requirements*   
+MAINTAIN AND REPAIR COMPUTER SYSTEMS AND NETWORKS 
+Plan and prepare for maintenance and repair 
+• Plan and prepare  maintenance and/or diagnosis of faults in line with 
+job requirements*   
+• Obtain and check  tools, equipment and testing devices for correct 
+operation and safety (Hardware and Software tools)    
+• Obtain and check  materials necessary to complete the work in 
+accordance with established procedures and check s against job 
+requirements 
+  
+• Follow OHS policies and procedures   
+• Check computer systems and networks for maintenance against 
+job/service order instructions and specifications*   
+Maintain computer systems and networks 
+• Use appropriate personal protective equipment in line with standard 
+procedures   
+• Check normal function of computer systems and networks based on 
+manufacturer’s instructions   
+• Perform scheduled/periodic maintenance in ac cordance with 
+manufacturer’s requirements   
+• Perform necessary repairs/replacements in accordance with 
+established procedures   
+• Respond to unplanned events or conditions in accordance with 
+established procedures   
+Diagnose faults of computer systems and networks 
+• Diagnose faults or problems in the computer systems and networks 
+according to requirements and in line with the standard procedures*   
+• Manage and implement  contingency measures in accordance with 
+established procedures   
+Rectify/correct defects in computer systems and networks 
+• Replace or correct defective components or parts without damage to 
+the surrounding environment or services*   
+• Make adjustments, if necessary in accordance with established 
+procedures*   
+Inspect and test the computer systems and networks 
+===== PAGE 5 / 5 =====
+       
+ELCCSS213-022021 ver. 1.00 
+COMPUTER SYSTEMS SERVICING (CSS) NC II 
+ 
+5 
+• Clean and clear work site of all debris to ensure safety in accordance 
+with company procedures   
+• Follow 5S and 4Rs according to environmental policies   
+• Undertake final inspections to ensure that the testing conducted on 
+the device conforms with the manufacturer’s instructions/manual*   
+• Check and test  computer systems and networks to ensure safe 
+operation*   
+• Prepare and complete reports according to company requirements*   
+I agree to undertake assessment in the knowledge that informa tion gathered will only 
+be used for professional development purposes and can only be accessed by 
+concerned assessment personnel and my manager/supervisor. 
+Candidate’s Name & Signature: Date: 
+NOTE: * Critical Aspects of Competency 

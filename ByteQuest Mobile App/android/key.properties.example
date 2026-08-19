@@ -1,0 +1,8 @@
+# Copy this file to android/key.properties and replace every value locally.
+# Never commit key.properties, the keystore, or passwords.
+# Paths are resolved relative to android/app; ../upload-keystore.jks points to
+# a keystore stored in the android directory.
+storePassword=REPLACE_WITH_RELEASE_KEYSTORE_PASSWORD
+keyPassword=REPLACE_WITH_RELEASE_KEY_PASSWORD
+keyAlias=bytequest
+storeFile=../upload-keystore.jks

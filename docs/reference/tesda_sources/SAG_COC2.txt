@@ -1,0 +1,81 @@
+
+===== PAGE 1 / 2 =====
+ 
+       
+ELCCSS213-022021 ver. 1.00  1 
+COMPUTER SYSTEMS SERVICING (CSS) NC II 
+ 
+Reference No.                 
+ 
+SELF-ASSESSMENT GUIDE 
+ 
+Qualification Title: COMPUTER SYSTEMS SERVICING NC II 
+COC 2 SET UP COMPUTER NETWORKS  
+Instruction: Read each question and check the appropriate box to indicate your 
+answer. 
+Can I? YES NO 
+Install network cables 
+• Determine and plan cable routes according to network design *    
+• Identify and obtain network materials necessary to complete the work 
+according to e stablished procedures and check  against system 
+requirements* 
+  
+• Obtain tools, equipment and testing devices needed to carry out the 
+installation work in accordance with es tablished procedures and 
+check for correct operation and safety*  
+  
+• Use appropriate personal protective equipment and follow  OHS 
+policies and procedures 
+  
+• Perform copper cable splicing in accordance with the standards such 
+as the 568A and 568B color coding cabling standards*   
+• Install network cables and cable raceway in accordance with 
+established procedures and installation requirements* (slotted PVC, 
+metallic raceway, flexible conduit) 
+  
+• Perform and check installation work to ensure compliance with 
+requirements*   
+• Follow 5S and 3Rs according to environmental policies   
+Set network configuration 
+• Check network connectivity of each terminal in accordance with 
+network design*   
+• Diagnose and r emedy network fault or problem in line with the 
+standard operating procedures*   
+• Configure network interface card (NIC) settings in accordance with 
+network design (Configure IP address of all devices)*   
+• Carry out communication checking  between terminals in accordance 
+with OS network configuration guides* (File sharing, Access network 
+resources) 
+  
+• Respond to unplanned events or conditions in accordance with 
+established procedures*   
+Set router/Wi-Fi/ wireless access point/repeater configuration 
+• Configure and set router*   
+TESDA-OP-QSO-02-F07 
+Rev. No. 00 03/01/17 
+ 
+===== PAGE 2 / 2 =====
+ 
+       
+ELCCSS213-022021 ver. 1.00  2 
+COMPUTER SYSTEMS SERVICING (CSS) NC II 
+ 
+• Configure client device systems settings in accordance with 
+manufacturer’s instructions, end-user preference and network 
+design* 
+  
+• Configure client computer wi-fi access*   
+• Configure local area network (LAN) port*   
+• Configure wide area network (WAN) port*   
+• Configure wireless settings*   
+• Configure security/firewall/advance settings*   
+Inspect and test the configured computer networks 
+• Undertake final inspection to ensure that the configuration conforms 
+with the manufacturer’s instructions/manual*   
+• Check computer networks to ensure safe operation*    
+• Prepare/complete reports according to company requirements*   
+I agree to undertake assessment in the knowledge that information gathered will only 
+be used for p rofessional development purposes and can only be accessed by 
+concerned assessment personnel and my manager/supervisor. 
+Candidate’s Name & Signature: Date: 
+NOTE: * Critical Aspects of Competency 

@@ -1,0 +1,99 @@
+
+===== PAGE 1 / 2 =====
+   
+    
+ELCCSS213-022021 ver. 1.00   
+COMPUTER SYSTEMS SERVICING (CSS) NC II 
+1 
+Reference No.                 
+ 
+SELF-ASSESSMENT GUIDE 
+ 
+Qualification Title: COMPUTER SYSTEMS SERVICING NC II 
+COC 1 INSTALL AND CONFIGURE COMPUTER SYSTEMS  
+Instruction: Read each question and check the appropriate box to indicate your answer. 
+Can I? YES NO 
+Assemble computer hardware 
+• Plan and prepare unit for assembly*   
+• Identify and obtain  materials necessary to complete the work and 
+checks against system requirements*   
+• Obtain tools, equipment and testing devices to carry out the work and 
+check for correct operation and safety*   
+• Assemble following computer hardware according to established OH 
+& S policies and procedures and system requirements* 
+­ Motherboard and its components 
+­ Hard drives and its accessories 
+­ Power supply 
+­ Peripherals such as keyboard, mouse, cables 
+  
+• Perform Basic Input Output System  (BIOS) configuration based on 
+system requirements* 
+  
+Prepare installer 
+• Create portable bootable devices according to software 
+manufacturer’s instruction*   
+• Prepare customized installers according to software utilization guide 
+and end-user agreement*   
+• Install portable applications according to software user guide and 
+software license*   
+Install operating system and drivers for peripherals/ devices 
+• Install operating system according to established installation 
+procedure and end-user agreement*   
+• Install and configure  drivers of peripherals and devices according to 
+manufacturer’s instructions and OS installation procedures*   
+• Access and install  OS and drivers updates/patches based on 
+manufacturer’s recommendations and requirements*   
+• Check quality of work according to established procedures*   
+Install application software   
+• Install application software based on installation guides, end -user 
+agreement and license agreement *   
+TESDA-OP-QSO-02-F07 
+Rev. No. 00 03/01/17 
+ 
+===== PAGE 2 / 2 =====
+   
+    
+ELCCSS213-022021 ver. 1.00   
+COMPUTER SYSTEMS SERVICING (CSS) NC II 
+2 
+• Carry out variation in application software installation according to 
+manufacturer’s recommendations and requirements*   
+• Access and install  software updates based on manufacturer’s 
+recommendations and requirements*   
+Conduct testing and documentation 
+• Test devices/systems/installation to determine whether they conform 
+to requirements*   
+• Conduct stress test to ensure reliability of equipment   
+• Follow 5S and 3Rs according to environmental policies   
+• Complete and forward  the documentation to appropriate personnel 
+and/or authority   
+I agree to undertake assessment in the knowledge that information gathered will only 
+be used for professional development purposes and can only be accessed by 
+concerned assessment personnel and my manager/supervisor. 
+Candidate’s Name & Signature: Date: 
+NOTE: * Critical Aspects of Competency 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
