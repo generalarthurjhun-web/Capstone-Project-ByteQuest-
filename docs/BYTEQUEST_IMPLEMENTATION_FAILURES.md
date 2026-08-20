@@ -164,3 +164,14 @@
 - Primary solution: Convert the two clamped dimensions to `double` at the mapping boundary.
 - Alternatives: Declare typed intermediate doubles; use explicit conditional bounds instead of `clamp`; cast immediately before `Rect.fromLTWH`.
 - Status: Resolved; the focused geometry regression passed, all 16 Task 4 widget tests passed, and targeted analysis found no issues.
+
+## 2026-08-21 01:22:15 +08:00 — Task 6 authoritative compact toolbar overflow
+
+- Operation: Run the Task 6 advanced interaction suite with the authoritative mission assessment regression suite.
+- Command: `flutter test test/advanced_mission_interactions_test.dart test/authoritative_mission_assessment_widget_test.dart`
+- Affected test locations: `ByteQuest-Mobile-App/test/authoritative_mission_assessment_widget_test.dart:82` and `:134`; production source `ByteQuest-Mobile-App/lib/screens/simulation/components/simulation_scene.dart:204`.
+- Observed result: The compact 320×568 case overflowed by 8.7 pixels on the right; the 1.8× large-text case overflowed by 68 pixels on the right.
+- Root cause: `_SceneToolbar` placed the Objects text action and two 48 dp icon actions in a non-wrapping `Row`. Its children required 250.7 pixels within a 242-pixel compact action area, and text scaling increased that intrinsic width further.
+- Primary solution: Replace the action `Row` with an end-aligned `Wrap`, preserving all labels, semantics, and 48 dp controls while allowing the actions to flow onto another line.
+- Alternatives: Put the action row in a horizontal `SingleChildScrollView`; collapse secondary actions into an overflow menu at the compact breakpoint; or stack each action vertically under the scene title.
+- Status: Resolved; the authoritative widget regression passed all three tests after the focused layout change.

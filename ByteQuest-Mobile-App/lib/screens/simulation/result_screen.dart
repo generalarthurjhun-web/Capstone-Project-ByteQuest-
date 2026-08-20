@@ -3,21 +3,28 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/learner_ui.dart';
 import '../../models/mission_model.dart';
 import '../../services/authoritative_assessment_service.dart';
+import 'interactions/evidence_review_panel.dart';
 
 /// Completion presentation. Official assessment outcomes never come from the
 /// local MissionResult; the mobile client only submits ordered evidence.
 class ResultScreen extends StatefulWidget {
   final Mission mission;
   final MissionResult result;
+  final AuthoritativeAssessmentService? assessmentService;
 
-  const ResultScreen({super.key, required this.mission, required this.result});
+  const ResultScreen({
+    super.key,
+    required this.mission,
+    required this.result,
+    this.assessmentService,
+  });
 
   @override
   State<ResultScreen> createState() => _ResultScreenState();
 }
 
 class _ResultScreenState extends State<ResultScreen> {
-  final _assessmentService = AuthoritativeAssessmentService.instance;
+  late final AuthoritativeAssessmentService _assessmentService;
   late final bool _wasAssigned;
   late final bool _wasAssessment;
   bool _submitting = false;
@@ -31,6 +38,8 @@ class _ResultScreenState extends State<ResultScreen> {
   @override
   void initState() {
     super.initState();
+    _assessmentService =
+        widget.assessmentService ?? AuthoritativeAssessmentService.instance;
     final session = _assessmentService.activeSession;
     _wasAssigned = session != null;
     _wasAssessment = session?.isAssessment ?? false;
@@ -211,6 +220,7 @@ class _ResultScreenState extends State<ResultScreen> {
                                 ? 'Reload evidence summary'
                                 : 'Retry secure submission'))),
                   if (_wasAssigned &&
+                      !_wasAssessment &&
                       !_submitted &&
                       !_submitting &&
                       _submissionError == null) ...[
@@ -351,6 +361,22 @@ class _ResultScreenState extends State<ResultScreen> {
               ),
             );
           }),
+        ],
+        if (!_submitted && !_submitting) ...[
+          const SizedBox(height: 14),
+          const Divider(),
+          const SizedBox(height: 14),
+          EvidenceReviewPanel(
+            completedPhaseTitles: const ['Simulation activity'],
+            authoritativeEvidenceCount: _evidenceCount,
+            pendingEvidenceCount: 0,
+            failedEvidenceCount: 0,
+            canSubmit: !_loadingEvidence && !_evidenceLoadFailed,
+            confirmLabel: 'Submit recorded evidence',
+            returnLabel: 'Review activity',
+            onConfirm: _confirmSubmission,
+            onReturn: () => Navigator.of(context).pop(),
+          ),
         ],
       ]);
     }

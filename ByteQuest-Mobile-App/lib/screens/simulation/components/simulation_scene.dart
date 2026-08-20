@@ -204,8 +204,9 @@ class _SceneToolbar extends StatelessWidget {
                 ),
               ],
             );
-            final actions = Row(
-              mainAxisSize: MainAxisSize.min,
+            final actions = Wrap(
+              alignment: WrapAlignment.end,
+              runAlignment: WrapAlignment.end,
               children: [
                 TextButton.icon(
                   onPressed: onShowObjects,
