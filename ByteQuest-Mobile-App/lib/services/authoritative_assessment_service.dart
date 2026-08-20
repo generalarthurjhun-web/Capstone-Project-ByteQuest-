@@ -5,6 +5,8 @@ import 'package:uuid/uuid.dart';
 import '../core/config/supabase_config.dart';
 import '../models/assigned_activity_model.dart';
 import '../models/attempt_history_model.dart';
+import '../screens/simulation/runtime/mission_evidence_gateway.dart';
+import '../screens/simulation/runtime/mission_runtime_models.dart';
 
 class AttemptSession {
   final String attemptId;
@@ -30,7 +32,7 @@ class AttemptSession {
 
 /// The only mobile write path for assessment attempts. It never sends a score,
 /// competency outcome, pass flag, XP, points, or reward.
-class AuthoritativeAssessmentService {
+class AuthoritativeAssessmentService implements MissionEvidenceTransport {
   AuthoritativeAssessmentService._();
   static final AuthoritativeAssessmentService instance =
       AuthoritativeAssessmentService._();
@@ -43,6 +45,33 @@ class AuthoritativeAssessmentService {
 
   AttemptSession? get activeSession => _activeSession;
   bool get isAssessmentMode => _activeSession?.isAssessment ?? false;
+
+  @override
+  Future<void> append(MissionEvidenceAction action) async {
+    if (_activeSession == null) {
+      throw StateError('No authoritative attempt is active.');
+    }
+    await recordAction(
+      actionType: action.actionType,
+      target: action.target,
+      value: {
+        ...action.value,
+        'client_action_id': action.clientActionId,
+      },
+      occurredAt: action.occurredAt,
+    );
+  }
+
+  @override
+  Future<Set<String>> acknowledgedClientActionIds() async {
+    final actions = await getActiveAttemptActions();
+    return actions
+        .map((action) => action['value'])
+        .whereType<Map>()
+        .map((value) => value['client_action_id'])
+        .whereType<String>()
+        .toSet();
+  }
 
   Future<List<AssignedActivity>> getAssignedActivities() async {
     final responses = await Future.wait<dynamic>([
