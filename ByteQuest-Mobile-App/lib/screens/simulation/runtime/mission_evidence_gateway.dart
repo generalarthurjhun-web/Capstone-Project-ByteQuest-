@@ -22,10 +22,20 @@ final class MissionEvidenceGateway {
   Future<Set<String>> reconcile(Iterable<MissionEvidenceAction> actions) {
     return _enqueue(() async {
       final acknowledged = await _transport.acknowledgedClientActionIds();
-      final ordered = actions.toList()
-        ..sort((left, right) => left.occurredAt.compareTo(right.occurredAt));
+      var iterableIndex = 0;
+      final ordered = actions
+          .map((action) => _IndexedEvidenceAction(action, iterableIndex++))
+          .toList()
+        ..sort((left, right) {
+          final occurrenceOrder =
+              left.action.occurredAt.compareTo(right.action.occurredAt);
+          return occurrenceOrder != 0
+              ? occurrenceOrder
+              : left.iterableIndex.compareTo(right.iterableIndex);
+        });
 
-      for (final action in ordered) {
+      for (final indexedAction in ordered) {
+        final action = indexedAction.action;
         if (!acknowledged.add(action.clientActionId)) continue;
         try {
           await _transport.append(action);
@@ -46,4 +56,11 @@ final class MissionEvidenceGateway {
     );
     return completion;
   }
+}
+
+final class _IndexedEvidenceAction {
+  const _IndexedEvidenceAction(this.action, this.iterableIndex);
+
+  final MissionEvidenceAction action;
+  final int iterableIndex;
 }

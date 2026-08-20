@@ -8,6 +8,13 @@ import '../models/attempt_history_model.dart';
 import '../screens/simulation/runtime/mission_evidence_gateway.dart';
 import '../screens/simulation/runtime/mission_runtime_models.dart';
 
+typedef AuthoritativeAssessmentRpc = Future<dynamic> Function(
+  String function,
+  Map<String, dynamic> params,
+);
+typedef AuthoritativeAssessmentActionsReader
+    = Future<List<Map<String, dynamic>>> Function();
+
 class AttemptSession {
   final String attemptId;
   final String assignmentId;
@@ -33,15 +40,36 @@ class AttemptSession {
 /// The only mobile write path for assessment attempts. It never sends a score,
 /// competency outcome, pass flag, XP, points, or reward.
 class AuthoritativeAssessmentService implements MissionEvidenceTransport {
-  AuthoritativeAssessmentService._();
+  AuthoritativeAssessmentService._({
+    AuthoritativeAssessmentRpc? rpc,
+    AuthoritativeAssessmentActionsReader? activeActions,
+    AttemptSession? activeSession,
+  })  : _rpcOverride = rpc,
+        _activeActionsOverride = activeActions,
+        _activeSession = activeSession;
+
+  @visibleForTesting
+  AuthoritativeAssessmentService.forTesting({
+    required AttemptSession activeSession,
+    required AuthoritativeAssessmentRpc rpc,
+    AuthoritativeAssessmentActionsReader? activeActions,
+  }) : this._(
+          rpc: rpc,
+          activeActions: activeActions,
+          activeSession: activeSession,
+        );
+
   static final AuthoritativeAssessmentService instance =
       AuthoritativeAssessmentService._();
 
   SupabaseClient get _supabase => SupabaseConfig.client;
   final Uuid _uuid = const Uuid();
+  final AuthoritativeAssessmentRpc? _rpcOverride;
+  final AuthoritativeAssessmentActionsReader? _activeActionsOverride;
   AttemptSession? _activeSession;
   Future<void> _actionQueue = Future<void>.value();
   Object? _actionWriteError;
+  final Map<String, Object> _missionActionWriteErrors = <String, Object>{};
 
   AttemptSession? get activeSession => _activeSession;
   bool get isAssessmentMode => _activeSession?.isAssessment ?? false;
@@ -52,25 +80,30 @@ class AuthoritativeAssessmentService implements MissionEvidenceTransport {
       throw StateError('No authoritative attempt is active.');
     }
     await recordAction(
-      actionType: action.actionType,
-      target: action.target,
-      value: {
-        ...action.value,
-        'client_action_id': action.clientActionId,
-      },
-      occurredAt: action.occurredAt,
-    );
+        actionType: action.actionType,
+        target: action.target,
+        value: {
+          ...action.value,
+          'client_action_id': action.clientActionId,
+        },
+        occurredAt: action.occurredAt,
+        clientActionId: action.clientActionId);
+    _missionActionWriteErrors.remove(action.clientActionId);
   }
 
   @override
   Future<Set<String>> acknowledgedClientActionIds() async {
     final actions = await getActiveAttemptActions();
-    return actions
+    final acknowledgedIds = actions
         .map((action) => action['value'])
         .whereType<Map>()
         .map((value) => value['client_action_id'])
         .whereType<String>()
         .toSet();
+    _missionActionWriteErrors.removeWhere(
+      (clientActionId, _) => acknowledgedIds.contains(clientActionId),
+    );
+    return acknowledgedIds;
   }
 
   Future<List<AssignedActivity>> getAssignedActivities() async {
@@ -145,6 +178,7 @@ class AuthoritativeAssessmentService implements MissionEvidenceTransport {
     );
     _activeSession = session;
     _actionWriteError = null;
+    _missionActionWriteErrors.clear();
     if (lastSequence == 0) {
       await recordAction(
         actionType: 'attempt_started',
@@ -163,6 +197,7 @@ class AuthoritativeAssessmentService implements MissionEvidenceTransport {
     String? target,
     Map<String, dynamic> value = const {},
     DateTime? occurredAt,
+    String? clientActionId,
   }) async {
     final completion = _actionQueue.then((_) => _recordActionNow(
           actionType: actionType,
@@ -171,7 +206,11 @@ class AuthoritativeAssessmentService implements MissionEvidenceTransport {
           occurredAt: occurredAt,
         ));
     _actionQueue = completion.catchError((error) {
-      _actionWriteError ??= error;
+      if (clientActionId == null) {
+        _actionWriteError ??= error;
+      } else {
+        _missionActionWriteErrors[clientActionId] = error;
+      }
     });
     return completion;
   }
@@ -185,7 +224,7 @@ class AuthoritativeAssessmentService implements MissionEvidenceTransport {
     final session = _activeSession;
     if (session == null) return;
     final sequence = session.nextSequence;
-    await _supabase.rpc('append_attempt_action', params: {
+    await _callRpc('append_attempt_action', {
       'p_attempt_id': session.attemptId,
       'p_sequence_number': sequence,
       'p_action_type': actionType,
@@ -208,13 +247,13 @@ class AuthoritativeAssessmentService implements MissionEvidenceTransport {
           actionType: 'simulation_completed', value: finalEvidence);
     }
     await _actionQueue;
-    if (_actionWriteError != null) {
+    if (_actionWriteError != null || _missionActionWriteErrors.isNotEmpty) {
       throw StateError(
           'One or more ordered evidence events could not be recorded.');
     }
     final elapsed =
         DateTime.now().difference(session.startedAt).inSeconds.clamp(0, 86400);
-    final response = await _supabase.rpc('submit_attempt', params: {
+    final response = await _callRpc('submit_attempt', {
       'p_attempt_id': session.attemptId,
       'p_submission_key': session.submissionKey,
       'p_elapsed_time_seconds': elapsed,
@@ -227,6 +266,15 @@ class AuthoritativeAssessmentService implements MissionEvidenceTransport {
     );
     _activeSession = null;
     return response['status'] as String? ?? 'submitted';
+  }
+
+  Future<dynamic> _callRpc(
+    String function,
+    Map<String, dynamic> params,
+  ) {
+    final rpcOverride = _rpcOverride;
+    if (rpcOverride != null) return rpcOverride(function, params);
+    return _supabase.rpc(function, params: params);
   }
 
   void abandonLocalSession() {
@@ -371,6 +419,8 @@ class AuthoritativeAssessmentService implements MissionEvidenceTransport {
   Future<List<Map<String, dynamic>>> getActiveAttemptActions() async {
     final session = _activeSession;
     if (session == null) return const [];
+    final activeActionsOverride = _activeActionsOverride;
+    if (activeActionsOverride != null) return activeActionsOverride();
     final response = await _supabase
         .from('attempt_actions')
         .select('sequence_number,action_type,target,value,client_occurred_at')

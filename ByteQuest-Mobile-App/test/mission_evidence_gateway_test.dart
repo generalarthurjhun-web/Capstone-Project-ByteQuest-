@@ -36,6 +36,20 @@ void main() {
     expect(transport.appendedIds, ['stable-1', 'stable-2']);
   });
 
+  test('reconcile preserves iterable order for equal occurrence times',
+      () async {
+    final transport = _FakeEvidenceTransport();
+    final gateway = MissionEvidenceGateway(transport: transport);
+    final occurredAt = DateTime.utc(2026, 1, 1, 0, 0, 1);
+
+    await gateway.reconcile([
+      _action('stable-first', occurredAt: occurredAt),
+      _action('stable-second', occurredAt: occurredAt),
+    ]);
+
+    expect(transport.appendedIds, ['stable-first', 'stable-second']);
+  });
+
   test('authoritative transport rejects writes without an active attempt',
       () async {
     await expectLater(

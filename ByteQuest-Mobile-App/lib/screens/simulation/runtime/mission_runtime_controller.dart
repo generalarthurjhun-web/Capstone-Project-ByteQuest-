@@ -79,6 +79,11 @@ final class MissionRuntimeController {
         missionId: _state.missionId,
       );
       if (restored == null) return;
+      if (restored.missionId != _state.missionId) {
+        throw FormatException(
+          'Mission runtime snapshot does not match ${_state.missionId}.',
+        );
+      }
       _state = restored;
       _failedEvidenceIds.clear();
       await _flushPendingNow();
@@ -123,6 +128,15 @@ final class MissionRuntimeController {
     if (_state.pendingEvidence.isEmpty) {
       _failedEvidenceIds.clear();
       return;
+    }
+
+    for (final action in _state.pendingEvidence) {
+      if (action.missionId != _state.missionId) {
+        throw FormatException(
+          'Pending evidence ${action.clientActionId} does not match '
+          '${_state.missionId}.',
+        );
+      }
     }
 
     final pendingIds =

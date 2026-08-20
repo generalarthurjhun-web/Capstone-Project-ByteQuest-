@@ -102,6 +102,43 @@ void main() {
     expect(restored, isNull);
   });
 
+  test('snapshot for a different mission returns no state', () async {
+    SharedPreferences.setMockInitialValues({
+      'bq_mission_runtime_learner-1_coc2_m3': jsonEncode(
+        MissionRuntimeState.initial('coc1_m1').toJson(),
+      ),
+    });
+
+    final restored = await ProgressResumeService.loadMissionRuntime(
+      userId: 'learner-1',
+      missionId: 'coc2_m3',
+    );
+
+    expect(restored, isNull);
+  });
+
+  test('restore rejects pending evidence for a different mission', () async {
+    final mismatched = MissionEvidenceAction(
+      clientActionId: 'wrong-mission-action',
+      missionId: 'coc1_m1',
+      phaseId: 'verify',
+      actionType: 'test_run',
+      value: const {},
+      occurredAt: DateTime.utc(2026),
+    );
+    final saved = MissionRuntimeState.initial('coc2_m3').copyWith(
+      pendingEvidence: [mismatched],
+    );
+    final store = _FakeRuntimeStore(saved: saved);
+    final transport = _FakeEvidenceTransport();
+    final controller = _controller(store: store, transport: transport);
+
+    await expectLater(controller.restore(), throwsFormatException);
+
+    expect(transport.acknowledgedReads, 0);
+    expect(transport.appendedIds, isEmpty);
+  });
+
   test('legacy resume APIs retain their existing payload contract', () async {
     SharedPreferences.setMockInitialValues({});
 

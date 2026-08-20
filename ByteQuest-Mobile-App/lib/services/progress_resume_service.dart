@@ -93,6 +93,7 @@ class ProgressResumeService {
       if (snapshot['schemaVersion'] != MissionRuntimeState.schemaVersion) {
         return null;
       }
+      if (snapshot['missionId'] != missionId) return null;
       return MissionRuntimeState.fromJson(snapshot);
     } catch (error) {
       debugPrint('Mission runtime resume load failed: $error');
