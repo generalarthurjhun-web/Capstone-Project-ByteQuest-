@@ -120,3 +120,36 @@
 - Primary solution: Rerun the exact scoped staging command with approved Git metadata access.
 - Alternatives: Have the parent session stage and commit the same explicit paths; expand the writable sandbox to the worktree metadata directory.
 - Status: Resolved; the scoped staging command succeeded with approved access.
+
+## 2026-08-20 23:20:51 +08:00 — Task 4 sandboxed Flutter SDK-cache write
+
+- Operation: Run the focused responsive scene and framework widget tests.
+- Command: Flutter SDK `dart.exe` invoking `flutter_tools.snapshot test test/simulation_scene_test.dart test/simulation_framework_test.dart --no-pub`.
+- Affected location: Flutter SDK cache `C:\Users\Drooo\flutter\bin\cache\libimobiledevice.stamp`; code line not applicable.
+- Observed result: Flutter exited before test discovery because it could not write the SDK stamp file.
+- Root cause: The managed workspace sandbox permits project writes but not Flutter SDK-cache writes outside the workspace.
+- Primary solution: Rerun the same focused test command in the approved Flutter SDK-cache execution context.
+- Alternatives: Prewarm the Flutter cache outside the sandbox; configure a writable Flutter SDK clone; run the focused tests from the IDE.
+- Status: Resolved operationally; the approved retry reached all focused tests and exposed a separate test expectation mismatch.
+
+## 2026-08-20 23:22:29 +08:00 — Task 4 neutral hotspot icon expectation
+
+- Operation: Run the focused responsive scene and framework widget tests after extraction.
+- Command: `flutter test test/simulation_scene_test.dart test/simulation_framework_test.dart`
+- Affected location: `ByteQuest-Mobile-App/test/simulation_scene_test.dart:40`.
+- Observed result: Fourteen tests passed; the visual-semantics test expected a generic add icon for a neutral port but the hotspot rendered its semantic cable icon.
+- Root cause: The test incorrectly treated neutral state as replacing the object's identity icon; only selected, completed, and error states replace it with state-specific symbols.
+- Primary solution: Expect the neutral port hotspot's cable icon while retaining exact semantic-state assertions for all four states.
+- Alternatives: Use a generic hotspot type in the fixture; assert only that each state has an icon without checking the neutral identity glyph.
+- Status: Resolved; controller verification reran both focused suites with all 15 tests passing.
+
+## 2026-08-20 23:04:53 +08:00 — Task 4 worker Flutter and Dart startup stall
+
+- Operation: Run the Task 4 red test and SDK version probes from the worker sandbox.
+- Command: `flutter test test/simulation_scene_test.dart`; `flutter --version`; `dart --version`.
+- Affected location: Managed Flutter/Dart startup environment; code line not applicable.
+- Observed result: Each launcher stalled without compiler or test output until interrupted after a bounded wait.
+- Root cause: The worker sandbox could not complete the shared SDK startup/cache workflow while other managed SDK processes were active; no internal diagnostic identified a source-code failure.
+- Primary solution: Use the approved Flutter SDK-cache execution context for targeted verification.
+- Alternatives: Invoke the SDK's `dart.exe` directly for formatting and analysis; run the focused suites from the IDE; use controller verification in the approved context.
+- Status: Resolved; direct SDK analysis found no issues and controller verification passed all 15 focused tests.
