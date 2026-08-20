@@ -243,16 +243,12 @@ final class MissionSimulationDefinition {
     required this.scene,
     required Iterable<MissionPhaseDefinition> phases,
     required Iterable<InteractionFamily> interactionFamilies,
-    required this.hasTechnicalDecision,
-    required this.hasVerification,
     Map<String, String> feedbackCatalog = const {},
     Map<String, dynamic> reviewMetadata = const {},
-    Map<String, dynamic> scorecardMetadata = const {},
   })  : phases = List.unmodifiable(phases),
         interactionFamilies = Set.unmodifiable(interactionFamilies),
         feedbackCatalog = Map.unmodifiable(Map<String, String>.from(feedbackCatalog)),
-        reviewMetadata = _immutableJsonMap(reviewMetadata),
-        scorecardMetadata = _immutableJsonMap(scorecardMetadata) {
+        reviewMetadata = _immutableJsonMap(reviewMetadata) {
     if (this.phases.length < 3 || this.phases.length > 6) {
       throw ArgumentError.value(this.phases.length, 'phases', 'must contain 3–6 phases');
     }
@@ -266,11 +262,22 @@ final class MissionSimulationDefinition {
         'must contain 2–4 distinct families',
       );
     }
-    if (!hasTechnicalDecision) {
-      throw ArgumentError.value(hasTechnicalDecision, 'hasTechnicalDecision', 'is required');
+    final phaseFamilies = this
+        .phases
+        .expand((phase) => [phase.primaryInteraction, ...phase.supportingInteractions])
+        .toSet();
+    if (!_deepEquals(this.interactionFamilies, phaseFamilies)) {
+      throw ArgumentError.value(
+        interactionFamilies,
+        'interactionFamilies',
+        'must exactly match the interactions declared by phases',
+      );
     }
-    if (!hasVerification) {
-      throw ArgumentError.value(hasVerification, 'hasVerification', 'is required');
+    if (!phaseFamilies.contains(InteractionFamily.decide)) {
+      throw ArgumentError.value(phases, 'phases', 'must include a technical decision');
+    }
+    if (!phaseFamilies.contains(InteractionFamily.testRun)) {
+      throw ArgumentError.value(phases, 'phases', 'must include verification');
     }
   }
 
@@ -288,11 +295,8 @@ final class MissionSimulationDefinition {
           .toList(),
       interactionFamilies: _stringList(json['interactionFamilies'])
           .map((name) => _enumByName(InteractionFamily.values, name)),
-      hasTechnicalDecision: json['hasTechnicalDecision'] as bool,
-      hasVerification: json['hasVerification'] as bool,
       feedbackCatalog: _stringMap(json['feedbackCatalog']),
       reviewMetadata: _jsonMapOrEmpty(json['reviewMetadata']),
-      scorecardMetadata: _jsonMapOrEmpty(json['scorecardMetadata']),
     );
   }
 
@@ -305,11 +309,13 @@ final class MissionSimulationDefinition {
   final SimulationSceneDefinition scene;
   final List<MissionPhaseDefinition> phases;
   final Set<InteractionFamily> interactionFamilies;
-  final bool hasTechnicalDecision;
-  final bool hasVerification;
   final Map<String, String> feedbackCatalog;
   final Map<String, dynamic> reviewMetadata;
-  final Map<String, dynamic> scorecardMetadata;
+
+  bool get hasTechnicalDecision =>
+      interactionFamilies.contains(InteractionFamily.decide);
+
+  bool get hasVerification => interactionFamilies.contains(InteractionFamily.testRun);
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -322,11 +328,8 @@ final class MissionSimulationDefinition {
         'phases': phases.map((phase) => phase.toJson()).toList(),
         'interactionFamilies':
             interactionFamilies.map((family) => family.name).toList(),
-        'hasTechnicalDecision': hasTechnicalDecision,
-        'hasVerification': hasVerification,
         'feedbackCatalog': Map<String, String>.from(feedbackCatalog),
         'reviewMetadata': _jsonCopy(reviewMetadata),
-        'scorecardMetadata': _jsonCopy(scorecardMetadata),
       };
 
   @override
@@ -341,11 +344,8 @@ final class MissionSimulationDefinition {
       other.scene == scene &&
       _deepEquals(other.phases, phases) &&
       _deepEquals(other.interactionFamilies, interactionFamilies) &&
-      other.hasTechnicalDecision == hasTechnicalDecision &&
-      other.hasVerification == hasVerification &&
       _deepEquals(other.feedbackCatalog, feedbackCatalog) &&
-      _deepEquals(other.reviewMetadata, reviewMetadata) &&
-      _deepEquals(other.scorecardMetadata, scorecardMetadata);
+      _deepEquals(other.reviewMetadata, reviewMetadata);
 
   @override
   int get hashCode => Object.hash(
@@ -358,24 +358,21 @@ final class MissionSimulationDefinition {
         scene,
         _deepHash(phases),
         _deepHash(interactionFamilies),
-        hasTechnicalDecision,
-        hasVerification,
         _deepHash(feedbackCatalog),
         _deepHash(reviewMetadata),
-        _deepHash(scorecardMetadata),
       );
 }
 
 final class MissionEvidenceAction {
-  const MissionEvidenceAction({
+  MissionEvidenceAction({
     required this.clientActionId,
     required this.missionId,
     required this.phaseId,
     required this.actionType,
     this.target,
-    required this.value,
+    required Map<String, dynamic> value,
     required this.occurredAt,
-  });
+  }) : value = _immutableJsonMap(value);
 
   factory MissionEvidenceAction.fromJson(Map<String, dynamic> json) {
     return MissionEvidenceAction(
@@ -555,6 +552,8 @@ final class MissionRuntimeState {
   MissionRuntimeState copyWith({
     String? currentPhaseId,
     String? selectedToolId,
+    bool clearCurrentPhaseId = false,
+    bool clearSelectedToolId = false,
     Set<String>? connectedNodePairs,
     Set<String>? acceptedEvidenceIds,
     Set<String>? completedPhaseIds,
@@ -579,10 +578,10 @@ final class MissionRuntimeState {
   }) {
     return MissionRuntimeState(
       missionId: missionId,
-      currentPhaseId: currentPhaseId ?? this.currentPhaseId,
+      currentPhaseId: clearCurrentPhaseId ? null : currentPhaseId ?? this.currentPhaseId,
       completedPhaseIds: completedPhaseIds ?? this.completedPhaseIds,
       hotspotStates: hotspotStates ?? this.hotspotStates,
-      selectedToolId: selectedToolId ?? this.selectedToolId,
+      selectedToolId: clearSelectedToolId ? null : selectedToolId ?? this.selectedToolId,
       toolApplications: toolApplications ?? this.toolApplications,
       connectedNodePairs: connectedNodePairs ?? this.connectedNodePairs,
       placements: placements ?? this.placements,

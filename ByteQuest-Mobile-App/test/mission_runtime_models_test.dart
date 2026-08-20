@@ -18,6 +18,12 @@ void main() {
       () => _definition(phases: const []),
       throwsArgumentError,
     );
+    expect(
+      () => _definition(
+        phases: List.generate(7, (index) => _phase(id: 'phase-$index')),
+      ),
+      throwsArgumentError,
+    );
   });
 
   test('definition rejects duplicate phase IDs', () {
@@ -35,11 +41,26 @@ void main() {
 
   test('definition rejects interaction family counts outside two to four', () {
     expect(
-      () => _definition(interactionFamilies: const {InteractionFamily.inspect}),
+      () => _definition(
+        phases: [
+          _phase(id: 'inspect'),
+          _phase(id: 'inspect-ports'),
+          _phase(id: 'inspect-cable'),
+        ],
+        interactionFamilies: const {InteractionFamily.inspect},
+      ),
       throwsArgumentError,
     );
     expect(
       () => _definition(
+        phases: [
+          _phase(id: 'inspect'),
+          _phase(id: 'select', primaryInteraction: InteractionFamily.select),
+          _phase(id: 'tool', primaryInteraction: InteractionFamily.tool),
+          _phase(id: 'connect', primaryInteraction: InteractionFamily.connect),
+          _phase(id: 'decide', primaryInteraction: InteractionFamily.decide),
+          _phase(id: 'verify', primaryInteraction: InteractionFamily.testRun),
+        ],
         interactionFamilies: const {
           InteractionFamily.inspect,
           InteractionFamily.select,
@@ -52,35 +73,121 @@ void main() {
     );
   });
 
-  test('definition rejects missing technical decision or verification', () {
+  test('definition rejects decision and verification absent from phase interactions', () {
     expect(
-      () => _definition(hasTechnicalDecision: false),
+      () => _definition(
+        phases: [
+          _phase(id: 'inspect'),
+          _phase(id: 'connect', primaryInteraction: InteractionFamily.connect),
+          _phase(id: 'verify', primaryInteraction: InteractionFamily.testRun),
+        ],
+        interactionFamilies: const {
+          InteractionFamily.inspect,
+          InteractionFamily.connect,
+          InteractionFamily.testRun,
+        },
+      ),
       throwsArgumentError,
     );
     expect(
-      () => _definition(hasVerification: false),
+      () => _definition(
+        phases: [
+          _phase(id: 'inspect'),
+          _phase(id: 'connect', primaryInteraction: InteractionFamily.connect),
+          _phase(id: 'decide', primaryInteraction: InteractionFamily.decide),
+        ],
+        interactionFamilies: const {
+          InteractionFamily.inspect,
+          InteractionFamily.connect,
+          InteractionFamily.decide,
+        },
+      ),
       throwsArgumentError,
     );
   });
 
-  test('valid definition keeps immutable scene and phase metadata', () {
-    final definition = _definition();
+  test('valid definition derives required interactions from typed phases', () {
+    final phaseSource = [
+      _phase(id: 'inspect'),
+      _phase(id: 'decide', primaryInteraction: InteractionFamily.decide),
+      _phase(id: 'verify', primaryInteraction: InteractionFamily.testRun),
+    ];
+    final objectSource = [
+      SceneObjectDefinition(
+        id: 'switch',
+        label: 'Network switch',
+        x: 0.25,
+        y: 0.4,
+        width: 0.2,
+        height: 0.15,
+        hotspotType: 'device',
+      ),
+    ];
+    final definition = _definition(phases: phaseSource, objects: objectSource);
+    phaseSource.add(_phase(id: 'outside'));
+    objectSource.clear();
 
     expect(definition.phases, hasLength(3));
     expect(definition.scene.objects.single.id, 'switch');
     expect(definition.interactionFamilies, {
       InteractionFamily.inspect,
-      InteractionFamily.connect,
+      InteractionFamily.decide,
+      InteractionFamily.testRun,
     });
+    expect(definition.hasTechnicalDecision, isTrue);
+    expect(definition.hasVerification, isTrue);
+  });
+
+  test('evidence deep-copies structured action values', () {
+    final source = <String, dynamic>{
+      'nested': <String, dynamic>{'port': '1'},
+      'tools': <String>['crimper'],
+      'states': <String>{'queued'},
+    };
+    final evidence = MissionEvidenceAction(
+      clientActionId: 'action-1',
+      missionId: 'coc2_m3',
+      phaseId: 'inspect',
+      actionType: 'inspect_object',
+      value: source,
+      occurredAt: DateTime.utc(2026),
+    );
+    (source['nested'] as Map<String, dynamic>)['port'] = '2';
+    (source['tools'] as List<String>).add('lan_tester');
+    (source['states'] as Set<String>).add('sent');
+
+    expect(evidence.value['nested'], {'port': '1'});
+    expect(evidence.value['tools'], ['crimper']);
+    expect(evidence.value['states'], ['queued']);
+  });
+
+  test('copyWith can explicitly clear optional phase and tool selections', () {
+    final state = MissionRuntimeState.initial('coc2_m3').copyWith(
+      currentPhaseId: 'inspect',
+      selectedToolId: 'crimper',
+    );
+
+    final cleared = state.copyWith(
+      clearCurrentPhaseId: true,
+      clearSelectedToolId: true,
+    );
+
+    expect(cleared.currentPhaseId, isNull);
+    expect(cleared.selectedToolId, isNull);
   });
 }
 
 MissionSimulationDefinition _definition({
   List<MissionPhaseDefinition>? phases,
+  List<SceneObjectDefinition>? objects,
   Set<InteractionFamily>? interactionFamilies,
-  bool hasTechnicalDecision = true,
-  bool hasVerification = true,
 }) {
+  final definitionPhases = phases ??
+      [
+        _phase(id: 'inspect'),
+        _phase(id: 'decide', primaryInteraction: InteractionFamily.decide),
+        _phase(id: 'verify', primaryInteraction: InteractionFamily.testRun),
+      ];
   return MissionSimulationDefinition(
     id: 'coc2_m3',
     cocId: 'coc2',
@@ -90,7 +197,8 @@ MissionSimulationDefinition _definition({
     practiceGuidance: 'Inspect the switch before connecting the cable.',
     scene: SimulationSceneDefinition(
       id: 'network-lab',
-      objects: [
+      objects: objects ??
+          [
         SceneObjectDefinition(
           id: 'switch',
           label: 'Network switch',
@@ -101,26 +209,22 @@ MissionSimulationDefinition _definition({
           hotspotType: 'device',
           connectionNodeIds: ['switch1'],
         ),
-      ],
+          ],
     ),
-    phases: phases ??
-        [
-          _phase(id: 'inspect'),
-          _phase(id: 'connect'),
-          _phase(id: 'verify'),
-        ],
+    phases: definitionPhases,
     interactionFamilies: interactionFamilies ??
-        const {InteractionFamily.inspect, InteractionFamily.connect},
-    hasTechnicalDecision: hasTechnicalDecision,
-    hasVerification: hasVerification,
+        definitionPhases.map((phase) => phase.primaryInteraction).toSet(),
   );
 }
 
-MissionPhaseDefinition _phase({required String id}) {
+MissionPhaseDefinition _phase({
+  required String id,
+  InteractionFamily primaryInteraction = InteractionFamily.inspect,
+}) {
   return MissionPhaseDefinition(
     id: id,
     title: id,
     instruction: 'Complete $id.',
-    primaryInteraction: InteractionFamily.inspect,
+    primaryInteraction: primaryInteraction,
   );
 }
