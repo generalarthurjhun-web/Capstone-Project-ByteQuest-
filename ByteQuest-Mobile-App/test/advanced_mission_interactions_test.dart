@@ -132,6 +132,29 @@ void main() {
     expect(actionTypes, ['test_started', 'test_completed']);
   });
 
+  testWidgets('platform disabled animations remove test run motion',
+      (tester) async {
+    final actionTypes = <String>[];
+    await tester.pumpWidget(
+      _app(
+        TestRunInteraction(
+          phase: _phase(InteractionFamily.testRun),
+          state: MissionRuntimeState(missionId: 'mission'),
+          onAction: (type, _, __) async => actionTypes.add(type),
+        ),
+        disableAnimations: true,
+      ),
+    );
+
+    expect(
+      tester.widget<AnimatedSwitcher>(find.byType(AnimatedSwitcher)).duration,
+      Duration.zero,
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Run test'));
+    await tester.pump();
+    expect(actionTypes, ['test_started', 'test_completed']);
+  });
+
   testWidgets('observation and interpretation preserve learner payloads',
       (tester) async {
     final actions = <Map<String, dynamic>>[];
@@ -193,6 +216,113 @@ void main() {
     });
     expect(find.textContaining('Correct'), findsNothing);
     expect(find.textContaining('Wrong'), findsNothing);
+  });
+
+  testWidgets('observation draft synchronizes when authoritative inputs change',
+      (tester) async {
+    final actions = <Map<String, dynamic>>[];
+    var phase = _phase(InteractionFamily.observe, id: 'observe-one');
+    var state = MissionRuntimeState(
+      missionId: 'mission',
+      observations: const {'observe-one': 'Persisted first observation'},
+    );
+    Widget app() => _app(
+          ObservationInteraction(
+            phase: phase,
+            state: state,
+            onAction: (type, target, value) async => actions.add({
+              'type': type,
+              'target': target,
+              'value': value,
+            }),
+          ),
+        );
+
+    await tester.pumpWidget(app());
+    await tester.enterText(
+      find.byKey(const ValueKey('observation-input-observe-one')),
+      'Local unsaved draft',
+    );
+    await tester.pumpWidget(app());
+    expect(find.text('Local unsaved draft'), findsOneWidget);
+
+    state = MissionRuntimeState(
+      missionId: 'mission',
+      observations: const {'observe-one': 'New authoritative observation'},
+    );
+    await tester.pumpWidget(app());
+    expect(find.text('New authoritative observation'), findsOneWidget);
+
+    phase = _phase(InteractionFamily.observe, id: 'observe-two');
+    state = MissionRuntimeState(
+      missionId: 'mission',
+      observations: const {'observe-two': 'Persisted second observation'},
+    );
+    await tester.pumpWidget(app());
+    expect(find.text('Persisted second observation'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Record observation'));
+    await tester.pump();
+    expect(actions.single['target'], 'observe-two');
+    expect(actions.single['value'], {
+      'observation': 'Persisted second observation',
+      'input_method': 'keyboard',
+    });
+  });
+
+  testWidgets(
+      'interpretation draft synchronizes when authoritative inputs change',
+      (tester) async {
+    final actions = <Map<String, dynamic>>[];
+    var phase = _phase(InteractionFamily.interpret, id: 'interpret-one');
+    var state = MissionRuntimeState(
+      missionId: 'mission',
+      interpretations: const {'interpret-one': 'Persisted first interpretation'},
+    );
+    Widget app() => _app(
+          ResultInterpretationInteraction(
+            phase: phase,
+            state: state,
+            onAction: (type, target, value) async => actions.add({
+              'type': type,
+              'target': target,
+              'value': value,
+            }),
+          ),
+        );
+
+    await tester.pumpWidget(app());
+    await tester.enterText(
+      find.byKey(const ValueKey('interpretation-input-interpret-one')),
+      'Local unsaved interpretation',
+    );
+    await tester.pumpWidget(app());
+    expect(find.text('Local unsaved interpretation'), findsOneWidget);
+
+    state = MissionRuntimeState(
+      missionId: 'mission',
+      interpretations: const {
+        'interpret-one': 'New authoritative interpretation',
+      },
+    );
+    await tester.pumpWidget(app());
+    expect(find.text('New authoritative interpretation'), findsOneWidget);
+
+    phase = _phase(InteractionFamily.interpret, id: 'interpret-two');
+    state = MissionRuntimeState(
+      missionId: 'mission',
+      interpretations: const {
+        'interpret-two': 'Persisted second interpretation',
+      },
+    );
+    await tester.pumpWidget(app());
+    expect(find.text('Persisted second interpretation'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Record interpretation'));
+    await tester.pump();
+    expect(actions.single['target'], 'interpret-two');
+    expect(actions.single['value'], {
+      'interpretation': 'Persisted second interpretation',
+      'input_method': 'keyboard',
+    });
   });
 
   testWidgets('scenario decision emits choice and runtime transition',
@@ -379,10 +509,16 @@ void main() {
   });
 }
 
-Widget _app(Widget child, {double textScale = 1}) => MaterialApp(
+Widget _app(
+  Widget child, {
+  double textScale = 1,
+  bool disableAnimations = false,
+}) =>
+    MaterialApp(
       builder: (context, value) => MediaQuery(
         data: MediaQuery.of(context).copyWith(
           textScaler: TextScaler.linear(textScale),
+          disableAnimations: disableAnimations,
         ),
         child: value!,
       ),

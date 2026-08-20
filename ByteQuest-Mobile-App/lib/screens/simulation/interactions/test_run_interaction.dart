@@ -46,34 +46,38 @@ class _TestRunInteractionState extends State<TestRunInteraction> {
   }
 
   @override
-  Widget build(BuildContext context) => Semantics(
-        container: true,
-        label: 'Technical test run',
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(widget.phase.instruction, style: AppTheme.bodyMedium),
-            const SizedBox(height: 12),
-            AnimatedSwitcher(
-              duration: widget.state.reducedMotion
-                  ? Duration.zero
-                  : const Duration(milliseconds: 200),
-              child: _running
-                  ? Semantics(
-                      key: const ValueKey('test-run-progress'),
-                      liveRegion: true,
-                      label: 'Test in progress',
-                      child: const LinearProgressIndicator(),
-                    )
-                  : const SizedBox.shrink(),
-            ),
-            if (_running) const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: widget.enabled && !_running ? _run : null,
-              icon: const Icon(Icons.play_arrow_rounded),
-              label: const Text('Run test'),
-            ),
-          ],
-        ),
-      );
+  Widget build(BuildContext context) {
+    final reduceMotion = widget.state.reducedMotion ||
+        MediaQuery.disableAnimationsOf(context);
+    return Semantics(
+      container: true,
+      label: 'Technical test run',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(widget.phase.instruction, style: AppTheme.bodyMedium),
+          const SizedBox(height: 12),
+          AnimatedSwitcher(
+            duration: reduceMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 200),
+            child: _running
+                ? Semantics(
+                    key: const ValueKey('test-run-progress'),
+                    liveRegion: true,
+                    label: 'Test in progress',
+                    child: const LinearProgressIndicator(),
+                  )
+                : const SizedBox.shrink(),
+          ),
+          if (_running) const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: widget.enabled && !_running ? _run : null,
+            icon: const Icon(Icons.play_arrow_rounded),
+            label: const Text('Run test'),
+          ),
+        ],
+      ),
+    );
+  }
 }

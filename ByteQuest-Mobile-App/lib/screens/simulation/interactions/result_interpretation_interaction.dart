@@ -30,9 +30,30 @@ class _ResultInterpretationInteractionState
   void initState() {
     super.initState();
     _controller = TextEditingController(
-      text: widget.state.interpretations[widget.phase.id] as String? ?? '',
+      text: _persistedValue(widget),
     )..addListener(_refresh);
   }
+
+  @override
+  void didUpdateWidget(covariant ResultInterpretationInteraction oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final previousValue = _persistedValue(oldWidget);
+    final nextValue = _persistedValue(widget);
+    if (oldWidget.phase.id == widget.phase.id &&
+        previousValue == nextValue) {
+      return;
+    }
+    _controller
+      ..removeListener(_refresh)
+      ..value = TextEditingValue(
+        text: nextValue,
+        selection: TextSelection.collapsed(offset: nextValue.length),
+      )
+      ..addListener(_refresh);
+  }
+
+  String _persistedValue(ResultInterpretationInteraction source) =>
+      source.state.interpretations[source.phase.id] as String? ?? '';
 
   void _refresh() => setState(() {});
 
