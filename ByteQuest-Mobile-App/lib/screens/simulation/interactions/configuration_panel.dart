@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -39,8 +40,21 @@ class ConfigurationPanel extends StatefulWidget {
 }
 
 class _ConfigurationPanelState extends State<ConfigurationPanel> {
-  late final Map<String, dynamic> _values =
+  late Map<String, dynamic> _values =
       Map<String, dynamic>.from(widget.state?.configurationValues ?? const {});
+  var _runtimeRevision = 0;
+
+  @override
+  void didUpdateWidget(covariant ConfigurationPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final oldValues = oldWidget.state?.configurationValues ?? const {};
+    final newValues = widget.state?.configurationValues ?? const {};
+    if (oldWidget.phase?.id != widget.phase?.id ||
+        !mapEquals(oldValues, newValues)) {
+      _values = Map<String, dynamic>.from(newValues);
+      _runtimeRevision++;
+    }
+  }
 
   @override
   Widget build(BuildContext context) => widget.phase == null
@@ -49,9 +63,13 @@ class _ConfigurationPanelState extends State<ConfigurationPanel> {
 
   Widget _buildRuntime(BuildContext context) {
     final fields = interactionItems(widget.phase!.presentation['fields']);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
+    return KeyedSubtree(
+      key: ValueKey(
+        'configuration-runtime-${widget.phase!.id}-$_runtimeRevision',
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
         const MissionSectionLabel(
           icon: Icons.tune_rounded,
           text: 'Configuration values',
@@ -76,7 +94,8 @@ class _ConfigurationPanelState extends State<ConfigurationPanel> {
           icon: const Icon(Icons.settings_ethernet_outlined),
           label: const Text('Apply configuration'),
         ),
-      ],
+        ],
+      ),
     );
   }
 

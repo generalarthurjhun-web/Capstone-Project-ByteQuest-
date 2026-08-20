@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -26,7 +27,21 @@ class MultiSelectInteraction extends StatefulWidget {
 }
 
 class _MultiSelectInteractionState extends State<MultiSelectInteraction> {
-  late final Set<String> _selected = widget.state.hotspotStates.entries
+  late Set<String> _selected = _runtimeSelection(widget.state);
+
+  @override
+  void didUpdateWidget(covariant MultiSelectInteraction oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final oldSelection = _runtimeSelection(oldWidget.state);
+    final newSelection = _runtimeSelection(widget.state);
+    if (oldWidget.phase.id != widget.phase.id ||
+        !setEquals(oldSelection, newSelection)) {
+      _selected = newSelection;
+    }
+  }
+
+  static Set<String> _runtimeSelection(MissionRuntimeState state) => state
+      .hotspotStates.entries
       .where((entry) => entry.value == HotspotVisualState.selected)
       .map((entry) => entry.key)
       .toSet();

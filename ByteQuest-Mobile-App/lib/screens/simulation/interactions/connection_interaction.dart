@@ -157,6 +157,10 @@ class ComponentPlacement extends StatelessWidget {
                 key: ValueKey('assessment-match-source-${field.id}'),
                 button: true,
                 selected: selectedMatchField == field.id,
+                excludeSemantics: true,
+                label: fieldValues[field.id] == null
+                    ? '${field.label}, not connected'
+                    : '${field.label}, connected to ${destinations[fieldValues[field.id]]}',
                 child: Draggable<String>(
                   data: field.id,
                   maxSimultaneousDrags: writing ? 0 : 1,
@@ -201,29 +205,54 @@ class ComponentPlacement extends StatelessWidget {
               onFieldSelected(details.data, destination.key);
               onSourceSelected(null);
             },
-            builder: (context, candidates, _) => Semantics(
-              key: ValueKey(
-                'assessment-match-destination-${destination.key}',
-              ),
-              button: true,
-              child: InkWell(
-                onTap: writing || selectedMatchField == null
-                    ? null
-                    : () => onDestinationSelected(destination.key),
-                child: Container(
-                  constraints: const BoxConstraints(minHeight: 64),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: candidates.isNotEmpty
-                        ? AppTheme.softBlueAccent
-                        : AppTheme.backgroundOffWhite,
-                    borderRadius: AppTheme.radiusSm,
-                    border: Border.all(color: AppTheme.borderLight),
-                  ),
-                  child: Text(destination.value, style: AppTheme.labelLarge),
+            builder: (context, candidates, _) {
+              final assigned = fieldValues.entries
+                  .where((entry) => entry.value == destination.key)
+                  .map((entry) => sourceLabel(entry.key))
+                  .toList(growable: false);
+              return Semantics(
+                key: ValueKey(
+                  'assessment-match-destination-${destination.key}',
                 ),
-              ),
-            ),
+                button: true,
+                excludeSemantics: true,
+                label: assigned.isEmpty
+                    ? '${destination.value}, available destination'
+                    : '${destination.value}, connected from ${assigned.join(', ')}',
+                child: InkWell(
+                  onTap: writing || selectedMatchField == null
+                      ? null
+                      : () => onDestinationSelected(destination.key),
+                  child: Container(
+                    constraints: const BoxConstraints(minHeight: 64),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: candidates.isNotEmpty
+                          ? AppTheme.softBlueAccent
+                          : AppTheme.backgroundOffWhite,
+                      borderRadius: AppTheme.radiusSm,
+                      border: Border.all(color: AppTheme.borderLight),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(destination.value, style: AppTheme.labelLarge),
+                        Text(
+                          assigned.isEmpty
+                              ? (selectedMatchField == null
+                                  ? 'Drag or choose a source first'
+                                  : 'Select to connect the chosen source')
+                              : assigned.join(', '),
+                          style: AppTheme.bodySmall.copyWith(
+                            color: AppTheme.textMedium,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 8),
         ],

@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -27,11 +29,36 @@ class SequencingInteraction extends StatefulWidget {
 }
 
 class _SequencingInteractionState extends State<SequencingInteraction> {
-  late final List<InteractionItem> _definitions =
-      interactionItems(widget.phase.presentation['items']);
-  late final List<String> _order = widget.state.sequenceOrder.isEmpty
-      ? _definitions.map((item) => item.id).toList()
-      : List<String>.from(widget.state.sequenceOrder);
+  late List<InteractionItem> _definitions;
+  late List<String> _order;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRuntimeInputs();
+  }
+
+  @override
+  void didUpdateWidget(covariant SequencingInteraction oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final oldItems = jsonEncode(oldWidget.phase.presentation['items']);
+    final newItems = jsonEncode(widget.phase.presentation['items']);
+    if (oldWidget.phase.id != widget.phase.id ||
+        oldItems != newItems ||
+        !listEquals(
+          oldWidget.state.sequenceOrder,
+          widget.state.sequenceOrder,
+        )) {
+      _loadRuntimeInputs();
+    }
+  }
+
+  void _loadRuntimeInputs() {
+    _definitions = interactionItems(widget.phase.presentation['items']);
+    _order = widget.state.sequenceOrder.isEmpty
+        ? _definitions.map((item) => item.id).toList()
+        : List<String>.from(widget.state.sequenceOrder);
+  }
 
   String _label(String id) =>
       _definitions.firstWhere((item) => item.id == id).label;

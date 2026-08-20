@@ -2,6 +2,7 @@ import 'dart:ui' show Tristate;
 
 import 'package:bytequest/screens/simulation/interactions/mission_interactions.dart';
 import 'package:bytequest/screens/simulation/runtime/mission_runtime_models.dart';
+import 'package:bytequest/screens/simulation/templates/authoritative_mission_contract.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -65,6 +66,8 @@ void main() {
               missionId: 'mission',
               selectedToolId: 'tester',
             ),
+            targetId: 'cable',
+            targetCategory: 'test_point',
             onAction: (_, __, ___) async {},
           ),
         ),
@@ -79,6 +82,253 @@ void main() {
     expect(tester.getSize(find.byKey(const ValueKey('tool-tray-tool-tester'))).height,
         greaterThanOrEqualTo(48));
     handle.dispose();
+  });
+
+  testWidgets('tool application requires a selected hotspot target',
+      (tester) async {
+    final actions = <Map<String, dynamic>>[];
+    final phase = _phase(
+      InteractionFamily.tool,
+      presentation: {
+        'targets': [
+          {'id': 'uplink', 'label': 'Uplink port', 'category': 'port'},
+        ],
+        'tools': [
+          {
+            'id': 'tester',
+            'label': 'Cable tester',
+            'category': 'diagnostic',
+            'compatible_categories': ['port'],
+          },
+        ],
+      },
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ToolSelectionInteraction(
+            phase: phase,
+            state: MissionRuntimeState.initial('mission'),
+            onAction: (type, target, value) async => actions.add({
+              'type': type,
+              'target': target,
+              'value': value,
+            }),
+          ),
+        ),
+      ),
+    );
+
+    final tool = find.byKey(const ValueKey('tool-tray-tool-tester'));
+    expect(
+      tester.widget<OutlinedButton>(
+        find.descendant(of: tool, matching: find.byType(OutlinedButton)),
+      ).onPressed,
+      isNull,
+    );
+    expect(actions, isEmpty);
+
+    await tester.tap(find.byKey(const ValueKey('tool-target-uplink')));
+    await tester.pump();
+    await tester.tap(tool);
+    await tester.pump();
+
+    expect(actions, hasLength(1));
+    expect(actions.single['type'], 'tool_attempted');
+    expect(actions.single['target'], 'uplink');
+    expect(actions.single['value'], containsPair('tool_id', 'tester'));
+    expect(actions.single['value'], containsPair('input_method', 'tap'));
+  });
+
+  testWidgets('multi-select preserves drafts but reconciles a new phase',
+      (tester) async {
+    final actions = <Map<String, dynamic>>[];
+    final firstPhase = _phase(
+      InteractionFamily.select,
+      id: 'first',
+      presentation: {
+        'options': [
+          {'id': 'a', 'label': 'Alpha'},
+          {'id': 'b', 'label': 'Beta'},
+        ],
+      },
+    );
+    final firstState = MissionRuntimeState(
+      missionId: 'mission',
+      hotspotStates: const {'a': HotspotVisualState.selected},
+    );
+
+    Future<void> pump(MissionPhaseDefinition phase, MissionRuntimeState state) =>
+        tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MultiSelectInteraction(
+                phase: phase,
+                state: state,
+                onAction: (type, target, value) async => actions.add({
+                  'type': type,
+                  'target': target,
+                  'value': value,
+                }),
+              ),
+            ),
+          ),
+        );
+
+    await pump(firstPhase, firstState);
+    await tester.tap(find.byKey(const ValueKey('multi-select-b')));
+    await tester.pump();
+    await pump(firstPhase, firstState);
+    expect(
+      tester
+          .getSemantics(find.byKey(const ValueKey('multi-select-b')))
+          .flagsCollection
+          .isSelected,
+      Tristate.isTrue,
+    );
+
+    final secondPhase = _phase(
+      InteractionFamily.select,
+      id: 'second',
+      presentation: {
+        'options': [
+          {'id': 'c', 'label': 'Gamma'},
+        ],
+      },
+    );
+    await pump(
+      secondPhase,
+      MissionRuntimeState(
+        missionId: 'mission',
+        hotspotStates: const {'c': HotspotVisualState.selected},
+      ),
+    );
+    expect(find.byKey(const ValueKey('multi-select-b')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('multi-select-confirm')));
+    await tester.pump();
+    expect(actions.single['target'], 'second');
+    expect(actions.single['value'], containsPair('selected_ids', ['c']));
+  });
+
+  testWidgets('configuration preserves drafts and reconciles resumed state',
+      (tester) async {
+    final actions = <Map<String, dynamic>>[];
+    MissionPhaseDefinition phase(String id) => _phase(
+          InteractionFamily.configure,
+          id: id,
+          presentation: {
+            'fields': [
+              {'id': 'address', 'label': 'Address', 'type': 'text'},
+            ],
+          },
+        );
+    Future<void> pump(
+      MissionPhaseDefinition currentPhase,
+      MissionRuntimeState state,
+    ) =>
+        tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ConfigurationPanel(
+                phase: currentPhase,
+                state: state,
+                onAction: (type, target, value) async => actions.add({
+                  'type': type,
+                  'target': target,
+                  'value': value,
+                }),
+              ),
+            ),
+          ),
+        );
+
+    final firstPhase = phase('first');
+    final firstState = MissionRuntimeState(
+      missionId: 'mission',
+      configurationValues: const {'address': '192.0.2.1'},
+    );
+    await pump(firstPhase, firstState);
+    await tester.enterText(
+      find.byKey(const ValueKey('configuration-field-address')),
+      'draft-address',
+    );
+    await pump(firstPhase, firstState);
+    expect(find.text('draft-address'), findsOneWidget);
+
+    await pump(
+      phase('second'),
+      MissionRuntimeState(
+        missionId: 'mission',
+        configurationValues: const {'address': '198.51.100.8'},
+      ),
+    );
+    expect(find.text('198.51.100.8'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Apply configuration'));
+    await tester.pump();
+    expect(actions.single['target'], 'second');
+    expect(
+      actions.single['value'],
+      containsPair('values', {'address': '198.51.100.8'}),
+    );
+  });
+
+  testWidgets('sequencing preserves drafts but loads consecutive phase order',
+      (tester) async {
+    final actions = <Map<String, dynamic>>[];
+    MissionPhaseDefinition phase(
+      String id,
+      String firstId,
+      String secondId,
+    ) =>
+        _phase(
+          InteractionFamily.sequence,
+          id: id,
+          presentation: {
+            'items': [
+              {'id': firstId, 'label': firstId.toUpperCase()},
+              {'id': secondId, 'label': secondId.toUpperCase()},
+            ],
+          },
+        );
+    Future<void> pump(
+      MissionPhaseDefinition currentPhase,
+      MissionRuntimeState state,
+    ) =>
+        tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SequencingInteraction(
+                phase: currentPhase,
+                state: state,
+                onAction: (type, target, value) async => actions.add({
+                  'type': type,
+                  'target': target,
+                  'value': value,
+                }),
+              ),
+            ),
+          ),
+        );
+
+    final firstPhase = phase('first', 'a', 'b');
+    final firstState = MissionRuntimeState(
+      missionId: 'mission',
+      sequenceOrder: const ['a', 'b'],
+    );
+    await pump(firstPhase, firstState);
+    await tester.tap(find.byTooltip('Move B up'));
+    await tester.pump();
+    await pump(firstPhase, firstState);
+    expect(_sequenceLabels(tester), ['B', 'A']);
+
+    await pump(
+      phase('second', 'c', 'd'),
+      MissionRuntimeState(
+        missionId: 'mission',
+        sequenceOrder: const ['d', 'c'],
+      ),
+    );
+    expect(_sequenceLabels(tester), ['D', 'C']);
   });
 
   testWidgets('connection supports source then destination selection',
@@ -363,7 +613,75 @@ void main() {
     expect(find.textContaining('Correct'), findsNothing);
     expect(find.textContaining('Wrong'), findsNothing);
   });
+
+  testWidgets('legacy placement restores connection semantic detail',
+      (tester) async {
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ComponentPlacement(
+            stage: _legacyMatchingStage,
+            selectedMatchField: null,
+            fieldValues: const {'source': 'port'},
+            writing: false,
+            onFieldSelected: (_, __) {},
+            onSourceSelected: (_) {},
+            onDestinationSelected: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester
+          .getSemantics(
+            find.byKey(const ValueKey('assessment-match-source-source')),
+          )
+          .label,
+      'Source, connected to Port',
+    );
+    expect(
+      tester
+          .getSemantics(
+            find.byKey(const ValueKey('assessment-match-destination-port')),
+          )
+          .label,
+      'Port, connected from Source',
+    );
+    expect(find.text('Source'), findsWidgets);
+    handle.dispose();
+  });
 }
+
+List<String> _sequenceLabels(WidgetTester tester) => tester
+    .widgetList<Text>(
+      find.descendant(
+        of: find.byType(ReorderableListView),
+        matching: find.byType(Text),
+      ),
+    )
+    .map((widget) => widget.data)
+    .whereType<String>()
+    .toList(growable: false);
+
+const _legacyMatchingStage = AuthoritativeMissionStage(
+  id: 'legacy',
+  criterionCode: 'criterion',
+  type: AuthoritativeStageType.matching,
+  title: 'Legacy matching',
+  instruction: 'Connect the source.',
+  actionType: 'connected',
+  requiredCount: 1,
+  options: [],
+  fields: [
+    AuthoritativeStageField(
+      id: 'source',
+      label: 'Source',
+      options: [AuthoritativeStageOption(id: 'port', label: 'Port')],
+    ),
+  ],
+);
 
 MissionPhaseDefinition get _toolPhase => _phase(
       InteractionFamily.tool,
@@ -385,11 +703,12 @@ MissionPhaseDefinition get _toolPhase => _phase(
 
 MissionPhaseDefinition _phase(
   InteractionFamily family, {
+  String id = 'phase',
   Map<String, dynamic> presentation = const {},
   List<String> objectIds = const [],
 }) =>
     MissionPhaseDefinition(
-      id: 'phase',
+      id: id,
       title: 'Technical activity',
       instruction: 'Record the technical evidence.',
       primaryInteraction: family,

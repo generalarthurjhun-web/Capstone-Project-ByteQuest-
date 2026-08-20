@@ -64,7 +64,7 @@ class _ToolSelectionInteractionState extends State<ToolSelectionInteraction> {
           targetCategory: _targetCategory,
           onAction: widget.onAction,
           onFeedbackRequested: widget.onFeedbackRequested,
-          enabled: widget.enabled,
+          enabled: widget.enabled && _targetId != null,
         ),
       ],
     );

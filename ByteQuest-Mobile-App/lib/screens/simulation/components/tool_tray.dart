@@ -36,6 +36,7 @@ class ToolTray extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tools = _items(phase.presentation['tools']);
+    final canApply = enabled && targetId != null;
     return Semantics(
       container: true,
       label: 'Available tools',
@@ -49,7 +50,7 @@ class ToolTray extends StatelessWidget {
                 key: ValueKey('tool-tray-tool-${tool.id}'),
                 tool: tool,
                 selected: state.selectedToolId == tool.id,
-                enabled: enabled,
+                enabled: canApply,
                 onPressed: () => _attempt(tool),
               ),
               const SizedBox(width: 8),
@@ -61,6 +62,8 @@ class ToolTray extends StatelessWidget {
   }
 
   void _attempt(_ToolDefinition tool) {
+    final target = targetId;
+    if (target == null) return;
     final compatible = tool.compatibleCategories.isEmpty ||
         targetCategory == null ||
         tool.compatibleCategories.contains(targetCategory);
@@ -69,8 +72,8 @@ class ToolTray extends StatelessWidget {
     }
     unawaited(
       onAction(
-        targetId == null ? 'tool_selected' : 'tool_attempted',
-        targetId ?? tool.id,
+        'tool_attempted',
+        target,
         {
           'tool_id': tool.id,
           'tool_category': tool.category,
