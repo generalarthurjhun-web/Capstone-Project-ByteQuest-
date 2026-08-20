@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -278,9 +279,22 @@ class _SceneViewport extends StatelessWidget {
               constraints.maxWidth,
               constraints.maxHeight,
             );
+            const logicalWorkspace = SimulationScene.logicalCanvasSize;
+            final workspaceScale = math.max(
+              .0001,
+              math.min(
+                viewport.width / logicalWorkspace.width,
+                viewport.height / logicalWorkspace.height,
+              ),
+            );
             final mappedObjects = {
               for (final object in resolved.definition.objects)
-                object.id: _mappedRect(object, viewport),
+                object.id: _mappedRect(
+                  object,
+                  logicalWorkspace,
+                  minimumTapExtent:
+                      HotspotWidget.minimumTapExtent / workspaceScale,
+                ),
             };
             final connections = _connectionsFor(
               resolved.definition.objects,
@@ -298,67 +312,75 @@ class _SceneViewport extends StatelessWidget {
               scaleEnabled: true,
               child: SizedBox.fromSize(
                 size: viewport,
-                child: Stack(
-                  clipBehavior: Clip.hardEdge,
-                  children: [
-                    Positioned.fill(
-                      child: backgroundRenderer ??
-                          Semantics(
-                            label: 'Replaceable technical schematic',
-                            image: true,
-                            child: CustomPaint(
-                              painter: _SchematicScenePainter(
-                                kind: resolved.legacyKind,
-                                objects: resolved.definition.objects,
+                child: FittedBox(
+                  fit: BoxFit.contain,
+                  child: SizedBox(
+                    key: const Key('simulation-logical-workspace'),
+                    width: logicalWorkspace.width,
+                    height: logicalWorkspace.height,
+                    child: Stack(
+                      clipBehavior: Clip.hardEdge,
+                      children: [
+                        Positioned.fill(
+                          child: backgroundRenderer ??
+                              Semantics(
+                                label: 'Replaceable technical schematic',
+                                image: true,
+                                child: CustomPaint(
+                                  painter: _SchematicScenePainter(
+                                    kind: resolved.legacyKind,
+                                    objects: resolved.definition.objects,
+                                  ),
+                                ),
+                              ),
+                        ),
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: TweenAnimationBuilder<double>(
+                              key: ValueKey(
+                                'scene-connection-animation-${connectedNodePairs.toList()..sort()}-$reducedMotion',
+                              ),
+                              tween: Tween(
+                                begin: reducedMotion ? 1 : 0,
+                                end: 1,
+                              ),
+                              duration: reducedMotion
+                                  ? Duration.zero
+                                  : SceneConnectionPainter.drawDuration,
+                              builder: (context, progress, _) => CustomPaint(
+                                key: const Key('scene-connections'),
+                                painter: SceneConnectionPainter(
+                                  connections: connections,
+                                  progress: progress,
+                                ),
                               ),
                             ),
                           ),
-                    ),
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: TweenAnimationBuilder<double>(
-                          key: ValueKey(
-                            'scene-connection-animation-${connectedNodePairs.toList()..sort()}-$reducedMotion',
-                          ),
-                          tween: Tween(
-                            begin: reducedMotion ? 1 : 0,
-                            end: 1,
-                          ),
-                          duration: reducedMotion
-                              ? Duration.zero
-                              : SceneConnectionPainter.drawDuration,
-                          builder: (context, progress, _) => CustomPaint(
-                            key: const Key('scene-connections'),
-                            painter: SceneConnectionPainter(
-                              connections: connections,
-                              progress: progress,
+                        ),
+                        if (statusOverlays.isNotEmpty)
+                          Positioned.fill(
+                            child: IgnorePointer(
+                              child: Stack(children: statusOverlays),
                             ),
                           ),
-                        ),
-                      ),
+                        for (final object in resolved.definition.objects)
+                          Positioned.fromRect(
+                            key: ValueKey('simulation-object-${object.id}'),
+                            rect: mappedObjects[object.id]!,
+                            child: HotspotWidget(
+                              object: object,
+                              state: hotspotStates[object.id] ??
+                                  (inspectedObjectIds.contains(object.id)
+                                      ? HotspotVisualState.completed
+                                      : object.initialState),
+                              enabled: enabled,
+                              icon: _iconForObject(resolved, object),
+                              onPressed: () => onObjectSelected(object.id),
+                            ),
+                          ),
+                      ],
                     ),
-                    if (statusOverlays.isNotEmpty)
-                      Positioned.fill(
-                        child: IgnorePointer(
-                          child: Stack(children: statusOverlays),
-                        ),
-                      ),
-                    for (final object in resolved.definition.objects)
-                      Positioned.fromRect(
-                        key: ValueKey('simulation-object-${object.id}'),
-                        rect: mappedObjects[object.id]!,
-                        child: HotspotWidget(
-                          object: object,
-                          state: hotspotStates[object.id] ??
-                              (inspectedObjectIds.contains(object.id)
-                                  ? HotspotVisualState.completed
-                                  : object.initialState),
-                          enabled: enabled,
-                          icon: _iconForObject(resolved, object),
-                          onPressed: () => onObjectSelected(object.id),
-                        ),
-                      ),
-                  ],
+                  ),
                 ),
               ),
             );
@@ -454,7 +476,11 @@ SceneObjectDefinition _legacyObject(SimulationSceneObjectSpec object) =>
       hotspotType: 'inspect',
     );
 
-Rect _mappedRect(SceneObjectDefinition object, Size viewport) {
+Rect _mappedRect(
+  SceneObjectDefinition object,
+  Size viewport, {
+  double minimumTapExtent = HotspotWidget.minimumTapExtent,
+}) {
   final logicalRect = Rect.fromLTWH(
     object.x * viewport.width,
     object.y * viewport.height,
@@ -462,13 +488,13 @@ Rect _mappedRect(SceneObjectDefinition object, Size viewport) {
     object.height * viewport.height,
   );
   final width = logicalRect.width.clamp(
-    HotspotWidget.minimumTapExtent,
+    math.min(minimumTapExtent, viewport.width),
     viewport.width,
-  );
+  ).toDouble();
   final height = logicalRect.height.clamp(
-    HotspotWidget.minimumTapExtent,
+    math.min(minimumTapExtent, viewport.height),
     viewport.height,
-  );
+  ).toDouble();
   final left = (logicalRect.center.dx - width / 2)
       .clamp(0.0, (viewport.width - width).clamp(0.0, viewport.width));
   final top = (logicalRect.center.dy - height / 2)
@@ -548,6 +574,10 @@ class _SchematicScenePainter extends CustomPainter {
 
     final surface = Paint()..color = const Color(0xFFE1E9F7);
     final equipment = Paint()..color = const Color(0xFF27466F);
+    final accent = Paint()
+      ..color = AppTheme.primaryBlue.withValues(alpha: .42)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
     if (kind == SimulationSceneKind.openChassis ||
         kind == SimulationSceneKind.maintenanceBay) {
       canvas.drawRRect(
@@ -562,6 +592,36 @@ class _SchematicScenePainter extends CustomPainter {
         ),
         surface,
       );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(
+            size.width * .28,
+            size.height * .28,
+            size.width * .38,
+            size.height * .42,
+          ),
+          const Radius.circular(8),
+        ),
+        equipment,
+      );
+    } else if (kind == SimulationSceneKind.networkPlan ||
+        kind == SimulationSceneKind.networkBench ||
+        kind == SimulationSceneKind.cableTester) {
+      final points = [
+        Offset(size.width * .18, size.height * .62),
+        Offset(size.width * .50, size.height * .42),
+        Offset(size.width * .82, size.height * .24),
+      ];
+      canvas.drawPath(
+        Path()
+          ..moveTo(points[0].dx, points[0].dy)
+          ..lineTo(points[1].dx, points[1].dy)
+          ..lineTo(points[2].dx, points[2].dy),
+        accent,
+      );
+      for (final point in points) {
+        canvas.drawCircle(point, 32, surface);
+      }
     } else if (kind == SimulationSceneKind.serverRack ||
         kind == SimulationSceneKind.accessConsole) {
       for (var index = 0; index < 3; index++) {
@@ -591,6 +651,17 @@ class _SchematicScenePainter extends CustomPainter {
         ),
         equipment,
       );
+      for (var index = 0; index < 5; index++) {
+        canvas.drawRect(
+          Rect.fromLTWH(
+            size.width * .23,
+            size.height * (.28 + index * .09),
+            size.width * .42,
+            3,
+          ),
+          Paint()..color = const Color(0xFF8DB0FF),
+        );
+      }
     } else if (kind == SimulationSceneKind.workbench) {
       canvas.drawRRect(
         RRect.fromRectAndRadius(

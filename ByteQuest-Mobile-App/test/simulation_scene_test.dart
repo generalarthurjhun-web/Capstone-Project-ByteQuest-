@@ -88,6 +88,27 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
   });
 
+  testWidgets('portrait and landscape preserve the 1200 by 720 workspace ratio',
+      (tester) async {
+    for (final size in [const Size(320, 568), const Size(800, 360)]) {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      await tester.pumpWidget(_sceneHarness());
+      await tester.pump();
+
+      final workspace = tester.getRect(
+        find.byKey(const Key('simulation-logical-workspace')),
+      );
+      expect(
+        workspace.width / workspace.height,
+        closeTo(1200 / 720, .001),
+        reason: 'viewport $size rendered $workspace',
+      );
+    }
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+  });
+
   testWidgets('connections draw over 200 ms or immediately for reduced motion',
       (tester) async {
     await tester.pumpWidget(_sceneHarness());

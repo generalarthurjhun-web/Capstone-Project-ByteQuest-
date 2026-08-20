@@ -153,3 +153,14 @@
 - Primary solution: Use the approved Flutter SDK-cache execution context for targeted verification.
 - Alternatives: Invoke the SDK's `dart.exe` directly for formatting and analysis; run the focused suites from the IDE; use controller verification in the approved context.
 - Status: Resolved; direct SDK analysis found no issues and controller verification passed all 15 focused tests.
+
+## 2026-08-20 23:46:57 +08:00 — Task 4 geometry fix numeric type boundary
+
+- Operation: Run the new logical-workspace aspect-ratio regression after the first geometry implementation.
+- Command: `flutter test test/simulation_scene_test.dart --plain-name "portrait and landscape preserve the 1200 by 720 workspace ratio"`
+- Affected location: `ByteQuest-Mobile-App/lib/screens/simulation/components/simulation_scene.dart:502`.
+- Observed result: Test compilation failed because `Rect.fromLTWH` received `num` width and height values where `double` was required.
+- Root cause: `num.clamp` widened the mapped hotspot dimensions after the inverse-scale minimum extent was introduced.
+- Primary solution: Convert the two clamped dimensions to `double` at the mapping boundary.
+- Alternatives: Declare typed intermediate doubles; use explicit conditional bounds instead of `clamp`; cast immediately before `Rect.fromLTWH`.
+- Status: Resolved; the focused geometry regression passed, all 16 Task 4 widget tests passed, and targeted analysis found no issues.
