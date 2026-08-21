@@ -175,3 +175,69 @@
 - Primary solution: Replace the action `Row` with an end-aligned `Wrap`, preserving all labels, semantics, and 48 dp controls while allowing the actions to flow onto another line.
 - Alternatives: Put the action row in a horizontal `SingleChildScrollView`; collapse secondary actions into an overflow menu at the compact breakpoint; or stack each action vertically under the scene title.
 - Status: Resolved; the authoritative widget regression passed all three tests after the focused layout change.
+
+## 2026-08-21 14:00:55 +08:00 — Task 8 combined launcher replacement patch rejection
+
+- Operation: Apply the first bounded Task 8 runtime integration patch.
+- Command: `apply_patch` with controller update, launcher delete/add, and runtime screen creation operations.
+- Affected location: `ByteQuest-Mobile-App/lib/screens/simulation/mission_launcher.dart`; code line not applicable because the patch was rejected before mutation.
+- Observed result: Patch verification rejected multiple operations targeting the launcher in one patch; no production changes from that patch were applied.
+- Root cause: The patch attempted to delete and add the same file in a single `apply_patch` request, which the patch verifier treats as conflicting operations.
+- Primary solution: Split the launcher replacement into sequential delete and add patches, then apply the controller and runtime screen changes independently.
+- Alternatives: Use one direct `Update File` patch for the launcher or use smaller sequential patches anchored to existing sections.
+- Status: Resolved; the split controller, launcher, and runtime screen patches applied successfully.
+
+## 2026-08-21 14:04:28 +08:00 — Task 8 Flutter temporary compiler directory loss
+
+- Operation: Run the first green Task 8 launcher and runtime screen test attempt.
+- Command: `flutter test test/mission_launcher_test.dart test/mission_simulation_screen_test.dart`
+- Affected location: Flutter-managed `%TEMP%/flutter_tools.*` test listener and compiler output directories; application code line not applicable.
+- Observed result: The test compiler exited before compiling the suites because its generated listener and `output.dill` paths no longer existed.
+- Root cause: Flutter's managed temporary test directory disappeared during compiler startup; the output contained no Dart source diagnostic from the Task 8 files.
+- Primary solution: Run targeted analysis to surface source diagnostics independently, then retry the focused test command with a fresh Flutter test workspace.
+- Alternatives: Run each test file separately; restart the Flutter tool process; or clear only the stale tool-owned temporary session after confirming no active process owns it.
+- Status: Resolved operationally; verification continued through targeted analysis and a fresh focused-test retry.
+
+## 2026-08-21 14:09:33 +08:00 — Task 8 shared Flutter SDK analysis lock stall
+
+- Operation: Analyze the bounded Task 8 launcher, runtime screen, controller seam, and tests after implementation.
+- Command: `flutter analyze lib/screens/simulation/mission_launcher.dart lib/screens/simulation/mission_simulation_screen.dart lib/screens/simulation/runtime/mission_runtime_controller.dart test/mission_launcher_test.dart test/mission_simulation_screen_test.dart --no-fatal-infos`
+- Affected location: Shared Flutter SDK/cache process state; application code line not applicable.
+- Observed result: The analyzer emitted no source diagnostic for two minutes and did not complete; the direct Dart analyzer later emitted its analysis banner but likewise failed to complete within a bounded wait while several other Dart processes were active.
+- Root cause: Concurrent shared Flutter/Dart processes held or contended for managed SDK/cache analysis resources in the team environment.
+- Primary solution: Stop only this task's stalled analyzer processes, allow the active shared SDK/cache work to settle, and retry from a fresh analyzer/test process; clean only stale tool-owned cache output if the retry still cannot start.
+- Alternatives: Use the SDK's direct `dart.exe`, analyze from the IDE, or run the focused gates from the controller's approved Flutter execution context.
+- Status: Resolved operationally; stalled processes owned by this task were stopped after bounded waits and verification continued with fresh focused commands.
+
+## 2026-08-21 14:12:44 +08:00 — Task 8 review navigation test missed scrollable control
+
+- Operation: Run the runtime shell widget suite after the launcher suite passed.
+- Command: `flutter test test/mission_simulation_screen_test.dart`
+- Affected location: `ByteQuest-Mobile-App/test/mission_simulation_screen_test.dart:118`; production source line not applicable.
+- Observed result: Nineteen checks passed, but the review navigation test tapped the Continue button while its center was below the 800×600 test viewport, so no phase navigation occurred and the expected review panel was absent.
+- Root cause: The test did not scroll the intentionally scrollable controls pane before tapping an off-screen control.
+- Primary solution: Call `WidgetTester.ensureVisible` before each Continue, Return, and Confirm tap so the test exercises the same scroll-then-activate behavior required from learners.
+- Alternatives: Drag the controls pane explicitly before each tap or use a taller viewport for this navigation-only test while retaining the separate compact responsive matrix.
+- Status: Resolved; the navigation harness now scrolls each target into view before activation.
+
+## 2026-08-21 14:24:18 +08:00 — Task 8 ignored report staging rejection
+
+- Operation: Stage the verified Task 8 implementation, failure ledger, and required SDD report for the integration commit.
+- Command: `git add -- ... .superpowers/sdd/2026-08-20-bytequest-simulation-platform/task-8-report.md`
+- Affected location: `.superpowers/sdd/2026-08-20-bytequest-simulation-platform/task-8-report.md`; application code line not applicable.
+- Observed result: Git staged the implementation files but returned exit code 1 because `.superpowers/sdd/.gitignore` intentionally ignores all per-task SDD report artifacts.
+- Root cause: The staging command included an environment-owned ignored report that is required for orchestration handoff but excluded from repository commits by the local SDD ignore policy.
+- Primary solution: Leave the completed report at its required workspace path and commit only the repository-owned implementation, tests, and failure ledger.
+- Alternatives: Force-add the report with `git add -f` if the repository owner explicitly changes the artifact policy, or copy its durable content into a tracked project document.
+- Status: Resolved; the report remains available at the required path and the tracked Task 8 files remain staged for the exact requested commit.
+
+## 2026-08-21 14:24:50 +08:00 — Task 8 cmd.exe commit-message quoting failure
+
+- Operation: Create the verified Task 8 integration commit with the exact required message.
+- Command: `git commit -m "feat: launch all missions through simulation runtime"` through the unified `cmd.exe` shell.
+- Affected location: Git command invocation; application code line not applicable.
+- Observed result: The shell boundary passed the message as separate pathspec arguments, so Git returned exit code 1 without creating a commit or changing the staged content.
+- Root cause: The unified `cmd.exe` invocation did not preserve the quoted multi-word `-m` argument as one value.
+- Primary solution: Invoke the same exact Git commit message through PowerShell single-quote parsing after restaging this ledger entry.
+- Alternatives: Escape the message for `cmd.exe` with verified caret quoting or use a temporary commit-message file created through an approved patch workflow.
+- Status: Resolved operationally; no commit was created by the failed command and the staged implementation remained intact for the corrected invocation.

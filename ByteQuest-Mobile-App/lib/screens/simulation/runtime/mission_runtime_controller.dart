@@ -92,6 +92,16 @@ final class MissionRuntimeController {
 
   Future<void> flushPending() => _enqueue(_flushPendingNow);
 
+  /// Persists the current runtime snapshot without creating or submitting
+  /// evidence. Mission hosts use this for app lifecycle checkpoints.
+  Future<void> persist() {
+    return _enqueue(() async {
+      if (!await _saveState()) {
+        throw StateError('Mission runtime progress could not be saved.');
+      }
+    });
+  }
+
   Future<MissionEvidenceAction> _dispatchNow(
     MissionEvidenceAction action,
     MissionRuntimeTransition transition,
