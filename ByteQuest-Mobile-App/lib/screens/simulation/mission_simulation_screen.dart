@@ -491,7 +491,11 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
       case 'placement_attempted':
         final item = value['item_id'] as String?;
         final destination = value['destination_id'] as String?;
-        if (item == null || destination == null) return state;
+        if (item == null ||
+            destination == null ||
+            value['compatible'] != true) {
+          return state;
+        }
         return state.copyWith(placements: {
           ...state.placements,
           item: destination,

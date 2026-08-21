@@ -1,4 +1,5 @@
 import 'package:bytequest/data/mission_simulation_definitions.dart';
+import 'package:bytequest/core/theme/app_theme.dart';
 import 'package:bytequest/models/mission_model.dart';
 import 'package:bytequest/screens/simulation/interactions/mission_interactions.dart';
 import 'package:bytequest/screens/simulation/result_screen.dart';
@@ -125,11 +126,13 @@ void main() {
       (tester) async {
     final actionTypes = <String>[];
     final phase = _phase(InteractionFamily.testRun);
+    final scheduler = _FakeTestRunScheduler();
     var state = MissionRuntimeState(missionId: 'mission');
     Widget app() => _app(
           TestRunInteraction(
             phase: phase,
             state: state,
+            scheduler: scheduler,
             onAction: (type, target, value) async {
               actionTypes.add(type);
               state = state.withTestStatus(
@@ -146,11 +149,14 @@ void main() {
     await tester.pumpWidget(app());
     expect(actionTypes, ['test_started']);
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Complete test'), findsOneWidget);
+    expect(find.text('Test running'), findsOneWidget);
+    expect(find.text('Complete test'), findsNothing);
+    expect(scheduler.last.duration, AppTheme.simulationTransitionDuration);
 
     await tester.pump(const Duration(milliseconds: 500));
     expect(actionTypes, ['test_started']);
-    await tester.tap(find.widgetWithText(FilledButton, 'Complete test'));
+    scheduler.last.fire();
+    await tester.pump();
     await tester.pumpWidget(app());
     expect(actionTypes, ['test_started', 'test_completed']);
     expect(state.testStatusFor(phase.id), MissionTestStatus.completed);
@@ -161,13 +167,20 @@ void main() {
       (tester) async {
     final actionTypes = <String>[];
     final phase = _phase(InteractionFamily.testRun);
+    final scheduler = _FakeTestRunScheduler();
     await tester.pumpWidget(
       _app(
         TestRunInteraction(
           phase: phase,
           state: MissionRuntimeState(missionId: 'mission', reducedMotion: true)
               .withTestStatus(phase.id, MissionTestStatus.running),
-          onAction: (type, _, __) async => actionTypes.add(type),
+          scheduler: scheduler,
+          onAction: (type, _, value) async {
+            actionTypes.add(type);
+            expect(value['duration_ms'],
+                AppTheme.simulationTransitionDuration.inMilliseconds);
+            expect(value['reduced_motion'], isTrue);
+          },
         ),
       ),
     );
@@ -177,19 +190,23 @@ void main() {
       Duration.zero,
     );
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
-    await tester.tap(find.widgetWithText(FilledButton, 'Complete test'));
+    expect(scheduler.last.duration, AppTheme.simulationTransitionDuration);
+    scheduler.last.fire();
+    await tester.pump();
     expect(actionTypes, ['test_completed']);
   });
 
   testWidgets('platform disabled animations remove test run motion',
       (tester) async {
     final phase = _phase(InteractionFamily.testRun);
+    final scheduler = _FakeTestRunScheduler();
     await tester.pumpWidget(
       _app(
         TestRunInteraction(
           phase: phase,
           state: MissionRuntimeState(missionId: 'mission')
               .withTestStatus(phase.id, MissionTestStatus.running),
+          scheduler: scheduler,
           onAction: (_, __, ___) async {},
         ),
         disableAnimations: true,
@@ -201,6 +218,43 @@ void main() {
       Duration.zero,
     );
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(scheduler.last.duration, AppTheme.simulationTransitionDuration);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(scheduler.last.cancelled, isTrue);
+  });
+
+  testWidgets('test scheduler cancels on phase change and dispose',
+      (tester) async {
+    final scheduler = _FakeTestRunScheduler();
+    final first = _phase(InteractionFamily.testRun, id: 'first');
+    final second = _phase(
+      InteractionFamily.testRun,
+      id: 'second',
+      presentation: const {'duration_ms': 730},
+    );
+
+    await tester.pumpWidget(_app(TestRunInteraction(
+      phase: first,
+      state: MissionRuntimeState(missionId: 'mission')
+          .withTestStatus(first.id, MissionTestStatus.running),
+      scheduler: scheduler,
+      onAction: (_, __, ___) async {},
+    )));
+    final firstTask = scheduler.last;
+
+    await tester.pumpWidget(_app(TestRunInteraction(
+      phase: second,
+      state: MissionRuntimeState(missionId: 'mission')
+          .withTestStatus(second.id, MissionTestStatus.running),
+      scheduler: scheduler,
+      onAction: (_, __, ___) async {},
+    )));
+
+    expect(firstTask.cancelled, isTrue);
+    expect(scheduler.last.duration, const Duration(milliseconds: 730));
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(scheduler.last.cancelled, isTrue);
   });
 
   testWidgets('observation and interpretation preserve learner payloads',
@@ -502,6 +556,7 @@ void main() {
     for (final item in cases) {
       final phase = _catalogPhase(item.missionId, item.mechanic);
       final actions = <Map<String, dynamic>>[];
+      final scheduler = _FakeTestRunScheduler();
       var enabled = false;
       var state = MissionRuntimeState(missionId: item.missionId);
       Widget app() => _app(
@@ -509,6 +564,7 @@ void main() {
               phase: phase,
               state: state,
               enabled: enabled,
+              scheduler: scheduler,
               onAction: (type, target, value) async {
                 actions.add({
                   'type': type,
@@ -536,7 +592,8 @@ void main() {
       await tester.pumpWidget(app());
       expect(actions.first['type'], 'retest_requested');
       expect(actions.first['target'], item.target);
-      await tester.tap(find.widgetWithText(FilledButton, 'Complete test'));
+      scheduler.last.fire();
+      await tester.pump();
       await tester.pumpWidget(app());
       expect(actions.last['type'], 'test_completed');
       expect(actions.last['target'], item.target);
@@ -787,3 +844,31 @@ MissionPhaseDefinition _catalogPhase(String missionId, String mechanic) =>
           (phase) =>
               (phase.presentation['mechanics'] as List).contains(mechanic),
         );
+
+final class _FakeTestRunScheduler implements TestRunScheduler {
+  final List<_FakeScheduledTestRun> tasks = [];
+
+  _FakeScheduledTestRun get last => tasks.last;
+
+  @override
+  ScheduledTestRun schedule(Duration duration, VoidCallback onElapsed) {
+    final task = _FakeScheduledTestRun(duration, onElapsed);
+    tasks.add(task);
+    return task;
+  }
+}
+
+final class _FakeScheduledTestRun implements ScheduledTestRun {
+  _FakeScheduledTestRun(this.duration, this.onElapsed);
+
+  final Duration duration;
+  final VoidCallback onElapsed;
+  bool cancelled = false;
+
+  void fire() {
+    if (!cancelled) onElapsed();
+  }
+
+  @override
+  void cancel() => cancelled = true;
+}

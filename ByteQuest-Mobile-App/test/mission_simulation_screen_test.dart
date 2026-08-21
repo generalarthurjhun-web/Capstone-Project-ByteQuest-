@@ -197,6 +197,39 @@ void main() {
       await tester.pumpAndSettle();
       expect(submissions, 1);
     });
+
+    testWidgets('incompatible placement never renders as installed',
+        (tester) async {
+      final definition = _incompatiblePlacementDefinition();
+      final controller = _controller(definition);
+
+      await tester.pumpWidget(_host(
+        definition,
+        controller: controller,
+      ));
+      await tester.pumpAndSettle();
+
+      final item = find.byKey(const ValueKey('placement-item-memory'));
+      await tester.ensureVisible(item);
+      await tester.tap(item);
+      await tester.pump();
+      final destination =
+          find.byKey(const ValueKey('placement-destination-cpu-socket'));
+      await tester.ensureVisible(destination);
+      await tester.tap(destination);
+      await tester.pump();
+      final place = find.byKey(const ValueKey('placement-place'));
+      await tester.ensureVisible(place);
+      await tester.tap(place);
+      await tester.pumpAndSettle();
+
+      expect(controller.state.placements, isEmpty);
+      expect(
+        find.byKey(const ValueKey('placement-state-memory')),
+        findsNothing,
+      );
+      expect(controller.state.acceptedEvidenceIds, hasLength(1));
+    });
   });
 
   group('MissionPhaseInteraction', () {
@@ -309,6 +342,76 @@ MissionRuntimeController _controller(
     clientActionIdFactory: _sequentialIds(),
   );
 }
+
+MissionSimulationDefinition _incompatiblePlacementDefinition() =>
+    MissionSimulationDefinition(
+      id: 'coc1_m9',
+      cocId: 'coc1',
+      title: 'Verify component placement',
+      scenario: 'A memory module must be installed in a compatible socket.',
+      environmentLabel: 'Hardware lab',
+      practiceGuidance: 'Match component category to socket category.',
+      scene: SimulationSceneDefinition(
+        id: 'hardware-lab',
+        objects: [
+          SceneObjectDefinition(
+            id: 'workbench',
+            label: 'Hardware workbench',
+            x: .2,
+            y: .2,
+            width: .4,
+            height: .4,
+            hotspotType: 'workbench',
+          ),
+        ],
+      ),
+      phases: [
+        MissionPhaseDefinition(
+          id: 'place-component',
+          title: 'Place component',
+          instruction: 'Install the memory module.',
+          primaryInteraction: InteractionFamily.place,
+          presentation: const {
+            'items': [
+              {
+                'id': 'memory',
+                'label': 'Memory module',
+                'category': 'dimm',
+              },
+            ],
+            'destinations': [
+              {
+                'id': 'cpu-socket',
+                'label': 'CPU socket',
+                'accepted_categories': ['processor'],
+              },
+            ],
+          },
+        ),
+        MissionPhaseDefinition(
+          id: 'decide',
+          title: 'Decide',
+          instruction: 'Choose the safe response.',
+          primaryInteraction: InteractionFamily.decide,
+          presentation: const {
+            'choices': [
+              {'id': 'stop', 'label': 'Stop and inspect compatibility'},
+            ],
+          },
+        ),
+        MissionPhaseDefinition(
+          id: 'verify',
+          title: 'Verify',
+          instruction: 'Run the verification test.',
+          primaryInteraction: InteractionFamily.testRun,
+        ),
+      ],
+      interactionFamilies: const {
+        InteractionFamily.place,
+        InteractionFamily.decide,
+        InteractionFamily.testRun,
+      },
+    );
 
 Future<void> _advanceToReview(
   WidgetTester tester,

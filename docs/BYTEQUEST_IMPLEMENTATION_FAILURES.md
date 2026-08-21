@@ -373,3 +373,47 @@
 - Primary solution: Assert the stable `test-run-completed` semantic widget key for state rendering; the accessibility matrix separately verifies semantic action and guideline behavior.
 - Alternatives: Settle the transition before matching; inspect the resolved `SemanticsData` from the keyed node.
 - Status: Resolved; the focused test and exact UI gate pass.
+
+## 2026-08-21 16:01:35 +08:00 — Task 9 review round 2 stale source paths
+
+- Operation: Inspect the test-run renderer and mission screen reducer before writing round-2 regressions.
+- Command: `Get-Content ByteQuest-Mobile-App/lib/features/mission/presentation/widgets/test_run_interaction.dart; rg -n "placement_attempted" ByteQuest-Mobile-App/lib/features/mission/presentation/screens/mission_simulation_screen.dart`
+- Affected location: Read-only inspection; no source or test file was changed.
+- Observed result: PowerShell and `rg` reported both requested source paths did not exist.
+- Root cause: The inspection command used an obsolete feature-layer path instead of the repository's current `lib/screens/simulation/...` paths.
+- Primary solution: Locate the files with `rg --files` and inspect `lib/screens/simulation/interactions/test_run_interaction.dart` and `lib/screens/simulation/mission_simulation_screen.dart`.
+- Alternatives: Search for the `TestRunInteraction` class and `placement_attempted` action symbols directly.
+- Status: Resolved; the current files and reducer were located and inspected.
+
+## 2026-08-21 16:02:20 +08:00 — Task 9 failure-ledger patch anchor mismatch
+
+- Operation: Record the stale source-path inspection failure in the implementation failure ledger.
+- Command/interaction: `apply_patch` anchored on the previously rendered mojibake form of the 15:54:50 heading.
+- Affected location: `docs/BYTEQUEST_IMPLEMENTATION_FAILURES.md`; the rejected patch made no mutation.
+- Observed result: Patch verification could not find the expected heading line.
+- Root cause: The terminal rendered the em dash with encoding artifacts, so the copied heading was not byte-identical to the file.
+- Primary solution: Anchor the append on the stable ASCII final status line instead.
+- Alternatives: Inspect the final lines with explicit UTF-8 output; anchor on several nearby ASCII-only bullet lines.
+- Status: Resolved; this entry and the original failure entry were appended through the ASCII anchor.
+
+## 2026-08-21 16:03:18 +08:00 — Task 9 review round 2 scheduler RED
+
+- Operation: Prove that TestRun lacked delayed automatic completion through an injectable scheduler seam.
+- Command: `flutter test test/advanced_mission_interactions_test.dart --plain-name "test run renders and completes from persisted runtime state"`
+- Affected code/test: `ByteQuest-Mobile-App/lib/screens/simulation/interactions/test_run_interaction.dart`; `ByteQuest-Mobile-App/test/advanced_mission_interactions_test.dart:124-220,500-565,814-840`.
+- Observed result: Test compilation failed because `TestRunScheduler`, `ScheduledTestRun`, and the `scheduler` constructor argument did not exist; the catalog test also exposed a fake-scheduler declaration inserted into the neighboring decision loop instead of the retest loop.
+- Root cause: Production still offered learner-driven immediate completion with no scheduling boundary, and the initial regression patch matched an overly broad repeated loop anchor for one test-local declaration.
+- Primary solution: Add the narrow scheduler interfaces and timer implementation, make TestRun schedule only while runtime state is `running`, and move the fake scheduler declaration into the catalog retest loop.
+- Alternatives: Inject a timer factory callback; use `FakeAsync` against a private timer implementation while exposing only the configured duration.
+- Status: Resolved; focused automatic-completion and cancellation regressions pass.
+
+## 2026-08-21 16:04:42 +08:00 — Task 9 review round 2 incompatible-placement RED
+
+- Operation: Prove the actual screen/controller flow does not install an incompatible component.
+- Command: `flutter test test/mission_simulation_screen_test.dart --plain-name "incompatible placement never renders as installed"`
+- Affected code/test: `ByteQuest-Mobile-App/lib/screens/simulation/mission_simulation_screen.dart:491-500`; `ByteQuest-Mobile-App/test/mission_simulation_screen_test.dart:198-232`.
+- Observed result: The regression failed at line 226: expected an empty placement map, but runtime state contained `{'memory': 'cpu-socket'}` and rendered the persisted placement as Installed.
+- Root cause: The screen reducer persisted every `placement_attempted` action without requiring `value['compatible'] == true`.
+- Primary solution: Reject missing or false compatibility before changing `MissionRuntimeState.placements`; retain the evidence action for authoritative review without rendering client success.
+- Alternatives: Store accepted and rejected attempts in separate runtime fields; add a typed placement-result model and render accepted results only.
+- Status: Resolved; the focused screen/controller regression passes and accepted evidence remains recorded.

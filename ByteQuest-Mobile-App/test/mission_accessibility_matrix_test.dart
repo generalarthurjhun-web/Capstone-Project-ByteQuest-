@@ -272,7 +272,9 @@ class _MatrixInteractionHarnessState extends State<_MatrixInteractionHarness> {
       case 'placement_attempted':
         final item = value['item_id'] as String?;
         final destination = value['destination_id'] as String?;
-        if (item != null && destination != null) {
+        if (item != null &&
+            destination != null &&
+            value['compatible'] == true) {
           return state.copyWith(
             placements: {...state.placements, item: destination},
           );
@@ -465,10 +467,10 @@ Future<void> _completeWithTaps(
         find.widgetWithText(FilledButton, 'Run test'),
         'start test',
       );
-      await tap(
-        find.widgetWithText(FilledButton, 'Complete test'),
-        'complete test',
-      );
+      expect(find.text('Complete test'), findsNothing);
+      await tester.pump(AppTheme.simulationTransitionDuration);
+      await tester.pump();
+      await verify('automatic test completion');
     case InteractionFamily.observe:
       await verify('before observation entry');
       await tester.enterText(
