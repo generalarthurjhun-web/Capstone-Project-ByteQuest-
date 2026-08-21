@@ -528,14 +528,26 @@ void main() {
   });
 
   test('diagnostic actions reveal concrete technical observations', () {
-    final domainState = RegExp(
-      r'\b(?:up|down|running|stopped|allowed|granted|unavailable|timeout|timeouts|unreachable|warning|caution|error|errors|reply|replies|reset|resets|listening|overdue|gateway|group|read|modify|change|access|token)\b|\b\d+(?:\.\d+)?\s*(?:operating\s+)?(?:ms|mbps|gbps|v|rpm|°c|days?|seconds?|sectors?)\b',
-      caseSensitive: false,
-    );
-    final placeholder = RegExp(
-      r'\b(?:recorded result from|reports result|records result|lists result)\b',
-      caseSensitive: false,
-    );
+    const invalidFacts = [
+      'Access.',
+      'up',
+      'Status reports result',
+      'Recorded result from probe',
+    ];
+    const validFacts = [
+      'Measured output remains at 12.1 V under sustained load.',
+      'Switch port 7 link LED is green and negotiates at 1 Gbps.',
+      'The file service is running and TCP port 445 is listening.',
+      'The continuity tester shows an open circuit on conductor 6.',
+      'Ping returns four replies from the gateway below 2 ms.',
+    ];
+
+    for (final fact in invalidFacts) {
+      expect(_isConcreteDiagnosticFact(fact), isFalse, reason: fact);
+    }
+    for (final fact in validFacts) {
+      expect(_isConcreteDiagnosticFact(fact), isTrue, reason: fact);
+    }
 
     for (final definition in MissionSimulationDefinitions.all) {
       for (final phase in definition.phases) {
@@ -547,8 +559,7 @@ void main() {
         for (final action in actions) {
           final factId = action['reveals_fact_id'];
           final fact = facts[factId]?.toString() ?? '';
-          expect(placeholder.hasMatch(fact), isFalse, reason: phase.id);
-          expect(domainState.hasMatch(fact), isTrue, reason: phase.id);
+          expect(_isConcreteDiagnosticFact(fact), isTrue, reason: phase.id);
         }
       }
     }
@@ -630,3 +641,34 @@ MissionPhaseDefinition _phaseByMechanic(
       (phase) => (phase.presentation['mechanics'] as List? ?? const [])
           .contains(mechanic),
     );
+
+bool _isConcreteDiagnosticFact(String fact) {
+  final normalized = fact.trim();
+  final placeholder = RegExp(
+    r'\b(?:recorded result from|reports result|records result|lists result)\b',
+    caseSensitive: false,
+  );
+  final words = RegExp(r'[A-Za-z0-9]+(?:[./:-][A-Za-z0-9]+)*')
+      .allMatches(normalized)
+      .length;
+  if (normalized.length < 24 || words < 5 || placeholder.hasMatch(normalized)) {
+    return false;
+  }
+
+  final measuredValue = RegExp(
+    r'\b\d+(?:\.\d+)?\s*(?:-\s*)?(?:operating\s+)?(?:ms|milliseconds?|seconds?|mbps|gbps|v|volts?|rpm|°c|celsius|days?|sectors?|errors?|resets?|timeouts?|replies?|passes?|hops?)\b',
+    caseSensitive: false,
+  );
+  final domainSubject = RegExp(
+    r'\b(?:device|firmware|storage|volume|connection|link|led|port|switch|workstation|interface|gateway|route|probe|ping|client|server|service|group|permission|access|share|token|folder|memory|power|voltage|rail|application|log|request|temperature|fan|schedule|maintenance|continuity|circuit|network|cpu|tcp|monitor|meter|system)\b',
+    caseSensitive: false,
+  );
+  final observableState = RegExp(
+    r'\b(?:up|down|green|amber|red|running|stopped|allowed|granted|unavailable|timeouts?|unreachable|warnings?|caution|errors?|replies|resets?|listening|overdue|open|closed|read|readable|modify|change|learners|support|pending|passes|reaches)\b|\btimes?\s+out\b|\b(?:\d{1,3}\.){3}\d{1,3}(?:/\d{1,2})?\b',
+    caseSensitive: false,
+  );
+
+  return measuredValue.hasMatch(normalized) ||
+      (domainSubject.hasMatch(normalized) &&
+          observableState.hasMatch(normalized));
+}
