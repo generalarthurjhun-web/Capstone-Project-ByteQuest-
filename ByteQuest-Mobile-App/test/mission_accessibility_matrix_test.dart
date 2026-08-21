@@ -12,15 +12,16 @@ void main() {
     for (final family in InteractionFamily.values) {
       testWidgets('${family.name} has a semantic tap completion path',
           (tester) async {
+        final semantics = tester.ensureSemantics();
         final recordedActions = <String>[];
-        var interactionCallbacks = 0;
+        final interactionCallbacks = <String>[];
         final phase = _phase(family);
 
         await tester.pumpWidget(
           _interactionHost(
             phase,
             onAction: (type, _, __) async => recordedActions.add(type),
-            onInteractionCallback: () => interactionCallbacks++,
+            onInteractionCallback: interactionCallbacks.add,
           ),
         );
 
@@ -37,11 +38,16 @@ void main() {
 
         await _completeWithTaps(tester, family);
         await tester.pump(const Duration(milliseconds: 250));
-        expect(
-          recordedActions.isNotEmpty || interactionCallbacks > 0,
-          isTrue,
-          reason: '${family.name} must complete without dragging',
-        );
+        if (family == InteractionFamily.review) {
+          expect(interactionCallbacks.last, 'submission_confirmed');
+        } else {
+          expect(
+            recordedActions.last,
+            _terminalAction(family),
+            reason: '${family.name} must reach its terminal action',
+          );
+        }
+        semantics.dispose();
       });
     }
 
@@ -57,7 +63,7 @@ void main() {
               _phase(family, verbose: true),
               textScale: 2,
               onAction: (_, __, ___) async {},
-              onInteractionCallback: () {},
+              onInteractionCallback: (_) {},
             ),
           );
           await tester.pump();
@@ -72,21 +78,28 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
     });
 
-    testWidgets('representative controls expose at least 48dp tap targets',
+    testWidgets('every enabled action exposes at least a 48dp tap target',
         (tester) async {
+      final semantics = tester.ensureSemantics();
       for (final family in InteractionFamily.values) {
         await tester.pumpWidget(
           _interactionHost(
             _phase(family),
             onAction: (_, __, ___) async {},
-            onInteractionCallback: () {},
+            onInteractionCallback: (_) {},
           ),
         );
-        final target = _semanticTarget(family);
-        final size = tester.getSize(target);
-        expect(size.width, greaterThanOrEqualTo(48), reason: family.name);
-        expect(size.height, greaterThanOrEqualTo(48), reason: family.name);
+        await _expectEnabledTapTargetsAtLeast48(
+          tester,
+          '${family.name}: initial',
+        );
+        await _completeWithTaps(
+          tester,
+          family,
+          verifyTapTargets: true,
+        );
       }
+      semantics.dispose();
     });
   });
 
@@ -166,18 +179,12 @@ void main() {
 Widget _interactionHost(
   MissionPhaseDefinition phase, {
   required MissionActionCallback onAction,
-  required VoidCallback onInteractionCallback,
+  required ValueChanged<String> onInteractionCallback,
   double textScale = 1,
 }) {
-  final state = MissionRuntimeState.initial('accessibility-mission').copyWith(
+  final initialState =
+      MissionRuntimeState.initial('accessibility-mission').copyWith(
     currentPhaseId: phase.id,
-    revealedFactIds: phase.primaryInteraction == InteractionFamily.troubleshoot
-        ? const {'link-state'}
-        : const {},
-    selectedBranchActionIds:
-        phase.primaryInteraction == InteractionFamily.troubleshoot
-            ? const {'apply-fix'}
-            : const {},
   );
   return MaterialApp(
     theme: AppTheme.lightTheme,
@@ -190,18 +197,108 @@ Widget _interactionHost(
     home: Scaffold(
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(8),
-        child: MissionPhaseInteraction(
+        child: _MatrixInteractionHarness(
           phase: phase,
-          state: state,
+          initialState: initialState,
           onAction: onAction,
-          onRuntimeTransition: (_) => onInteractionCallback(),
-          onReturnFromReview: onInteractionCallback,
-          onConfirmReview: onInteractionCallback,
-          canSubmit: true,
+          onInteractionCallback: onInteractionCallback,
         ),
       ),
     ),
   );
+}
+
+class _MatrixInteractionHarness extends StatefulWidget {
+  const _MatrixInteractionHarness({
+    required this.phase,
+    required this.initialState,
+    required this.onAction,
+    required this.onInteractionCallback,
+  });
+
+  final MissionPhaseDefinition phase;
+  final MissionRuntimeState initialState;
+  final MissionActionCallback onAction;
+  final ValueChanged<String> onInteractionCallback;
+
+  @override
+  State<_MatrixInteractionHarness> createState() =>
+      _MatrixInteractionHarnessState();
+}
+
+class _MatrixInteractionHarnessState extends State<_MatrixInteractionHarness> {
+  late MissionRuntimeState _state = widget.initialState;
+
+  @override
+  Widget build(BuildContext context) => MissionPhaseInteraction(
+        phase: widget.phase,
+        state: _state,
+        onAction: _record,
+        onRuntimeTransition: (transition) => setState(() {
+          _state = transition(_state);
+          widget.onInteractionCallback('runtime_transition');
+        }),
+        onReturnFromReview: () =>
+            widget.onInteractionCallback('review_returned'),
+        onConfirmReview: () =>
+            widget.onInteractionCallback('submission_confirmed'),
+        canSubmit: true,
+      );
+
+  Future<void> _record(
+    String type,
+    String? target,
+    Map<String, dynamic> value,
+  ) async {
+    await widget.onAction(type, target, value);
+    if (!mounted) return;
+    setState(() => _state = _transition(_state, type, target, value));
+  }
+
+  MissionRuntimeState _transition(
+    MissionRuntimeState state,
+    String type,
+    String? target,
+    Map<String, dynamic> value,
+  ) {
+    final testStatus = value['test_status'];
+    if (target != null && testStatus is String) {
+      return state.withTestStatus(
+        target,
+        MissionTestStatus.values.byName(testStatus),
+      );
+    }
+    switch (type) {
+      case 'placement_attempted':
+        final item = value['item_id'] as String?;
+        final destination = value['destination_id'] as String?;
+        if (item != null && destination != null) {
+          return state.copyWith(
+            placements: {...state.placements, item: destination},
+          );
+        }
+        return state;
+      case 'diagnostic_action':
+        final fact = value['reveals_fact_id'] as String?;
+        if (fact != null) {
+          return state.copyWith(
+            revealedFactIds: {...state.revealedFactIds, fact},
+          );
+        }
+        return state;
+      case 'correction_applied':
+        if (target != null) {
+          return state.copyWith(
+            selectedBranchActionIds: {
+              ...state.selectedBranchActionIds,
+              target,
+            },
+          );
+        }
+        return state;
+    }
+    return state;
+  }
 }
 
 Widget _hotspotHost(
@@ -254,83 +351,187 @@ Finder _semanticTarget(InteractionFamily family) => switch (family) {
         find.widgetWithText(OutlinedButton, 'Isolate the device'),
       InteractionFamily.interpret =>
         find.byKey(const ValueKey('interpretation-input-phase-interpret')),
-      InteractionFamily.review => find.widgetWithText(OutlinedButton, 'Return'),
+      InteractionFamily.review =>
+        find.widgetWithText(FilledButton, 'Confirm submission'),
     };
 
 Future<void> _completeWithTaps(
   WidgetTester tester,
-  InteractionFamily family,
-) async {
+  InteractionFamily family, {
+  bool verifyTapTargets = false,
+}) async {
+  Future<void> verify(String step) async {
+    if (verifyTapTargets) {
+      await _expectEnabledTapTargetsAtLeast48(
+        tester,
+        '${family.name}: $step',
+      );
+    }
+  }
+
+  Future<void> tap(Finder finder, String step) async {
+    await verify('before $step');
+    await tester.ensureVisible(finder);
+    await tester.tap(finder);
+    await tester.pump();
+    await verify('after $step');
+  }
+
+  await verify('start');
   switch (family) {
     case InteractionFamily.inspect:
-      await tester.tap(find.byKey(const ValueKey('inspect-target-device')));
+      await tap(
+        find.byKey(const ValueKey('inspect-target-device')),
+        'inspect',
+      );
     case InteractionFamily.select:
-      await tester.tap(find.byKey(const ValueKey('multi-select-device')));
-      await tester.tap(find.byKey(const ValueKey('multi-select-confirm')));
+      await tap(
+        find.byKey(const ValueKey('multi-select-device')),
+        'select option',
+      );
+      await tap(
+        find.byKey(const ValueKey('multi-select-confirm')),
+        'confirm selection',
+      );
     case InteractionFamily.tool:
-      await tester.tap(find.byKey(const ValueKey('tool-target-device')));
-      await tester.pump();
-      await tester.tap(find.byKey(const ValueKey('tool-tray-tool-meter')));
+      await tap(
+        find.byKey(const ValueKey('tool-target-device')),
+        'select tool target',
+      );
+      await tap(
+        find.byKey(const ValueKey('tool-tray-tool-meter')),
+        'apply tool',
+      );
     case InteractionFamily.connect:
-      await tester.tap(find.byKey(const ValueKey('connection-source-source')));
-      await tester.pump();
-      await tester.tap(
-          find.byKey(const ValueKey('connection-destination-destination')));
+      await tap(
+        find.byKey(const ValueKey('connection-source-source')),
+        'select connection source',
+      );
+      await tap(
+        find.byKey(const ValueKey('connection-destination-destination')),
+        'select connection destination',
+      );
     case InteractionFamily.configure:
-      await tester
-          .tap(find.widgetWithText(FilledButton, 'Apply configuration'));
+      await tap(
+        find.widgetWithText(FilledButton, 'Apply configuration'),
+        'apply configuration',
+      );
     case InteractionFamily.sequence:
-      await tester.tap(
+      await tap(
         find.widgetWithIcon(IconButton, Icons.arrow_downward_rounded).first,
+        'move sequence item',
       );
     case InteractionFamily.match:
-      await tester.tap(find.byKey(const ValueKey('matching-source-source')));
-      await tester.pump();
-      await tester.tap(
+      await tap(
+        find.byKey(const ValueKey('matching-source-source')),
+        'select match source',
+      );
+      await tap(
         find.byKey(const ValueKey('matching-destination-destination')),
+        'select match destination',
       );
     case InteractionFamily.place:
-      await tester.tap(find.byKey(const ValueKey('placement-item-part')));
-      await tester.pump();
-      await tester.tap(
+      await tap(
+        find.byKey(const ValueKey('placement-item-part')),
+        'select component',
+      );
+      await tap(
         find.byKey(const ValueKey('placement-destination-slot')),
+        'select placement destination',
       );
-      await tester.tap(
+      await tap(
         find.byKey(const ValueKey('placement-orientation-upright')),
+        'select orientation',
       );
-      await tester.pump();
-      await tester.tap(find.byKey(const ValueKey('placement-place')));
+      await tap(
+        find.byKey(const ValueKey('placement-place')),
+        'place component',
+      );
     case InteractionFamily.troubleshoot:
-      await tester.tap(
+      await tap(
         find.widgetWithText(OutlinedButton, 'Inspect link state'),
+        'inspect diagnostic',
+      );
+      await tap(
+        find.widgetWithText(FilledButton, 'Apply cable correction'),
+        'apply correction',
+      );
+      await tap(
+        find.widgetWithText(OutlinedButton, 'Retest network path'),
+        'retest',
       );
     case InteractionFamily.testRun:
-      await tester.tap(find.widgetWithText(FilledButton, 'Run test'));
+      await tap(
+        find.widgetWithText(FilledButton, 'Run test'),
+        'start test',
+      );
+      await tap(
+        find.widgetWithText(FilledButton, 'Complete test'),
+        'complete test',
+      );
     case InteractionFamily.observe:
+      await verify('before observation entry');
       await tester.enterText(
         find.byKey(const ValueKey('observation-input-phase-observe')),
         'Link indicator is dark.',
       );
       await tester.pump();
-      await tester.tap(
+      await verify('after observation entry');
+      await tap(
         find.widgetWithText(FilledButton, 'Record observation'),
+        'record observation',
       );
     case InteractionFamily.decide:
-      await tester.tap(
+      await tap(
         find.widgetWithText(OutlinedButton, 'Isolate the device'),
+        'record decision',
       );
     case InteractionFamily.interpret:
+      await verify('before interpretation entry');
       await tester.enterText(
         find.byKey(const ValueKey('interpretation-input-phase-interpret')),
         'The interface has no physical link.',
       );
       await tester.pump();
-      await tester.tap(
+      await verify('after interpretation entry');
+      await tap(
         find.widgetWithText(FilledButton, 'Record interpretation'),
+        'record interpretation',
       );
     case InteractionFamily.review:
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Return'));
+      await tap(
+        find.widgetWithText(FilledButton, 'Confirm submission'),
+        'confirm submission',
+      );
   }
+}
+
+String _terminalAction(InteractionFamily family) => switch (family) {
+      InteractionFamily.inspect => 'object_inspected',
+      InteractionFamily.select => 'selection_confirmed',
+      InteractionFamily.tool => 'tool_attempted',
+      InteractionFamily.connect => 'connection_created',
+      InteractionFamily.configure => 'configuration_applied',
+      InteractionFamily.sequence => 'sequence_reordered',
+      InteractionFamily.match => 'match_created',
+      InteractionFamily.place => 'placement_attempted',
+      InteractionFamily.troubleshoot => 'retest_requested',
+      InteractionFamily.testRun => 'test_completed',
+      InteractionFamily.observe => 'observation_recorded',
+      InteractionFamily.decide => 'scenario_decision',
+      InteractionFamily.interpret => 'result_interpreted',
+      InteractionFamily.review => 'submission_confirmed',
+    };
+
+Future<void> _expectEnabledTapTargetsAtLeast48(
+  WidgetTester tester,
+  String step,
+) async {
+  await expectLater(
+    tester,
+    meetsGuideline(androidTapTargetGuideline),
+    reason: step,
+  );
 }
 
 MissionPhaseDefinition _phase(

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../components/tool_tray.dart';
 import '../runtime/mission_runtime_models.dart';
 import 'multi_select_interaction.dart';
@@ -38,16 +39,24 @@ class _ControlledPlacementInteractionState
     final items = interactionItems(widget.phase.presentation['items']);
     final destinations =
         interactionItems(widget.phase.presentation['destinations']);
-    final selectedItem = _itemId == null
-        ? null
-        : items.firstWhere((item) => item.id == _itemId);
-    final orientations = (selectedItem?.data['orientations'] as List? ?? const [])
-        .whereType<String>()
+    final selectedItem =
+        _itemId == null ? null : items.firstWhere((item) => item.id == _itemId);
+    final orientations =
+        (selectedItem?.data['orientations'] as List? ?? const [])
+            .whereType<String>()
+            .toList(growable: false);
+    final installedItems = items
+        .where((item) => widget.state.placements.containsKey(item.id))
         .toList(growable: false);
+    final reduceMotion =
+        widget.state.reducedMotion || MediaQuery.disableAnimationsOf(context);
+    final transitionDuration =
+        reduceMotion ? Duration.zero : AppTheme.simulationTransitionDuration;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const MissionSectionLabel(icon: Icons.memory_rounded, text: 'Components'),
+        const MissionSectionLabel(
+            icon: Icons.memory_rounded, text: 'Components'),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
@@ -109,6 +118,39 @@ class _ControlledPlacementInteractionState
           ),
           const SizedBox(height: 12),
         ],
+        AnimatedSwitcher(
+          key: const ValueKey('placement-state-transition'),
+          duration: transitionDuration,
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) => FadeTransition(
+            opacity: animation,
+            child: ScaleTransition(
+              scale: Tween<double>(begin: .94, end: 1).animate(animation),
+              child: child,
+            ),
+          ),
+          child: installedItems.isEmpty
+              ? const SizedBox(key: ValueKey('placement-state-empty'))
+              : Column(
+                  key: ValueKey(
+                    'placement-state-${widget.state.placements.entries.join('|')}',
+                  ),
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final item in installedItems)
+                      _InstalledPlacementStatus(
+                        key: ValueKey('placement-state-${item.id}'),
+                        item: item,
+                        destinationLabel: _destinationLabel(
+                          destinations,
+                          widget.state.placements[item.id]!,
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+                  ],
+                ),
+        ),
         FilledButton.icon(
           key: const ValueKey('placement-place'),
           onPressed: widget.enabled &&
@@ -125,10 +167,20 @@ class _ControlledPlacementInteractionState
     );
   }
 
+  String _destinationLabel(
+    List<InteractionItem> destinations,
+    String destinationId,
+  ) {
+    for (final destination in destinations) {
+      if (destination.id == destinationId) return destination.label;
+    }
+    return destinationId;
+  }
+
   void _place(List<InteractionItem> items, List<InteractionItem> destinations) {
     final item = items.firstWhere((candidate) => candidate.id == _itemId);
-    final destination = destinations
-        .firstWhere((candidate) => candidate.id == _destinationId);
+    final destination =
+        destinations.firstWhere((candidate) => candidate.id == _destinationId);
     final accepted =
         (destination.data['accepted_categories'] as List? ?? const [])
             .whereType<String>()
@@ -145,4 +197,53 @@ class _ControlledPlacementInteractionState
       'input_method': 'button',
     }));
   }
+}
+
+class _InstalledPlacementStatus extends StatelessWidget {
+  const _InstalledPlacementStatus({
+    super.key,
+    required this.item,
+    required this.destinationLabel,
+  });
+
+  final InteractionItem item;
+  final String destinationLabel;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        liveRegion: true,
+        label: '${item.label} installed in $destinationLabel',
+        child: Container(
+          constraints: const BoxConstraints(
+            minHeight: AppTheme.minimumTapTarget,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppTheme.softBlueAccent,
+            borderRadius: AppTheme.radiusSm,
+            border: Border.all(color: AppTheme.primaryBlue),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.check_circle_rounded,
+                color: AppTheme.primaryBlue,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item.label, style: AppTheme.labelLarge),
+                    Text(
+                      'Installed in $destinationLabel',
+                      style: AppTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
 }

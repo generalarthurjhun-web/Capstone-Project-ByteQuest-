@@ -1,5 +1,6 @@
 import 'dart:ui' show Tristate;
 
+import 'package:bytequest/core/theme/app_theme.dart';
 import 'package:bytequest/screens/simulation/interactions/mission_interactions.dart';
 import 'package:bytequest/screens/simulation/runtime/mission_runtime_models.dart';
 import 'package:bytequest/screens/simulation/templates/authoritative_mission_contract.dart';
@@ -79,7 +80,10 @@ void main() {
     );
     expect(semantics.flagsCollection.isSelected, Tristate.isTrue);
     expect(semantics.flagsCollection.isEnabled, Tristate.isTrue);
-    expect(tester.getSize(find.byKey(const ValueKey('tool-tray-tool-tester'))).height,
+    expect(
+        tester
+            .getSize(find.byKey(const ValueKey('tool-tray-tool-tester')))
+            .height,
         greaterThanOrEqualTo(48));
     handle.dispose();
   });
@@ -121,9 +125,11 @@ void main() {
 
     final tool = find.byKey(const ValueKey('tool-tray-tool-tester'));
     expect(
-      tester.widget<OutlinedButton>(
-        find.descendant(of: tool, matching: find.byType(OutlinedButton)),
-      ).onPressed,
+      tester
+          .widget<OutlinedButton>(
+            find.descendant(of: tool, matching: find.byType(OutlinedButton)),
+          )
+          .onPressed,
       isNull,
     );
     expect(actions, isEmpty);
@@ -158,7 +164,8 @@ void main() {
       hotspotStates: const {'a': HotspotVisualState.selected},
     );
 
-    Future<void> pump(MissionPhaseDefinition phase, MissionRuntimeState state) =>
+    Future<void> pump(
+            MissionPhaseDefinition phase, MissionRuntimeState state) =>
         tester.pumpWidget(
           MaterialApp(
             home: Scaffold(
@@ -362,7 +369,8 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('connection-source-client')));
     await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('connection-destination-switch')));
+    await tester
+        .tap(find.byKey(const ValueKey('connection-destination-switch')));
     await tester.pump();
 
     expect(actions, hasLength(1));
@@ -414,9 +422,11 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('placement-item-memory')));
     await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('placement-destination-slot_a')));
+    await tester
+        .tap(find.byKey(const ValueKey('placement-destination-slot_a')));
     await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('placement-orientation-notch_left')));
+    await tester
+        .tap(find.byKey(const ValueKey('placement-orientation-notch_left')));
     await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, 'Place'));
     await tester.pump();
@@ -426,6 +436,82 @@ void main() {
     expect(actions.single['value'], containsPair('item_id', 'memory'));
     expect(actions.single['value'], containsPair('orientation', 'notch_left'));
     expect(actions.single['value'], containsPair('input_method', 'button'));
+  });
+
+  testWidgets(
+      'controlled placement renders persisted placement with state motion',
+      (tester) async {
+    final phase = _phase(
+      InteractionFamily.place,
+      presentation: {
+        'items': [
+          {
+            'id': 'memory',
+            'label': 'Memory module',
+            'category': 'dimm',
+          },
+        ],
+        'destinations': [
+          {
+            'id': 'slot_a',
+            'label': 'Slot A',
+            'accepted_categories': ['dimm'],
+          },
+        ],
+      },
+    );
+    var state = MissionRuntimeState.initial('mission');
+    var disableAnimations = false;
+    Widget app() => MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(disableAnimations: disableAnimations),
+            child: Scaffold(
+              body: ControlledPlacementInteraction(
+                phase: phase,
+                state: state,
+                onAction: (_, __, ___) async {},
+              ),
+            ),
+          ),
+        );
+
+    await tester.pumpWidget(app());
+    expect(find.byKey(const ValueKey('placement-state-memory')), findsNothing);
+
+    state = state.copyWith(placements: const {'memory': 'slot_a'});
+    await tester.pumpWidget(app());
+    expect(
+        find.byKey(const ValueKey('placement-state-memory')), findsOneWidget);
+    expect(find.text('Installed in Slot A'), findsOneWidget);
+    final transition = tester.widget<AnimatedSwitcher>(
+      find.byKey(const ValueKey('placement-state-transition')),
+    );
+    expect(transition.duration, AppTheme.simulationTransitionDuration);
+    expect(
+      find.ancestor(
+        of: find.byKey(const ValueKey('placement-state-memory')),
+        matching: find.byType(FadeTransition),
+      ),
+      findsWidgets,
+    );
+    expect(
+      find.ancestor(
+        of: find.byKey(const ValueKey('placement-state-memory')),
+        matching: find.byType(ScaleTransition),
+      ),
+      findsWidgets,
+    );
+
+    disableAnimations = true;
+    await tester.pumpWidget(app());
+    expect(
+      tester
+          .widget<AnimatedSwitcher>(
+            find.byKey(const ValueKey('placement-state-transition')),
+          )
+          .duration,
+      Duration.zero,
+    );
   });
 
   testWidgets('sequencing exposes semantic Move up and Move down controls',
@@ -464,7 +550,8 @@ void main() {
     await tester.pump();
 
     expect(actions.single['value'], containsPair('input_method', 'button'));
-    expect(actions.single['value'], containsPair('order', ['isolate', 'inspect']));
+    expect(
+        actions.single['value'], containsPair('order', ['isolate', 'inspect']));
   });
 
   testWidgets('matching supports two-column tap selection', (tester) async {

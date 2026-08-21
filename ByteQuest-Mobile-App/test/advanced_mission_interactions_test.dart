@@ -121,56 +121,76 @@ void main() {
     expect(actions, isEmpty);
   });
 
-  testWidgets('test run records start and completion after 200 milliseconds',
+  testWidgets('test run renders and completes from persisted runtime state',
       (tester) async {
     final actionTypes = <String>[];
-    await tester.pumpWidget(
-      _app(
-        TestRunInteraction(
-          phase: _phase(InteractionFamily.testRun),
-          state: MissionRuntimeState(missionId: 'mission'),
-          onAction: (type, _, __) async => actionTypes.add(type),
-        ),
-      ),
-    );
+    final phase = _phase(InteractionFamily.testRun);
+    var state = MissionRuntimeState(missionId: 'mission');
+    Widget app() => _app(
+          TestRunInteraction(
+            phase: phase,
+            state: state,
+            onAction: (type, target, value) async {
+              actionTypes.add(type);
+              state = state.withTestStatus(
+                target!,
+                MissionTestStatus.values.byName(value['test_status'] as String),
+              );
+            },
+          ),
+        );
+
+    await tester.pumpWidget(app());
 
     await tester.tap(find.widgetWithText(FilledButton, 'Run test'));
-    await tester.pump();
+    await tester.pumpWidget(app());
     expect(actionTypes, ['test_started']);
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Complete test'), findsOneWidget);
 
-    await tester.pump(const Duration(milliseconds: 199));
+    await tester.pump(const Duration(milliseconds: 500));
     expect(actionTypes, ['test_started']);
-    await tester.pump(const Duration(milliseconds: 1));
+    await tester.tap(find.widgetWithText(FilledButton, 'Complete test'));
+    await tester.pumpWidget(app());
     expect(actionTypes, ['test_started', 'test_completed']);
+    expect(state.testStatusFor(phase.id), MissionTestStatus.completed);
+    expect(find.byKey(const ValueKey('test-run-completed')), findsOneWidget);
   });
 
-  testWidgets('reduced motion test run completes immediately', (tester) async {
+  testWidgets('runtime reduced motion renders test state immediately',
+      (tester) async {
     final actionTypes = <String>[];
+    final phase = _phase(InteractionFamily.testRun);
     await tester.pumpWidget(
       _app(
         TestRunInteraction(
-          phase: _phase(InteractionFamily.testRun),
-          state: MissionRuntimeState(missionId: 'mission', reducedMotion: true),
+          phase: phase,
+          state: MissionRuntimeState(missionId: 'mission', reducedMotion: true)
+              .withTestStatus(phase.id, MissionTestStatus.running),
           onAction: (type, _, __) async => actionTypes.add(type),
         ),
       ),
     );
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Run test'));
-    await tester.pump();
-    expect(actionTypes, ['test_started', 'test_completed']);
+    expect(
+      tester.widget<AnimatedSwitcher>(find.byType(AnimatedSwitcher)).duration,
+      Duration.zero,
+    );
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Complete test'));
+    expect(actionTypes, ['test_completed']);
   });
 
   testWidgets('platform disabled animations remove test run motion',
       (tester) async {
-    final actionTypes = <String>[];
+    final phase = _phase(InteractionFamily.testRun);
     await tester.pumpWidget(
       _app(
         TestRunInteraction(
-          phase: _phase(InteractionFamily.testRun),
-          state: MissionRuntimeState(missionId: 'mission'),
-          onAction: (type, _, __) async => actionTypes.add(type),
+          phase: phase,
+          state: MissionRuntimeState(missionId: 'mission')
+              .withTestStatus(phase.id, MissionTestStatus.running),
+          onAction: (_, __, ___) async {},
         ),
         disableAnimations: true,
       ),
@@ -180,9 +200,7 @@ void main() {
       tester.widget<AnimatedSwitcher>(find.byType(AnimatedSwitcher)).duration,
       Duration.zero,
     );
-    await tester.tap(find.widgetWithText(FilledButton, 'Run test'));
-    await tester.pump();
-    expect(actionTypes, ['test_started', 'test_completed']);
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
   });
 
   testWidgets('observation and interpretation preserve learner payloads',
@@ -485,17 +503,25 @@ void main() {
       final phase = _catalogPhase(item.missionId, item.mechanic);
       final actions = <Map<String, dynamic>>[];
       var enabled = false;
+      var state = MissionRuntimeState(missionId: item.missionId);
       Widget app() => _app(
             TestRunInteraction(
               phase: phase,
-              state: MissionRuntimeState(missionId: item.missionId),
-              duration: Duration.zero,
+              state: state,
               enabled: enabled,
-              onAction: (type, target, value) async => actions.add({
-                'type': type,
-                'target': target,
-                'value': value,
-              }),
+              onAction: (type, target, value) async {
+                actions.add({
+                  'type': type,
+                  'target': target,
+                  'value': value,
+                });
+                state = state.withTestStatus(
+                  target!,
+                  MissionTestStatus.values.byName(
+                    value['test_status'] as String,
+                  ),
+                );
+              },
             ),
           );
 
@@ -507,11 +533,17 @@ void main() {
       enabled = true;
       await tester.pumpWidget(app());
       await tester.tap(button);
-      await tester.pump();
+      await tester.pumpWidget(app());
       expect(actions.first['type'], 'retest_requested');
       expect(actions.first['target'], item.target);
+      await tester.tap(find.widgetWithText(FilledButton, 'Complete test'));
+      await tester.pumpWidget(app());
       expect(actions.last['type'], 'test_completed');
       expect(actions.last['target'], item.target);
+      expect(
+        state.testStatusFor(item.target),
+        MissionTestStatus.completed,
+      );
 
       await tester.pumpWidget(const SizedBox.shrink());
     }

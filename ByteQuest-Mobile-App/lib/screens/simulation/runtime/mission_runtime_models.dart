@@ -23,6 +23,8 @@ enum HotspotVisualState { neutral, selected, completed, error }
 
 enum MissionRuntimeMode { practice, assessment }
 
+enum MissionTestStatus { idle, running, completed }
+
 final class SceneObjectDefinition {
   SceneObjectDefinition({
     required this.id,
@@ -647,6 +649,27 @@ final class MissionRuntimeState {
       updatedAt: updatedAt ?? DateTime.now(),
     );
   }
+
+  MissionTestStatus testStatusFor(String targetId) {
+    final value = testState[targetId];
+    final statusName = value is Map ? value['status'] : value;
+    if (statusName is! String) return MissionTestStatus.idle;
+    for (final status in MissionTestStatus.values) {
+      if (status.name == statusName) return status;
+    }
+    return MissionTestStatus.idle;
+  }
+
+  MissionRuntimeState withTestStatus(
+    String targetId,
+    MissionTestStatus status,
+  ) =>
+      copyWith(
+        testState: {
+          ...testState,
+          targetId: {'status': status.name},
+        },
+      );
 
   Map<String, dynamic> toJson() => {
         'schemaVersion': schemaVersion,

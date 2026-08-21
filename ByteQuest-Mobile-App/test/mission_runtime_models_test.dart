@@ -73,7 +73,9 @@ void main() {
     );
   });
 
-  test('definition rejects decision and verification absent from phase interactions', () {
+  test(
+      'definition rejects decision and verification absent from phase interactions',
+      () {
     expect(
       () => _definition(
         phases: [
@@ -175,6 +177,27 @@ void main() {
     expect(cleared.currentPhaseId, isNull);
     expect(cleared.selectedToolId, isNull);
   });
+
+  test('test lifecycle status is typed and survives state serialization', () {
+    final running = MissionRuntimeState.initial('coc2_m3').withTestStatus(
+      'uplink-check',
+      MissionTestStatus.running,
+    );
+
+    expect(
+      running.testStatusFor('uplink-check'),
+      MissionTestStatus.running,
+    );
+    expect(
+      running.testStatusFor('not-started'),
+      MissionTestStatus.idle,
+    );
+    final restored = MissionRuntimeState.fromJson(running.toJson());
+    expect(
+      restored.testStatusFor('uplink-check'),
+      MissionTestStatus.running,
+    );
+  });
 }
 
 MissionSimulationDefinition _definition({
@@ -199,16 +222,16 @@ MissionSimulationDefinition _definition({
       id: 'network-lab',
       objects: objects ??
           [
-        SceneObjectDefinition(
-          id: 'switch',
-          label: 'Network switch',
-          x: 0.25,
-          y: 0.4,
-          width: 0.2,
-          height: 0.15,
-          hotspotType: 'device',
-          connectionNodeIds: ['switch1'],
-        ),
+            SceneObjectDefinition(
+              id: 'switch',
+              label: 'Network switch',
+              x: 0.25,
+              y: 0.4,
+              width: 0.2,
+              height: 0.15,
+              hotspotType: 'device',
+              connectionNodeIds: ['switch1'],
+            ),
           ],
     ),
     phases: definitionPhases,

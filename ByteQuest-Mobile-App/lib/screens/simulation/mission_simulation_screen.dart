@@ -429,6 +429,14 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
     String? target,
     Map<String, dynamic> value,
   ) {
+    final testStatusName = value['test_status'];
+    if (target != null && testStatusName is String) {
+      for (final status in MissionTestStatus.values) {
+        if (status.name == testStatusName) {
+          return state.withTestStatus(target, status);
+        }
+      }
+    }
     switch (actionType) {
       case 'object_inspected':
         if (target == null) return state;

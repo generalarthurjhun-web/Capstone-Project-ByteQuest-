@@ -318,3 +318,58 @@
 - Primary solution: Use the completed exact 81-test UI gate and the clean targeted seven-file analyzer as Task 9 proof, and rerun full analysis in the parent/final integration gate.
 - Alternatives: Run full analysis from the IDE; retry after shared Flutter processes settle; split analysis by remaining library/test directories.
 - Status: Bounded and deferred to final integration; targeted analysis reports no issues.
+
+## 2026-08-21 15:36:33 +08:00 — Task 9 review placement RED harness setup
+
+- Operation: Inspect and run the first persisted-placement motion regression from the mobile directory.
+- Command: `Get-Content ByteQuest-Mobile-App\test\core_mission_interactions_test.dart`; then `flutter test test/core_mission_interactions_test.dart --plain-name "controlled placement renders persisted placement with state motion"`.
+- Affected test code: `ByteQuest-Mobile-App/test/core_mission_interactions_test.dart:491` and `:502`; production code was not reached by the failed compilation.
+- Observed result: The inspection command duplicated the mobile path from an already-mobile working directory, and the test then failed to compile because the new assertions referenced `AppTheme` without importing it.
+- Root cause: Two test-harness setup mistakes: a working-directory-relative path mismatch and a missing theme import.
+- Primary solution: Inspect `test/core_mission_interactions_test.dart` relative to the mobile directory, import `app_theme.dart`, and rerun the same focused RED regression.
+- Alternatives: Run inspection from the repository root; compare duration to a literal 200 ms value instead of the shared token.
+- Status: Resolved in the test harness; intended production RED rerun pending.
+
+## 2026-08-21 15:39:08 +08:00 — Task 9 placement motion patch context mismatch
+
+- Operation: Apply the persisted-placement snap/fade implementation and align its focused regression with Flutter transition widgets.
+- Command/interaction: `apply_patch` across `controlled_placement_interaction.dart` and `core_mission_interactions_test.dart`.
+- Affected location: No file was changed by the rejected patch.
+- Observed result: Patch verification could not match the formatted `AnimatedScale` assertion block in the test file.
+- Root cause: The combined patch used pre-format assertion context that no longer exactly matched Dart formatter output.
+- Primary solution: Apply a small test-only patch against the inspected formatted block, then apply the production widget patch separately.
+- Alternatives: Use a smaller ASCII anchor around the test name; regenerate the whole test block after rereading it.
+- Status: Resolved operationally; the rejected patch made no mutation.
+
+## 2026-08-21 15:47:55 +08:00 — Task 9 test-run replacement patch conflict
+
+- Operation: Replace the local timer-driven test interaction with a runtime-state renderer and add its screen transition in one patch.
+- Command/interaction: `apply_patch` deleting and adding `test_run_interaction.dart` while updating `mission_simulation_screen.dart`.
+- Affected location: No file was changed by the rejected combined patch.
+- Observed result: Patch verification rejected multiple delete/add operations targeting the same Dart file.
+- Root cause: The patch format does not accept deleting and adding one path in a single request.
+- Primary solution: Apply the deletion first, then add the replacement and screen transition in a separate patch.
+- Alternatives: Replace the file with one large `Update File` hunk; patch the class incrementally.
+- Status: Resolved; the split replacement and screen transition patches applied.
+
+## 2026-08-21 15:53:27 +08:00 — Task 9 matrix semantics disposal timing
+
+- Operation: Run the hardened terminal-action and complete Android tap-target matrix.
+- Command: `flutter test test/mission_accessibility_matrix_test.dart`
+- Affected test code: `ByteQuest-Mobile-App/test/mission_accessibility_matrix_test.dart` semantics handles in the per-family terminal tests and complete-target test.
+- Observed result: All interaction assertions executed, but fifteen tests failed end-of-test verification because active `SemanticsHandle` objects were registered with `addTearDown` and therefore disposed after Flutter's handle check.
+- Root cause: Widget-test semantics handles must be disposed inside the test body before Flutter performs end-of-test verification.
+- Primary solution: Dispose each handle explicitly after its final assertion rather than through `addTearDown`.
+- Alternatives: Wrap each test body in `try/finally` and dispose in `finally`; rely only on the accessibility guideline's internal semantics lifecycle where possible.
+- Status: Resolved in the matrix harness; focused rerun pending.
+
+## 2026-08-21 15:54:50 +08:00 — Task 9 review completed-state finder mismatch
+
+- Operation: Verify the runtime-state-driven TestRun completion renderer after replacing the local timer.
+- Command: `flutter test test/advanced_mission_interactions_test.dart --plain-name "test run renders and completes from persisted runtime state"`
+- Affected test code: `ByteQuest-Mobile-App/test/advanced_mission_interactions_test.dart:157`; production renderer `ByteQuest-Mobile-App/lib/screens/simulation/interactions/test_run_interaction.dart`.
+- Observed result: The action sequence and completed runtime state matched, but the exact semantics-label finder did not resolve the completed child while it was transitioning through `AnimatedSwitcher`.
+- Root cause: The assertion coupled the persisted-state proof to transient merged-semantics lookup during an animated replacement.
+- Primary solution: Assert the stable `test-run-completed` semantic widget key for state rendering; the accessibility matrix separately verifies semantic action and guideline behavior.
+- Alternatives: Settle the transition before matching; inspect the resolved `SemanticsData` from the keyed node.
+- Status: Resolved; the focused test and exact UI gate pass.
