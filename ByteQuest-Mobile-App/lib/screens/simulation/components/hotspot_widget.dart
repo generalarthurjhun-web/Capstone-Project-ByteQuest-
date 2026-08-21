@@ -28,6 +28,9 @@ class HotspotWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = _colorsFor(state);
+    final transitionDuration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : AppTheme.simulationTransitionDuration;
     return Semantics(
       key: key ?? ValueKey('hotspot-${object.id}'),
       button: true,
@@ -44,9 +47,7 @@ class HotspotWidget extends StatelessWidget {
             onTap: enabled ? onPressed : null,
             borderRadius: BorderRadius.circular(12),
             child: AnimatedContainer(
-              duration: MediaQuery.disableAnimationsOf(context)
-                  ? Duration.zero
-                  : const Duration(milliseconds: 180),
+              duration: transitionDuration,
               constraints: const BoxConstraints(
                 minWidth: minimumTapExtent,
                 minHeight: minimumTapExtent,
@@ -57,10 +58,21 @@ class HotspotWidget extends StatelessWidget {
                 border: Border.all(color: colors.foreground, width: 2),
               ),
               alignment: Alignment.center,
-              child: Icon(
-                _stateIcon(state, icon ?? _iconFor(object.hotspotType)),
-                color: colors.foreground,
-                size: 24,
+              child: AnimatedScale(
+                duration: transitionDuration,
+                curve: Curves.easeOutCubic,
+                scale: state == HotspotVisualState.neutral ? .92 : 1,
+                child: AnimatedSwitcher(
+                  duration: transitionDuration,
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  child: Icon(
+                    _stateIcon(state, icon ?? _iconFor(object.hotspotType)),
+                    key: ValueKey(state),
+                    color: colors.foreground,
+                    size: 24,
+                  ),
+                ),
               ),
             ),
           ),

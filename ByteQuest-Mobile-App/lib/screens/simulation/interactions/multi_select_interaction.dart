@@ -40,11 +40,11 @@ class _MultiSelectInteractionState extends State<MultiSelectInteraction> {
     }
   }
 
-  static Set<String> _runtimeSelection(MissionRuntimeState state) => state
-      .hotspotStates.entries
-      .where((entry) => entry.value == HotspotVisualState.selected)
-      .map((entry) => entry.key)
-      .toSet();
+  static Set<String> _runtimeSelection(MissionRuntimeState state) =>
+      state.hotspotStates.entries
+          .where((entry) => entry.value == HotspotVisualState.selected)
+          .map((entry) => entry.key)
+          .toSet();
 
   @override
   Widget build(BuildContext context) {
@@ -142,7 +142,8 @@ class MultiSelectInspection extends StatelessWidget {
 }
 
 class InteractionItem {
-  const InteractionItem({required this.id, required this.label, this.data = const {}});
+  const InteractionItem(
+      {required this.id, required this.label, this.data = const {}});
 
   final String id;
   final String label;
@@ -153,17 +154,14 @@ List<InteractionItem> interactionItems(
   dynamic value, {
   Iterable<String> fallbackIds = const [],
 }) {
-  final items = (value as List? ?? const [])
-      .whereType<Map>()
-      .map((item) {
-        final map = Map<String, dynamic>.from(item);
-        return InteractionItem(
-          id: map['id'] as String,
-          label: map['label'] as String? ?? map['id'] as String,
-          data: map,
-        );
-      })
-      .toList(growable: false);
+  final items = (value as List? ?? const []).whereType<Map>().map((item) {
+    final map = Map<String, dynamic>.from(item);
+    return InteractionItem(
+      id: map['id'] as String,
+      label: map['label'] as String? ?? map['id'] as String,
+      data: map,
+    );
+  }).toList(growable: false);
   if (items.isNotEmpty) return items;
   return fallbackIds
       .map((id) => InteractionItem(id: id, label: id))
@@ -200,7 +198,7 @@ class MissionSelectableActionCard extends StatelessWidget {
             child: AnimatedContainer(
               duration: MediaQuery.disableAnimationsOf(context)
                   ? Duration.zero
-                  : const Duration(milliseconds: 160),
+                  : AppTheme.simulationTransitionDuration,
               constraints: const BoxConstraints(minHeight: 52),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
@@ -214,7 +212,8 @@ class MissionSelectableActionCard extends StatelessWidget {
                 children: [
                   Icon(
                     selected ? Icons.check_circle_rounded : icon,
-                    color: selected ? AppTheme.primaryBlue : AppTheme.textMedium,
+                    color:
+                        selected ? AppTheme.primaryBlue : AppTheme.textMedium,
                     size: 22,
                   ),
                   const SizedBox(width: 10),

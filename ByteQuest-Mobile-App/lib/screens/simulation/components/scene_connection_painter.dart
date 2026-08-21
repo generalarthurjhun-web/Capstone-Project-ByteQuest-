@@ -22,7 +22,7 @@ class SceneConnectionSegment {
 
 /// Draws immutable runtime connection state up to [progress].
 class SceneConnectionPainter extends CustomPainter {
-  static const Duration drawDuration = Duration(milliseconds: 200);
+  static const Duration drawDuration = AppTheme.simulationTransitionDuration;
 
   final List<SceneConnectionSegment> connections;
   final double progress;

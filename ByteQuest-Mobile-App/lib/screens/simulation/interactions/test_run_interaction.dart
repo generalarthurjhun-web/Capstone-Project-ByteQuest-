@@ -10,7 +10,7 @@ class TestRunInteraction extends StatefulWidget {
     required this.phase,
     required this.state,
     required this.onAction,
-    this.duration = const Duration(milliseconds: 200),
+    this.duration = AppTheme.simulationTransitionDuration,
     this.enabled = true,
   });
 
@@ -64,7 +64,7 @@ class _TestRunInteractionState extends State<TestRunInteraction> {
           AnimatedSwitcher(
             duration: reduceMotion
                 ? Duration.zero
-                : const Duration(milliseconds: 200),
+                : AppTheme.simulationTransitionDuration,
             child: _running
                 ? Semantics(
                     key: const ValueKey('test-run-progress'),

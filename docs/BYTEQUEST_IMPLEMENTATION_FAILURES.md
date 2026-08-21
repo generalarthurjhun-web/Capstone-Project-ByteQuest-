@@ -263,3 +263,58 @@
 - Primary solution: Anchor the append to the preceding ASCII-only status line.
 - Alternatives: Copy the raw UTF-8 heading from an editor; use a smaller sequential append patch with a different stable context line.
 - Status: Resolved; the ASCII-anchored patch appended the failure entry successfully.
+
+## 2026-08-21 15:04:50 +08:00 — Task 9 UI guidance search launcher failure
+
+- Operation: Query the local UI/UX guidance for drag alternatives, reduced motion, and Flutter semantics before implementing the accessibility pass.
+- Command: `py -3 C:\Users\Drooo\.agents\skills\ui-ux-pro-max\scripts\search.py ...` for the three targeted searches.
+- Affected location: Local Python launcher configuration; application code line not applicable.
+- Observed result: All three searches exited before running because `py -3` referenced a missing `C:\Users\Drooo\AppData\Local\Programs\Python\Python311\python.exe`.
+- Root cause: The registered Python 3 launcher target is stale or unavailable in the managed environment.
+- Primary solution: Retry the same local search script with an available Python executable if one is discoverable, otherwise apply the skill's documented built-in accessibility defaults and repository acceptance criteria.
+- Alternatives: Repair the Python launcher registration; run the script from a known working virtual environment; consult the checked-in quick reference directly.
+- Status: Bypassed with the skill's built-in accessibility defaults; no repository implementation operation depended on the failed search.
+
+## 2026-08-21 15:09:41 +08:00 — Task 9 semantics harness API mismatch
+
+- Operation: Run the required initial Task 9 accessibility and design-system RED gate.
+- Command: `flutter test test/mission_accessibility_matrix_test.dart test/learner_design_system_test.dart`
+- Affected code: `ByteQuest-Mobile-App/test/mission_accessibility_matrix_test.dart:30`; the same run also produced the intended 44 dp theme failure at `ByteQuest-Mobile-App/test/learner_design_system_test.dart:27`.
+- Observed result: The new matrix did not compile because `SemanticsNode` does not define `hasAction`; `SemanticsData` owns that API in the installed Flutter version.
+- Root cause: The test queried a semantic action on the tree node instead of its resolved semantics data.
+- Primary solution: Call `getSemanticsData().hasAction(SemanticsAction.tap)` on the resolved node and rerun the exact RED gate.
+- Alternatives: Use Flutter's semantics matcher API; inspect `SemanticsData.actions` directly.
+- Status: Resolved in the test harness; the intended production failures remain for the corrected RED rerun.
+
+## 2026-08-21 15:11:53 +08:00 — Task 9 interaction driver missed rebuilds
+
+- Operation: Rerun the corrected accessibility matrix to isolate production accessibility and motion failures.
+- Command: `flutter test test/mission_accessibility_matrix_test.dart test/learner_design_system_test.dart`
+- Affected test code: `ByteQuest-Mobile-App/test/mission_accessibility_matrix_test.dart:297`, `:317`, and `:330` after formatting; production source line not applicable to these three harness failures.
+- Observed result: Placement looked for orientation before rebuilding after item selection, while observation and interpretation tapped their submit buttons before rebuilding their enabled state after text entry. The run separately retained the intended 44 dp theme failure and missing hotspot transition failures.
+- Root cause: The matrix's tap driver omitted `pump()` calls between state-changing input and controls conditionally rendered or enabled by that state.
+- Primary solution: Pump after selecting a placement item and after entering observation/interpretation text, then rerun the exact RED gate.
+- Alternatives: Use `pumpAndSettle`; split each interaction driver into its own widget test with explicit rebuild points.
+- Status: Resolved in the test harness; no production change was made for these driver-only failures.
+
+## 2026-08-21 15:22:11 +08:00 — Task 9 targeted analyzer style finding
+
+- Operation: Analyze the bounded Task 9 theme, motion components, interactions, and tests after the exact UI gate passed.
+- Command: `flutter analyze lib/core/theme/app_theme.dart lib/screens/simulation/components/hotspot_widget.dart lib/screens/simulation/components/scene_connection_painter.dart lib/screens/simulation/interactions/multi_select_interaction.dart lib/screens/simulation/interactions/test_run_interaction.dart test/mission_accessibility_matrix_test.dart test/learner_design_system_test.dart --no-fatal-infos`
+- Affected code: `ByteQuest-Mobile-App/test/learner_design_system_test.dart:83`.
+- Observed result: Analyzer completed with one `unnecessary_const` info on a nested `MediaQueryData` constructor.
+- Root cause: The enclosing `const MediaQuery` already supplied a constant context, making the nested constructor modifier redundant.
+- Primary solution: Remove only the redundant inner `const` and rerun targeted analysis.
+- Alternatives: Remove the outer const instead; leave the non-fatal style info for a later cleanup.
+- Status: Resolved in source; targeted analyzer rerun pending.
+
+## 2026-08-21 15:25:45 +08:00 — Task 9 full analyzer bounded stop
+
+- Operation: Run the plan's repository-wide mobile analyzer after the exact UI gate and clean targeted analyzer.
+- Command: `flutter analyze --no-fatal-infos`
+- Affected location: Full `ByteQuest-Mobile-App` analyzer process; application code line not applicable because no diagnostic was emitted.
+- Observed result: Analysis started and printed `Analyzing ByteQuest-Mobile-App...` but did not finish or emit a source diagnostic within about 90 seconds, so this task's process was interrupted to keep the handoff bounded.
+- Root cause: Full-project analyzer latency in the shared managed Flutter environment; no code-specific failure was reported.
+- Primary solution: Use the completed exact 81-test UI gate and the clean targeted seven-file analyzer as Task 9 proof, and rerun full analysis in the parent/final integration gate.
+- Alternatives: Run full analysis from the IDE; retry after shared Flutter processes settle; split analysis by remaining library/test directories.
+- Status: Bounded and deferred to final integration; targeted analysis reports no issues.

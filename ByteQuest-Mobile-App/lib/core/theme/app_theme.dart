@@ -120,6 +120,11 @@ class AppTheme {
   static const double spacingXxl = 48.0;
   static const double spacingXxxl = 64.0;
 
+  // Simulation interaction standards.
+  static const double minimumTapTarget = 48.0;
+  static const Duration simulationTransitionDuration =
+      Duration(milliseconds: 200);
+
   // Shadows - Soft UI Style
   static List<BoxShadow> get softShadow => [
         BoxShadow(
@@ -438,7 +443,7 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: primaryBlue,
-          minimumSize: const Size(44, 44),
+          minimumSize: const Size(minimumTapTarget, minimumTapTarget),
           shape: RoundedRectangleBorder(borderRadius: radiusSm),
           textStyle: labelLarge,
         ),

@@ -18,6 +18,26 @@ void main() {
     expect(text.titleMedium?.fontWeight, FontWeight.w600);
   });
 
+  test('ByteQuest controls use navy-blue tokens and 48dp minimum targets', () {
+    final theme = AppTheme.lightTheme;
+    final states = <WidgetState>{};
+
+    expect(theme.colorScheme.primary, AppTheme.primaryBlue);
+    expect(AppTheme.navy, const Color(0xFF0B1F46));
+    expect(
+      theme.textButtonTheme.style?.minimumSize?.resolve(states)?.width,
+      greaterThanOrEqualTo(48),
+    );
+    expect(
+      theme.textButtonTheme.style?.minimumSize?.resolve(states)?.height,
+      greaterThanOrEqualTo(48),
+    );
+    expect(
+      theme.iconButtonTheme.style?.minimumSize?.resolve(states),
+      const Size(48, 48),
+    );
+  });
+
   testWidgets('learner navigation remains usable at 320 logical pixels',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(320, 568));
@@ -60,7 +80,7 @@ void main() {
       MaterialApp(
         theme: AppTheme.lightTheme,
         home: const MediaQuery(
-          data: const MediaQueryData(textScaler: TextScaler.linear(1.6)),
+          data: MediaQueryData(textScaler: TextScaler.linear(1.6)),
           child: Scaffold(
             body: LearnerStateView(
               icon: Icons.route_outlined,
