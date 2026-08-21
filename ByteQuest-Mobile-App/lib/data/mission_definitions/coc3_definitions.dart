@@ -132,29 +132,40 @@ final List<MissionSimulationDefinition> _coc3Definitions = [
             (
               'inspect_group_membership',
               'Inspect group membership',
-              'group_membership_fact'
+              'group_membership_fact',
+              'The client session lists the Learners group but does not list the Support group.'
             ),
             (
               'inspect_effective_permission',
               'Inspect effective permission',
-              'effective_permission_fact'
+              'effective_permission_fact',
+              'Effective access reports Read allowed and Modify not granted for the shared folder.'
             ),
             (
               'inspect_resource_scope',
               'Inspect resource scope',
-              'resource_scope_fact'
+              'resource_scope_fact',
+              'The share lists Support with Change access and Learners with Read access.'
             ),
           ],
-          correctionId: 'apply_permission_change',
-          correctionLabel: 'Apply the supported permission change',
-          retestId: 'retest_client_access',
         ),
       ),
       _phase(
-          'Correct access',
-          'Apply the supported permission correction and repeat the access check.',
-          InteractionFamily.decide,
-          'correct_access'),
+        'Correct access',
+        'Apply the supported permission correction and repeat the access check.',
+        InteractionFamily.decide,
+        'correct_access',
+        presentation: const {
+          'correction': {
+            'id': 'apply_permission_change',
+            'label': 'Apply the supported permission change',
+          },
+          'retest': {
+            'id': 'retest_client_access',
+            'label': 'Repeat the client access check',
+          },
+        },
+      ),
       _phase(
           'Review evidence',
           'Review identity configuration, diagnosis, correction, and access evidence.',
@@ -248,34 +259,48 @@ final List<MissionSimulationDefinition> _coc3Definitions = [
             (
               'probe_client_network',
               'Probe client network',
-              'client_network_fact'
+              'client_network_fact',
+              'The client ping receives four replies from the server address below 2 ms.'
             ),
             (
               'inspect_service_status',
               'Inspect service status',
-              'service_status_fact'
+              'service_status_fact',
+              'The file service reports Running with TCP port 445 listening.'
             ),
             (
               'inspect_access_scope',
               'Inspect access scope',
-              'access_scope_fact'
+              'access_scope_fact',
+              'The client token lists Learners, while the share access list grants Change to Support.'
             ),
           ],
-          correctionId: 'apply_service_recovery',
-          correctionLabel: 'Apply the supported recovery action',
-          retestId: 'retest_service_access',
         ),
       ),
       _phase(
-          'Correct fault',
-          'Apply the correction supported by the earned facts.',
-          InteractionFamily.decide,
-          'correct_fault'),
+        'Correct fault',
+        'Apply the correction supported by the earned facts.',
+        InteractionFamily.decide,
+        'correct_fault',
+        presentation: const {
+          'correction': {
+            'id': 'apply_service_recovery',
+            'label': 'Apply the supported recovery action',
+          },
+        },
+      ),
       _phase(
-          'Retest recovery',
-          'Run client access and service recovery checks.',
-          InteractionFamily.testRun,
-          'retest_recovery'),
+        'Retest recovery',
+        'Run client access and service recovery checks.',
+        InteractionFamily.testRun,
+        'retest_recovery',
+        presentation: const {
+          'retest': {
+            'id': 'retest_service_access',
+            'label': 'Retest client access to the service',
+          },
+        },
+      ),
       _phase(
           'Review evidence',
           'Review inspection, diagnostics, correction, and recovery evidence.',

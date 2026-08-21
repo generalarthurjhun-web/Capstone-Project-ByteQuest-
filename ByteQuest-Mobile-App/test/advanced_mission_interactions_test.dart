@@ -57,24 +57,30 @@ void main() {
 
     await tester.pumpWidget(app());
     expect(
-      tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Apply correction'),
-      ).onPressed,
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'Apply correction'),
+          )
+          .onPressed,
       isNull,
     );
     expect(
-      tester.widget<OutlinedButton>(
-        find.widgetWithText(OutlinedButton, 'Retest connection'),
-      ).onPressed,
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, 'Retest connection'),
+          )
+          .onPressed,
       isNull,
     );
 
     state = state.copyWith(revealedFactIds: {'link_state', 'cable_state'});
     await tester.pumpWidget(app());
     expect(
-      tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Apply correction'),
-      ).onPressed,
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'Apply correction'),
+          )
+          .onPressed,
       isNotNull,
     );
 
@@ -84,11 +90,34 @@ void main() {
     );
     await tester.pumpWidget(app());
     expect(
-      tester.widget<OutlinedButton>(
-        find.widgetWithText(OutlinedButton, 'Retest connection'),
-      ).onPressed,
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, 'Retest connection'),
+          )
+          .onPressed,
       isNotNull,
     );
+  });
+
+  testWidgets('diagnostic-only phase exposes no correction or retest control',
+      (tester) async {
+    final actions = <String>[];
+    await tester.pumpWidget(
+      _app(
+        TroubleshootingBranchInteraction(
+          phase: _diagnosticOnlyPhase,
+          state: MissionRuntimeState(
+            missionId: 'mission',
+            revealedFactIds: const {'link_state'},
+          ),
+          onAction: (type, _, __) async => actions.add(type),
+        ),
+      ),
+    );
+
+    expect(find.widgetWithText(FilledButton, 'Apply correction'), findsNothing);
+    expect(find.widgetWithText(OutlinedButton, 'Retest'), findsNothing);
+    expect(actions, isEmpty);
   });
 
   testWidgets('test run records start and completion after 200 milliseconds',
@@ -276,7 +305,9 @@ void main() {
     var phase = _phase(InteractionFamily.interpret, id: 'interpret-one');
     var state = MissionRuntimeState(
       missionId: 'mission',
-      interpretations: const {'interpret-one': 'Persisted first interpretation'},
+      interpretations: const {
+        'interpret-one': 'Persisted first interpretation'
+      },
     );
     Widget app() => _app(
           ResultInterpretationInteraction(
@@ -316,7 +347,8 @@ void main() {
     );
     await tester.pumpWidget(app());
     expect(find.text('Persisted second interpretation'), findsOneWidget);
-    await tester.tap(find.widgetWithText(FilledButton, 'Record interpretation'));
+    await tester
+        .tap(find.widgetWithText(FilledButton, 'Record interpretation'));
     await tester.pump();
     expect(actions.single['target'], 'interpret-two');
     expect(actions.single['value'], {
@@ -392,9 +424,11 @@ void main() {
     expect(find.textContaining('1 pending'), findsOneWidget);
     expect(find.textContaining('1 needs retry'), findsOneWidget);
     expect(
-      tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Confirm submission'),
-      ).onPressed,
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'Confirm submission'),
+          )
+          .onPressed,
       isNull,
     );
     await tester.tap(find.widgetWithText(OutlinedButton, 'Return'));
@@ -503,7 +537,9 @@ void main() {
     );
     expect(tester.takeException(), isNull);
     expect(
-      tester.getSize(find.widgetWithText(FilledButton, 'Confirm submission')).height,
+      tester
+          .getSize(find.widgetWithText(FilledButton, 'Confirm submission'))
+          .height,
       greaterThanOrEqualTo(48),
     );
   });
@@ -568,6 +604,24 @@ final _troubleshootingPhase = _phase(
       'id': 'retest_connection',
       'label': 'Retest connection',
     },
+  },
+);
+
+final _diagnosticOnlyPhase = _phase(
+  InteractionFamily.troubleshoot,
+  presentation: {
+    'symptom': 'Workstation cannot reach the gateway.',
+    'facts': {
+      'link_state': 'Switch port 7 reports link down at 0 Mbps.',
+    },
+    'diagnostic_actions': [
+      {
+        'id': 'inspect_link',
+        'label': 'Inspect link light',
+        'reveals_fact_id': 'link_state',
+      },
+    ],
+    'required_fact_ids': ['link_state'],
   },
 );
 

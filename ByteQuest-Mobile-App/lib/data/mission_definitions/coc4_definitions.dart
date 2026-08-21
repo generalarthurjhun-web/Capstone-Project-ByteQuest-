@@ -78,17 +78,25 @@ final List<MissionSimulationDefinition> _coc4Definitions = [
         presentation: _progressiveDiagnostics(
           symptom: 'The workstation intermittently stops during operation.',
           actions: const [
-            ('run_memory_probe', 'Run memory probe', 'memory_probe_fact'),
+            (
+              'run_memory_probe',
+              'Run memory probe',
+              'memory_probe_fact',
+              'The memory probe completes two passes with 0 reported errors.'
+            ),
             (
               'inspect_storage_health',
               'Inspect storage health',
-              'storage_health_fact'
+              'storage_health_fact',
+              'The storage health monitor reports Caution with 18 pending sectors.'
             ),
-            ('measure_power_state', 'Measure power state', 'power_state_fact'),
+            (
+              'measure_power_state',
+              'Measure power state',
+              'power_state_fact',
+              'The power meter measures 12.1 V and 5.02 V on the supply rails under load.'
+            ),
           ],
-          correctionId: 'apply_component_repair',
-          correctionLabel: 'Apply the supported component repair',
-          retestId: 'retest_component',
         ),
       ),
       _phase('Interpret result', 'Record what the measured result indicates.',
@@ -100,10 +108,21 @@ final List<MissionSimulationDefinition> _coc4Definitions = [
           InteractionFamily.troubleshoot,
           'identify_fault'),
       _phase(
-          'Repair and verify',
-          'Record the repair and run the post-repair verification.',
-          InteractionFamily.testRun,
-          'repair_and_verify'),
+        'Repair and verify',
+        'Record the repair and run the post-repair verification.',
+        InteractionFamily.testRun,
+        'repair_and_verify',
+        presentation: const {
+          'correction': {
+            'id': 'apply_component_repair',
+            'label': 'Apply the supported component repair',
+          },
+          'retest': {
+            'id': 'retest_component',
+            'label': 'Run the post-repair component test',
+          },
+        },
+      ),
       _phase(
           'Review evidence',
           'Review inspection, diagnostics, interpretation, and repair evidence.',
@@ -144,18 +163,12 @@ final List<MissionSimulationDefinition> _coc4Definitions = [
               'label': 'Inspect application log',
               'reveals_fact_id': 'application_log_fact'
             },
-            {
-              'id': 'inspect_service_state',
-              'label': 'Inspect service state',
-              'reveals_fact_id': 'service_state_fact'
-            },
           ],
           'facts': {
-            'application_log_fact': 'Application log result recorded.',
-            'service_state_fact': 'Service-state result recorded.',
+            'application_log_fact':
+                'The application log records three request timeouts at 14:02:18.',
           },
-          'required_fact_ids': ['application_log_fact', 'service_state_fact'],
-          'interpretation_required_after_each': true,
+          'required_fact_ids': ['application_log_fact'],
         },
       ),
       _phase(
@@ -163,7 +176,10 @@ final List<MissionSimulationDefinition> _coc4Definitions = [
           'Interpret the earned software facts before opening network diagnostics.',
           InteractionFamily.decide,
           'interpret_software_result',
-          presentation: const {'component': 'result_interpretation'}),
+          presentation: const {
+            'component': 'result_interpretation',
+            'source_fact_ids': ['application_log_fact'],
+          }),
       _phase(
         'Run network diagnostic',
         'Choose a network diagnostic and preserve its displayed result.',
@@ -172,22 +188,16 @@ final List<MissionSimulationDefinition> _coc4Definitions = [
         presentation: const {
           'diagnostic_actions': [
             {
-              'id': 'inspect_interface_state',
-              'label': 'Inspect interface state',
-              'reveals_fact_id': 'interface_state_fact'
-            },
-            {
               'id': 'run_route_trace',
               'label': 'Run route trace',
               'reveals_fact_id': 'route_trace_fact'
             },
           ],
           'facts': {
-            'interface_state_fact': 'Interface-state result recorded.',
-            'route_trace_fact': 'Route-trace result recorded.',
+            'route_trace_fact':
+                'The route trace reaches gateway 192.168.1.1, then times out at hop 2.',
           },
-          'required_fact_ids': ['interface_state_fact', 'route_trace_fact'],
-          'interpretation_required_after_each': true,
+          'required_fact_ids': ['route_trace_fact'],
         },
       ),
       _phase(
@@ -195,7 +205,10 @@ final List<MissionSimulationDefinition> _coc4Definitions = [
           'Interpret the earned network facts without revealing a catalog answer.',
           InteractionFamily.decide,
           'interpret_network_result',
-          presentation: const {'component': 'result_interpretation'}),
+          presentation: const {
+            'component': 'result_interpretation',
+            'source_fact_ids': ['route_trace_fact'],
+          }),
       _phase(
           'Review evidence',
           'Review the diagnostic order and both recorded interpretations.',
@@ -298,36 +311,55 @@ final List<MissionSimulationDefinition> _coc4Definitions = [
             (
               'inspect_request_history',
               'Inspect request history',
-              'request_history_fact'
+              'request_history_fact',
+              'The previous service entry records fan cleaning 190 operating days ago.'
             ),
             (
               'inspect_system_health',
               'Inspect system health',
-              'system_health_fact'
+              'system_health_fact',
+              'The monitor reports 88 °C CPU temperature and 900 RPM fan speed under load.'
             ),
             (
               'inspect_maintenance_due',
               'Inspect maintenance schedule',
-              'maintenance_due_fact'
+              'maintenance_due_fact',
+              'The schedule marks the cooling-system inspection 10 days overdue.'
             ),
           ],
-          correctionId: 'approve_maintenance_action',
-          correctionLabel: 'Record the prioritized maintenance action',
-          retestId: 'run_maintenance_check',
         ),
       ),
       _phase(
-          'Maintain and repair configuration',
-          'Record maintenance, repair, and configuration actions.',
-          InteractionFamily.troubleshoot,
-          'maintain_repair_config',
-          presentation: const {'component': 'configuration'}),
+        'Maintain and repair configuration',
+        'Record maintenance, repair, and configuration actions.',
+        InteractionFamily.troubleshoot,
+        'maintain_repair_config',
+        presentation: const {
+          'component': 'configuration',
+          'correction': {
+            'id': 'approve_maintenance_action',
+            'label': 'Record the prioritized maintenance action',
+          },
+          'required_fact_ids': [
+            'request_history_fact',
+            'system_health_fact',
+            'maintenance_due_fact',
+          ],
+        },
+      ),
       _phase(
-          'Test and interpret',
-          'Run the service test and record an interpretation.',
-          InteractionFamily.testRun,
-          'test_and_interpret',
-          presentation: const {'component': 'test_with_interpretation'}),
+        'Test and interpret',
+        'Run the service test and record an interpretation.',
+        InteractionFamily.testRun,
+        'test_and_interpret',
+        presentation: const {
+          'component': 'test_with_interpretation',
+          'retest': {
+            'id': 'run_maintenance_check',
+            'label': 'Run the maintenance verification',
+          },
+        },
+      ),
       _phase(
           'Final verify',
           'Verify system condition and complete the service report.',

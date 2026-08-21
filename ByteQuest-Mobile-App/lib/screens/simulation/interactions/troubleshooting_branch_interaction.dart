@@ -27,7 +27,8 @@ class TroubleshootingBranchInteraction extends StatelessWidget {
     final symptom = presentation['symptom'] as String? ?? phase.instruction;
     final facts = _stringMap(presentation['facts']);
     final actions = _mapList(presentation['diagnostic_actions']);
-    final requiredFacts = _stringList(presentation['required_fact_ids']).toSet();
+    final requiredFacts =
+        _stringList(presentation['required_fact_ids']).toSet();
     final correction = _map(presentation['correction']);
     final retest = _map(presentation['retest']);
     final correctionId = correction['id'] as String?;
@@ -72,18 +73,23 @@ class TroubleshootingBranchInteraction extends StatelessWidget {
                   ),
                 ),
           ],
-          const SizedBox(height: 8),
-          FilledButton.icon(
-            onPressed: canCorrect ? () => _recordCorrection(correction) : null,
-            icon: const Icon(Icons.build_outlined),
-            label: Text(correction['label'] as String? ?? 'Apply correction'),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: canRetest ? () => _recordRetest(retest) : null,
-            icon: const Icon(Icons.replay_rounded),
-            label: Text(retest['label'] as String? ?? 'Retest'),
-          ),
+          if (correctionId != null) ...[
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              onPressed:
+                  canCorrect ? () => _recordCorrection(correction) : null,
+              icon: const Icon(Icons.build_outlined),
+              label: Text(correction['label'] as String? ?? 'Apply correction'),
+            ),
+          ],
+          if (retest['id'] is String) ...[
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: canRetest ? () => _recordRetest(retest) : null,
+              icon: const Icon(Icons.replay_rounded),
+              label: Text(retest['label'] as String? ?? 'Retest'),
+            ),
+          ],
         ],
       ),
     );
@@ -119,10 +125,11 @@ class TroubleshootingBranchInteraction extends StatelessWidget {
 Map<String, dynamic> _map(dynamic value) =>
     value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
 
-List<Map<String, dynamic>> _mapList(dynamic value) => (value as List? ?? const [])
-    .whereType<Map>()
-    .map((item) => Map<String, dynamic>.from(item))
-    .toList(growable: false);
+List<Map<String, dynamic>> _mapList(dynamic value) =>
+    (value as List? ?? const [])
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList(growable: false);
 
 Map<String, String> _stringMap(dynamic value) => value is Map
     ? value.map((key, item) => MapEntry(key.toString(), item.toString()))

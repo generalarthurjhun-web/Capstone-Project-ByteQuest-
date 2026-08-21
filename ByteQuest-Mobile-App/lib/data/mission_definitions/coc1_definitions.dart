@@ -312,31 +312,48 @@ final List<MissionSimulationDefinition> _coc1Definitions = [
             (
               'inspect_device_status',
               'Inspect device status',
-              'device_status_fact'
+              'device_status_fact',
+              'Firmware inventory lists the storage device, while the operating system reports it unavailable.'
             ),
             (
               'run_subsystem_probe',
               'Run subsystem probe',
-              'subsystem_probe_fact'
+              'subsystem_probe_fact',
+              'The storage probe returns a 1.8-second timeout with no readable volume.'
             ),
             (
               'inspect_connection_log',
               'Inspect connection log',
-              'connection_log_fact'
+              'connection_log_fact',
+              'The connection log records three storage-link resets during startup.'
             ),
           ],
-          correctionId: 'apply_integration_correction',
-          correctionLabel: 'Apply the documented integration correction',
-          retestId: 'retest_integration',
         ),
       ),
       _phase(
-          'Apply correction',
-          'Apply the correction supported by the recorded facts.',
-          InteractionFamily.decide,
-          'apply_correction'),
-      _phase('Verify integration', 'Run the full integration verification.',
-          InteractionFamily.testRun, 'verify_integration'),
+        'Apply correction',
+        'Apply the correction supported by the recorded facts.',
+        InteractionFamily.decide,
+        'apply_correction',
+        presentation: const {
+          'correction': {
+            'id': 'apply_integration_correction',
+            'label': 'Apply the documented integration correction',
+          },
+        },
+      ),
+      _phase(
+        'Verify integration',
+        'Run the full integration verification.',
+        InteractionFamily.testRun,
+        'verify_integration',
+        presentation: const {
+          'retest': {
+            'id': 'retest_integration',
+            'label': 'Retest workstation integration',
+          },
+        },
+      ),
       _phase(
           'Review evidence',
           'Review symptoms, diagnostics, correction, and verification.',

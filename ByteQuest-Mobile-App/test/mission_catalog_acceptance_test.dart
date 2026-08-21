@@ -410,18 +410,160 @@ void main() {
     }
   });
 
-  test('COC4 M3 requires interpretation after every diagnostic result', () {
-    final definition = MissionSimulationDefinitions.byId('coc4_m3');
-    final diagnosticPhases = definition.phases.where(
-      (phase) => phase.presentation['diagnostic_actions'] is List,
+  test('diagnostic phases cannot expose ordered correction or retest controls',
+      () {
+    const expectedControls = <String, Map<String, String>>{
+      'coc1_m5': {
+        'correctionMechanic': 'apply_correction',
+        'correctionId': 'apply_integration_correction',
+        'retestMechanic': 'verify_integration',
+        'retestId': 'retest_integration',
+      },
+      'coc2_m5': {
+        'correctionMechanic': 'fix_and_retest',
+        'correctionId': 'apply_network_fix',
+        'retestMechanic': 'fix_and_retest',
+        'retestId': 'retest_network_path',
+      },
+      'coc3_m3': {
+        'correctionMechanic': 'correct_access',
+        'correctionId': 'apply_permission_change',
+        'retestMechanic': 'correct_access',
+        'retestId': 'retest_client_access',
+      },
+      'coc3_m5': {
+        'correctionMechanic': 'correct_fault',
+        'correctionId': 'apply_service_recovery',
+        'retestMechanic': 'retest_recovery',
+        'retestId': 'retest_service_access',
+      },
+      'coc4_m2': {
+        'correctionMechanic': 'repair_and_verify',
+        'correctionId': 'apply_component_repair',
+        'retestMechanic': 'repair_and_verify',
+        'retestId': 'retest_component',
+      },
+      'coc4_m5': {
+        'correctionMechanic': 'maintain_repair_config',
+        'correctionId': 'approve_maintenance_action',
+        'retestMechanic': 'test_and_interpret',
+        'retestId': 'run_maintenance_check',
+      },
+    };
+
+    for (final entry in expectedControls.entries) {
+      final definition = MissionSimulationDefinitions.byId(entry.key);
+      final diagnosticIndexes = <int>[];
+      for (var index = 0; index < definition.phases.length; index++) {
+        final presentation = definition.phases[index].presentation;
+        if (presentation['diagnostic_actions'] is! List) continue;
+        diagnosticIndexes.add(index);
+        expect(presentation, isNot(contains('correction')),
+            reason: definition.phases[index].id);
+        expect(presentation, isNot(contains('retest')),
+            reason: definition.phases[index].id);
+      }
+
+      final correctionPhase = _phaseByMechanic(
+        definition,
+        entry.value['correctionMechanic']!,
+      );
+      final retestPhase = _phaseByMechanic(
+        definition,
+        entry.value['retestMechanic']!,
+      );
+      expect(
+        (correctionPhase.presentation['correction'] as Map?)?['id'],
+        entry.value['correctionId'],
+        reason: correctionPhase.id,
+      );
+      expect(
+        (retestPhase.presentation['retest'] as Map?)?['id'],
+        entry.value['retestId'],
+        reason: retestPhase.id,
+      );
+      expect(
+        definition.phases.indexOf(correctionPhase),
+        greaterThan(diagnosticIndexes.last),
+        reason: entry.key,
+      );
+      expect(
+        definition.phases.indexOf(retestPhase),
+        greaterThan(diagnosticIndexes.last),
+        reason: entry.key,
+      );
+      if (correctionPhase.primaryInteraction ==
+          InteractionFamily.troubleshoot) {
+        final diagnosticFactIds = diagnosticIndexes
+            .expand((index) => (definition.phases[index]
+                        .presentation['diagnostic_actions'] as List? ??
+                    const [])
+                .whereType<Map>()
+                .map((action) => action['reveals_fact_id']))
+            .whereType<String>()
+            .toSet();
+        expect(
+          correctionPhase.presentation['required_fact_ids'],
+          containsAll(diagnosticFactIds),
+          reason: correctionPhase.id,
+        );
+      }
+    }
+  });
+
+  test('diagnostic actions reveal concrete technical observations', () {
+    final concreteSignal = RegExp(
+      r'\d|reports|shows|returns|lists|records|measures|completes|responds|contains|holds|marks',
+      caseSensitive: false,
+    );
+    final placeholder = RegExp(
+      r'^(recorded result from .+|.+ result recorded)\.?$',
+      caseSensitive: false,
     );
 
-    expect(diagnosticPhases, hasLength(2));
-    for (final phase in diagnosticPhases) {
+    for (final definition in MissionSimulationDefinitions.all) {
+      for (final phase in definition.phases) {
+        final presentation = phase.presentation;
+        final actions =
+            (presentation['diagnostic_actions'] as List? ?? const [])
+                .whereType<Map>();
+        final facts = (presentation['facts'] as Map? ?? const {});
+        for (final action in actions) {
+          final factId = action['reveals_fact_id'];
+          final fact = facts[factId]?.toString() ?? '';
+          expect(fact.length, greaterThanOrEqualTo(30), reason: phase.id);
+          expect(placeholder.hasMatch(fact), isFalse, reason: phase.id);
+          expect(concreteSignal.hasMatch(fact), isTrue, reason: phase.id);
+        }
+      }
+    }
+  });
+
+  test('COC4 M3 interleaves each diagnostic with its interpretation phase', () {
+    final definition = MissionSimulationDefinitions.byId('coc4_m3');
+    final phases = definition.phases;
+    final diagnosticIndexes = <int>[
+      for (var index = 0; index < phases.length; index++)
+        if (phases[index].presentation['diagnostic_actions'] is List) index,
+    ];
+
+    expect(diagnosticIndexes, [1, 3]);
+    for (final index in diagnosticIndexes) {
+      final diagnostic = phases[index];
+      final interpretation = phases[index + 1];
+      final actions = (diagnostic.presentation['diagnostic_actions'] as List)
+          .whereType<Map>();
+      expect(actions, hasLength(1), reason: diagnostic.id);
+      final factId = actions.single['reveals_fact_id'];
       expect(
-        phase.presentation['interpretation_required_after_each'],
-        isTrue,
-        reason: phase.id,
+        interpretation.presentation['source_fact_ids'],
+        [factId],
+        reason: interpretation.id,
+      );
+      expect(
+        diagnostic.presentation,
+        isNot(contains('interpretation_required_after_each')),
+        reason: diagnostic.id,
       );
     }
   });
@@ -464,3 +606,12 @@ Set<String> _keys(dynamic value) {
   if (value is Iterable) return value.expand(_keys).toSet();
   return const {};
 }
+
+MissionPhaseDefinition _phaseByMechanic(
+  MissionSimulationDefinition definition,
+  String mechanic,
+) =>
+    definition.phases.singleWhere(
+      (phase) => (phase.presentation['mechanics'] as List? ?? const [])
+          .contains(mechanic),
+    );

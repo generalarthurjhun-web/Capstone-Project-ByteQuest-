@@ -297,24 +297,43 @@ final List<MissionSimulationDefinition> _coc2Definitions = [
         presentation: _progressiveDiagnostics(
           symptom: 'The workstation cannot reach the service host.',
           actions: const [
-            ('inspect_link_state', 'Inspect link state', 'link_state_fact'),
+            (
+              'inspect_link_state',
+              'Inspect link state',
+              'link_state_fact',
+              'The workstation link LED is green, and switch port 7 reports up at 1 Gbps.'
+            ),
             (
               'inspect_interface_config',
               'Inspect interface configuration',
-              'interface_config_fact'
+              'interface_config_fact',
+              'The workstation reports 192.168.10.24/24 with gateway 192.168.20.1.'
             ),
-            ('run_route_probe', 'Run route probe', 'route_probe_fact'),
+            (
+              'run_route_probe',
+              'Run route probe',
+              'route_probe_fact',
+              'The gateway probe returns destination unreachable from 192.168.10.24.'
+            ),
           ],
-          correctionId: 'apply_network_fix',
-          correctionLabel: 'Apply the supported network correction',
-          retestId: 'retest_network_path',
         ),
       ),
       _phase(
-          'Fix and retest',
-          'Apply the fact-supported correction and repeat connectivity testing.',
-          InteractionFamily.decide,
-          'fix_and_retest'),
+        'Fix and retest',
+        'Apply the fact-supported correction and repeat connectivity testing.',
+        InteractionFamily.decide,
+        'fix_and_retest',
+        presentation: const {
+          'correction': {
+            'id': 'apply_network_fix',
+            'label': 'Apply the supported network correction',
+          },
+          'retest': {
+            'id': 'retest_network_path',
+            'label': 'Retest the network path',
+          },
+        },
+      ),
       _phase(
           'Review evidence',
           'Review topology, diagnostics, correction, and retest evidence.',

@@ -152,10 +152,7 @@ SimulationSceneDefinition _scene(
 
 Map<String, dynamic> _progressiveDiagnostics({
   required String symptom,
-  required List<(String, String, String)> actions,
-  required String correctionId,
-  required String correctionLabel,
-  required String retestId,
+  required List<(String, String, String, String)> actions,
 }) {
   final factIds = actions.map((action) => action.$3).toList(growable: false);
   return {
@@ -169,11 +166,8 @@ Map<String, dynamic> _progressiveDiagnostics({
         },
     ],
     'facts': {
-      for (final action in actions)
-        action.$3: 'Recorded result from ${action.$2.toLowerCase()}.',
+      for (final action in actions) action.$3: action.$4,
     },
     'required_fact_ids': factIds,
-    'correction': {'id': correctionId, 'label': correctionLabel},
-    'retest': {'id': retestId, 'label': 'Run the documented retest'},
   };
 }
