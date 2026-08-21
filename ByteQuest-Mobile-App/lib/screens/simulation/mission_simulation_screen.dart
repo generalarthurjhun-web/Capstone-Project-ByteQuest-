@@ -74,10 +74,13 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
     with WidgetsBindingObserver {
   late final MissionRuntimeController _controller =
       widget.controller ?? _createController();
+  late final MissionRuntimeState _initialState;
   MissionRuntimeTransition? _pendingInteractionTransition;
   var _restoring = true;
   var _writing = false;
   var _submitting = false;
+  var _submitted = false;
+  String? _restoreFailure;
   String? _technicalFeedback;
 
   MissionRuntimeState get _state => _controller.state;
@@ -86,14 +89,20 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
     final assessment = AuthoritativeAssessmentService.instance;
     final firstPhaseId = widget.definition.phases.first.id;
     final userId = AuthService().currentUserId ?? 'local-practice';
-    final isAssessment = assessment.activeSession != null;
+    final assessmentSession = assessment.activeSession?.isAssessment == true
+        ? assessment.activeSession
+        : null;
+    final isAssessment = assessmentSession != null;
     return MissionRuntimeController(
       userId: userId,
-      initialState: MissionRuntimeState.initial(widget.definition.id).copyWith(
-        currentPhaseId: firstPhaseId,
+      initialState: MissionRuntimeState.initial(
+        widget.definition.id,
         mode: isAssessment
             ? MissionRuntimeMode.assessment
             : MissionRuntimeMode.practice,
+        assessmentAttemptId: assessmentSession?.attemptId,
+      ).copyWith(
+        currentPhaseId: firstPhaseId,
       ),
       store: const SharedPreferencesMissionRuntimeStore(),
       evidenceGateway: MissionEvidenceGateway(
@@ -106,6 +115,7 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
   @override
   void initState() {
     super.initState();
+    _initialState = _controller.state;
     WidgetsBinding.instance.addObserver(this);
     unawaited(widget.orientationCoordinator.requestLandscape());
     unawaited(_restore());
@@ -114,9 +124,38 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
   Future<void> _restore() async {
     try {
       await _controller.restore();
+      if (!_hasKnownPhase(_state.currentPhaseId)) {
+        _restoreFailure =
+            'Saved progress references a mission phase that is no longer '
+            'available.';
+      }
     } catch (_) {
-      _technicalFeedback =
-          'Saved progress could not be restored. The mission remains available.';
+      _restoreFailure =
+          'Saved progress could not be restored for this mission session.';
+    } finally {
+      if (mounted) setState(() => _restoring = false);
+    }
+  }
+
+  Future<void> _retryRestore() async {
+    setState(() {
+      _restoring = true;
+      _restoreFailure = null;
+    });
+    await _restore();
+  }
+
+  Future<void> _resetSavedProgress() async {
+    setState(() => _restoring = true);
+    try {
+      await _controller.reset(_initialState);
+      _restoreFailure = null;
+      _technicalFeedback = null;
+      _submitted = false;
+    } catch (_) {
+      _restoreFailure =
+          'Saved progress could not be reset. Retry or return to the mission '
+          'list.';
     } finally {
       if (mounted) setState(() => _restoring = false);
     }
@@ -156,6 +195,25 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
     if (_restoring) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_restoreFailure case final failure?) {
+      return Scaffold(
+        backgroundColor: AppTheme.backgroundLight,
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: TechnicalUnavailableState(
+                phaseTitle: widget.definition.title,
+                message: failure,
+                onRetry: () => unawaited(_retryRestore()),
+                onReset: () => unawaited(_resetSavedProgress()),
+              ),
+            ),
+          ),
+        ),
       );
     }
 
@@ -254,7 +312,7 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
             authoritativeEvidenceCount: _state.acceptedEvidenceIds.length,
             pendingEvidenceCount: _state.pendingEvidence.length,
             failedEvidenceCount: _controller.failedPendingEvidence.length,
-            canSubmit: _controller.canSubmit && !_submitting,
+            canSubmit: _controller.canSubmit && !_submitting && !_submitted,
             returnLabel:
                 widget.definition.reviewMetadata['returnLabel'] as String? ??
                     'Return to mission',
@@ -302,8 +360,15 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
     final index = widget.definition.phases.indexWhere(
       (phase) => phase.id == phaseId,
     );
-    return index < 0 ? 0 : index;
+    if (index < 0) {
+      throw StateError('The active mission phase is not in the catalog.');
+    }
+    return index;
   }
+
+  bool _hasKnownPhase(String? phaseId) => widget.definition.phases.any(
+        (phase) => phase.id == phaseId,
+      );
 
   Future<void> _recordAction(
     MissionPhaseDefinition phase,
@@ -499,11 +564,12 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
   }
 
   Future<void> _confirmSubmission() async {
-    if (_submitting || !_controller.canSubmit) return;
+    if (_submitting || _submitted || !_controller.canSubmit) return;
     setState(() => _submitting = true);
     try {
       final callback = widget.onSubmit ?? _submitAuthoritatively;
       await callback();
+      _submitted = true;
       _technicalFeedback =
           'Evidence submitted for authoritative evaluation and review.';
     } catch (_) {
@@ -776,9 +842,18 @@ class MissionPhaseInteraction extends StatelessWidget {
 }
 
 class TechnicalUnavailableState extends StatelessWidget {
-  const TechnicalUnavailableState({super.key, required this.phaseTitle});
+  const TechnicalUnavailableState({
+    super.key,
+    required this.phaseTitle,
+    this.message,
+    this.onRetry,
+    this.onReset,
+  });
 
   final String phaseTitle;
+  final String? message;
+  final VoidCallback? onRetry;
+  final VoidCallback? onReset;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -791,15 +866,41 @@ class TechnicalUnavailableState extends StatelessWidget {
             borderRadius: AppTheme.radiusSm,
             border: Border.all(color: AppTheme.borderMedium),
           ),
-          child: const Row(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.build_circle_outlined),
-              SizedBox(width: 10),
+              const Icon(Icons.build_circle_outlined),
+              const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  'This technical interaction is not available. '
-                  'Return to the mission list or contact your Instructor.',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      message ??
+                          'This technical interaction is not available. '
+                              'Return to the mission list or contact your '
+                              'Instructor.',
+                    ),
+                    if (onRetry != null || onReset != null) ...[
+                      const SizedBox(height: 14),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          if (onRetry != null)
+                            OutlinedButton(
+                              onPressed: onRetry,
+                              child: const Text('Retry restore'),
+                            ),
+                          if (onReset != null)
+                            FilledButton(
+                              onPressed: onReset,
+                              child: const Text('Reset saved progress'),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],

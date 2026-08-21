@@ -77,13 +77,11 @@ final class MissionRuntimeController {
       final restored = await _store.loadMissionRuntime(
         userId: _userId,
         missionId: _state.missionId,
+        mode: _state.mode,
+        assessmentAttemptId: _state.assessmentAttemptId,
       );
       if (restored == null) return;
-      if (restored.missionId != _state.missionId) {
-        throw FormatException(
-          'Mission runtime snapshot does not match ${_state.missionId}.',
-        );
-      }
+      _assertSameSession(restored, source: 'snapshot');
       _state = restored;
       _failedEvidenceIds.clear();
       await _flushPendingNow();
@@ -102,16 +100,37 @@ final class MissionRuntimeController {
     });
   }
 
+  /// Clears the active session's local snapshot and returns to a caller-owned
+  /// clean state without changing mission, mode, or assessment attempt.
+  Future<void> reset(MissionRuntimeState initialState) {
+    return _enqueue(() async {
+      _assertSameSession(initialState, source: 'reset state');
+      final cleared = await _store.clearMissionRuntime(
+        userId: _userId,
+        missionId: _state.missionId,
+        mode: _state.mode,
+        assessmentAttemptId: _state.assessmentAttemptId,
+      );
+      if (!cleared) {
+        throw StateError('Mission runtime progress could not be cleared.');
+      }
+      _state = initialState;
+      _failedEvidenceIds.clear();
+    });
+  }
+
   Future<MissionEvidenceAction> _dispatchNow(
     MissionEvidenceAction action,
     MissionRuntimeTransition transition,
   ) async {
     final transitioned = transition(_state);
-    if (transitioned.missionId != _state.missionId) {
+    if (transitioned.missionId != _state.missionId ||
+        transitioned.mode != _state.mode ||
+        transitioned.assessmentAttemptId != _state.assessmentAttemptId) {
       throw ArgumentError.value(
         transitioned.missionId,
         'transition',
-        'must preserve the active mission ID',
+        'must preserve the active mission session',
       );
     }
 
@@ -180,6 +199,19 @@ final class MissionRuntimeController {
 
   Future<bool> _saveState() {
     return _store.saveMissionRuntime(userId: _userId, state: _state);
+  }
+
+  void _assertSameSession(
+    MissionRuntimeState candidate, {
+    required String source,
+  }) {
+    if (candidate.missionId != _state.missionId ||
+        candidate.mode != _state.mode ||
+        candidate.assessmentAttemptId != _state.assessmentAttemptId) {
+      throw FormatException(
+        'Mission runtime $source does not match the active session.',
+      );
+    }
   }
 
   Future<T> _enqueue<T>(Future<T> Function() operation) {

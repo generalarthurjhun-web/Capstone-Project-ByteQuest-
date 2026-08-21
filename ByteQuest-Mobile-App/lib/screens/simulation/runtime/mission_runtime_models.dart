@@ -150,8 +150,8 @@ final class SimulationSceneDefinition {
       _deepEquals(other.initialStatus, initialStatus);
 
   @override
-  int get hashCode =>
-      Object.hash(id, backgroundAsset, _deepHash(objects), _deepHash(initialStatus));
+  int get hashCode => Object.hash(
+      id, backgroundAsset, _deepHash(objects), _deepHash(initialStatus));
 }
 
 final class MissionPhaseDefinition {
@@ -247,15 +247,19 @@ final class MissionSimulationDefinition {
     Map<String, dynamic> reviewMetadata = const {},
   })  : phases = List.unmodifiable(phases),
         interactionFamilies = Set.unmodifiable(interactionFamilies),
-        feedbackCatalog = Map.unmodifiable(Map<String, String>.from(feedbackCatalog)),
+        feedbackCatalog =
+            Map.unmodifiable(Map<String, String>.from(feedbackCatalog)),
         reviewMetadata = _immutableJsonMap(reviewMetadata) {
     if (this.phases.length < 3 || this.phases.length > 6) {
-      throw ArgumentError.value(this.phases.length, 'phases', 'must contain 3–6 phases');
+      throw ArgumentError.value(
+          this.phases.length, 'phases', 'must contain 3–6 phases');
     }
-    if (this.phases.map((phase) => phase.id).toSet().length != this.phases.length) {
+    if (this.phases.map((phase) => phase.id).toSet().length !=
+        this.phases.length) {
       throw ArgumentError.value(phases, 'phases', 'must have unique IDs');
     }
-    if (this.interactionFamilies.length < 2 || this.interactionFamilies.length > 4) {
+    if (this.interactionFamilies.length < 2 ||
+        this.interactionFamilies.length > 4) {
       throw ArgumentError.value(
         this.interactionFamilies.length,
         'interactionFamilies',
@@ -264,7 +268,8 @@ final class MissionSimulationDefinition {
     }
     final phaseFamilies = this
         .phases
-        .expand((phase) => [phase.primaryInteraction, ...phase.supportingInteractions])
+        .expand((phase) =>
+            [phase.primaryInteraction, ...phase.supportingInteractions])
         .toSet();
     if (!_deepEquals(this.interactionFamilies, phaseFamilies)) {
       throw ArgumentError.value(
@@ -274,7 +279,8 @@ final class MissionSimulationDefinition {
       );
     }
     if (!phaseFamilies.contains(InteractionFamily.decide)) {
-      throw ArgumentError.value(phases, 'phases', 'must include a technical decision');
+      throw ArgumentError.value(
+          phases, 'phases', 'must include a technical decision');
     }
     if (!phaseFamilies.contains(InteractionFamily.testRun)) {
       throw ArgumentError.value(phases, 'phases', 'must include verification');
@@ -315,7 +321,8 @@ final class MissionSimulationDefinition {
   bool get hasTechnicalDecision =>
       interactionFamilies.contains(InteractionFamily.decide);
 
-  bool get hasVerification => interactionFamilies.contains(InteractionFamily.testRun);
+  bool get hasVerification =>
+      interactionFamilies.contains(InteractionFamily.testRun);
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -449,14 +456,17 @@ final class MissionRuntimeState {
     Iterable<String> acceptedEvidenceIds = const [],
     Iterable<MissionEvidenceAction> pendingEvidence = const [],
     this.mode = MissionRuntimeMode.practice,
+    this.assessmentAttemptId,
     this.reducedMotion = false,
     this.cameraScale = 1,
     this.cameraOffsetX = 0,
     this.cameraOffsetY = 0,
     DateTime? updatedAt,
   })  : completedPhaseIds = Set.unmodifiable(completedPhaseIds),
-        hotspotStates = Map.unmodifiable(Map<String, HotspotVisualState>.from(hotspotStates)),
-        toolApplications = Map.unmodifiable(Map<String, String>.from(toolApplications)),
+        hotspotStates = Map.unmodifiable(
+            Map<String, HotspotVisualState>.from(hotspotStates)),
+        toolApplications =
+            Map.unmodifiable(Map<String, String>.from(toolApplications)),
         connectedNodePairs = Set.unmodifiable(connectedNodePairs),
         placements = Map.unmodifiable(Map<String, String>.from(placements)),
         configurationValues = _immutableJsonMap(configurationValues),
@@ -477,18 +487,42 @@ final class MissionRuntimeState {
         'must match the supported schema version',
       );
     }
+    final hasAttemptId = assessmentAttemptId?.trim().isNotEmpty ?? false;
+    if (mode == MissionRuntimeMode.assessment && !hasAttemptId) {
+      throw ArgumentError.value(
+        assessmentAttemptId,
+        'assessmentAttemptId',
+        'is required for an assessment runtime',
+      );
+    }
+    if (mode == MissionRuntimeMode.practice && assessmentAttemptId != null) {
+      throw ArgumentError.value(
+        assessmentAttemptId,
+        'assessmentAttemptId',
+        'must be null for a practice runtime',
+      );
+    }
   }
 
   static const schemaVersion = 1;
 
-  factory MissionRuntimeState.initial(String missionId) {
-    return MissionRuntimeState(missionId: missionId);
+  factory MissionRuntimeState.initial(
+    String missionId, {
+    MissionRuntimeMode mode = MissionRuntimeMode.practice,
+    String? assessmentAttemptId,
+  }) {
+    return MissionRuntimeState(
+      missionId: missionId,
+      mode: mode,
+      assessmentAttemptId: assessmentAttemptId,
+    );
   }
 
   factory MissionRuntimeState.fromJson(Map<String, dynamic> json) {
     final version = json['schemaVersion'] as int?;
     if (version != schemaVersion) {
-      throw FormatException('Unsupported mission runtime schema version: $version');
+      throw FormatException(
+          'Unsupported mission runtime schema version: $version');
     }
     return MissionRuntimeState(
       missionId: json['missionId'] as String,
@@ -515,6 +549,7 @@ final class MissionRuntimeState {
         MissionRuntimeMode.values,
         json['mode'] as String? ?? MissionRuntimeMode.practice.name,
       ),
+      assessmentAttemptId: json['assessmentAttemptId'] as String?,
       reducedMotion: json['reducedMotion'] as bool? ?? false,
       cameraScale: (json['cameraScale'] as num? ?? 1).toDouble(),
       cameraOffsetX: (json['cameraOffsetX'] as num? ?? 0).toDouble(),
@@ -543,6 +578,7 @@ final class MissionRuntimeState {
   final Set<String> acceptedEvidenceIds;
   final List<MissionEvidenceAction> pendingEvidence;
   final MissionRuntimeMode mode;
+  final String? assessmentAttemptId;
   final bool reducedMotion;
   final double cameraScale;
   final double cameraOffsetX;
@@ -570,6 +606,8 @@ final class MissionRuntimeState {
     Map<String, dynamic>? testState,
     List<MissionEvidenceAction>? pendingEvidence,
     MissionRuntimeMode? mode,
+    String? assessmentAttemptId,
+    bool clearAssessmentAttemptId = false,
     bool? reducedMotion,
     double? cameraScale,
     double? cameraOffsetX,
@@ -578,10 +616,12 @@ final class MissionRuntimeState {
   }) {
     return MissionRuntimeState(
       missionId: missionId,
-      currentPhaseId: clearCurrentPhaseId ? null : currentPhaseId ?? this.currentPhaseId,
+      currentPhaseId:
+          clearCurrentPhaseId ? null : currentPhaseId ?? this.currentPhaseId,
       completedPhaseIds: completedPhaseIds ?? this.completedPhaseIds,
       hotspotStates: hotspotStates ?? this.hotspotStates,
-      selectedToolId: clearSelectedToolId ? null : selectedToolId ?? this.selectedToolId,
+      selectedToolId:
+          clearSelectedToolId ? null : selectedToolId ?? this.selectedToolId,
       toolApplications: toolApplications ?? this.toolApplications,
       connectedNodePairs: connectedNodePairs ?? this.connectedNodePairs,
       placements: placements ?? this.placements,
@@ -591,11 +631,15 @@ final class MissionRuntimeState {
       observations: observations ?? this.observations,
       interpretations: interpretations ?? this.interpretations,
       revealedFactIds: revealedFactIds ?? this.revealedFactIds,
-      selectedBranchActionIds: selectedBranchActionIds ?? this.selectedBranchActionIds,
+      selectedBranchActionIds:
+          selectedBranchActionIds ?? this.selectedBranchActionIds,
       testState: testState ?? this.testState,
       acceptedEvidenceIds: acceptedEvidenceIds ?? this.acceptedEvidenceIds,
       pendingEvidence: pendingEvidence ?? this.pendingEvidence,
       mode: mode ?? this.mode,
+      assessmentAttemptId: clearAssessmentAttemptId
+          ? null
+          : assessmentAttemptId ?? this.assessmentAttemptId,
       reducedMotion: reducedMotion ?? this.reducedMotion,
       cameraScale: cameraScale ?? this.cameraScale,
       cameraOffsetX: cameraOffsetX ?? this.cameraOffsetX,
@@ -625,8 +669,10 @@ final class MissionRuntimeState {
         'selectedBranchActionIds': selectedBranchActionIds.toList(),
         'testState': _jsonCopy(testState),
         'acceptedEvidenceIds': acceptedEvidenceIds.toList(),
-        'pendingEvidence': pendingEvidence.map((action) => action.toJson()).toList(),
+        'pendingEvidence':
+            pendingEvidence.map((action) => action.toJson()).toList(),
         'mode': mode.name,
+        'assessmentAttemptId': assessmentAttemptId,
         'reducedMotion': reducedMotion,
         'cameraScale': cameraScale,
         'cameraOffsetX': cameraOffsetX,
@@ -657,6 +703,7 @@ final class MissionRuntimeState {
       _deepEquals(other.acceptedEvidenceIds, acceptedEvidenceIds) &&
       _deepEquals(other.pendingEvidence, pendingEvidence) &&
       other.mode == mode &&
+      other.assessmentAttemptId == assessmentAttemptId &&
       other.reducedMotion == reducedMotion &&
       other.cameraScale == cameraScale &&
       other.cameraOffsetX == cameraOffsetX &&
@@ -685,6 +732,7 @@ final class MissionRuntimeState {
         _deepHash(acceptedEvidenceIds),
         _deepHash(pendingEvidence),
         mode,
+        assessmentAttemptId,
         reducedMotion,
         cameraScale,
         cameraOffsetX,
@@ -694,7 +742,8 @@ final class MissionRuntimeState {
 }
 
 Map<String, dynamic> _immutableJsonMap(Map<String, dynamic> source) =>
-    Map.unmodifiable(source.map((key, value) => MapEntry(key, _freezeJson(value))));
+    Map.unmodifiable(
+        source.map((key, value) => MapEntry(key, _freezeJson(value))));
 
 Object? _freezeJson(Object? value) {
   if (value is Map) {
@@ -710,7 +759,8 @@ Object? _freezeJson(Object? value) {
 
 Object? _jsonCopy(Object? value) {
   if (value is Map) {
-    return value.map((key, nestedValue) => MapEntry(key.toString(), _jsonCopy(nestedValue)));
+    return value.map(
+        (key, nestedValue) => MapEntry(key.toString(), _jsonCopy(nestedValue)));
   }
   if (value is Iterable) {
     return value.map(_jsonCopy).toList();
@@ -761,7 +811,9 @@ bool _deepEquals(Object? left, Object? right) {
   if (left is Map && right is Map) {
     return left.length == right.length &&
         left.entries.every(
-          (entry) => right.containsKey(entry.key) && _deepEquals(entry.value, right[entry.key]),
+          (entry) =>
+              right.containsKey(entry.key) &&
+              _deepEquals(entry.value, right[entry.key]),
         );
   }
   if (left is Set && right is Set) {
@@ -771,8 +823,8 @@ bool _deepEquals(Object? left, Object? right) {
     final leftValues = left.toList();
     final rightValues = right.toList();
     return leftValues.length == rightValues.length &&
-        Iterable<int>.generate(leftValues.length)
-            .every((index) => _deepEquals(leftValues[index], rightValues[index]));
+        Iterable<int>.generate(leftValues.length).every(
+            (index) => _deepEquals(leftValues[index], rightValues[index]));
   }
   return false;
 }
@@ -780,7 +832,8 @@ bool _deepEquals(Object? left, Object? right) {
 int _deepHash(Object? value) {
   if (value is Map) {
     final hashes = value.entries
-        .map((entry) => Object.hash(_deepHash(entry.key), _deepHash(entry.value)))
+        .map((entry) =>
+            Object.hash(_deepHash(entry.key), _deepHash(entry.value)))
         .toList()
       ..sort();
     return Object.hashAll(hashes);

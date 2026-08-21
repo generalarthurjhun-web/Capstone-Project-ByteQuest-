@@ -88,7 +88,7 @@ void main() {
   test('incompatible mission snapshot returns no state without throwing',
       () async {
     SharedPreferences.setMockInitialValues({
-      'bq_mission_runtime_learner-1_coc2_m3': jsonEncode({
+      'bq_mission_runtime_learner-1_coc2_m3_practice': jsonEncode({
         'schemaVersion': MissionRuntimeState.schemaVersion + 1,
         'missionId': 'coc2_m3',
       }),
@@ -97,6 +97,7 @@ void main() {
     final restored = await ProgressResumeService.loadMissionRuntime(
       userId: 'learner-1',
       missionId: 'coc2_m3',
+      mode: MissionRuntimeMode.practice,
     );
 
     expect(restored, isNull);
@@ -104,7 +105,7 @@ void main() {
 
   test('snapshot for a different mission returns no state', () async {
     SharedPreferences.setMockInitialValues({
-      'bq_mission_runtime_learner-1_coc2_m3': jsonEncode(
+      'bq_mission_runtime_learner-1_coc2_m3_practice': jsonEncode(
         MissionRuntimeState.initial('coc1_m1').toJson(),
       ),
     });
@@ -112,6 +113,7 @@ void main() {
     final restored = await ProgressResumeService.loadMissionRuntime(
       userId: 'learner-1',
       missionId: 'coc2_m3',
+      mode: MissionRuntimeMode.practice,
     );
 
     expect(restored, isNull);
@@ -137,6 +139,101 @@ void main() {
 
     expect(transport.acknowledgedReads, 0);
     expect(transport.appendedIds, isEmpty);
+  });
+
+  test('restore rejects practice evidence in an assessment session', () async {
+    final practiceSnapshot = MissionRuntimeState.initial('coc2_m3').copyWith(
+      acceptedEvidenceIds: const {'practice-action'},
+    );
+    final store = _FakeRuntimeStore(saved: practiceSnapshot);
+    final transport = _FakeEvidenceTransport();
+    final controller = _controller(
+      store: store,
+      transport: transport,
+      initialState: MissionRuntimeState.initial(
+        'coc2_m3',
+        mode: MissionRuntimeMode.assessment,
+        assessmentAttemptId: 'attempt-current',
+      ),
+    );
+
+    await expectLater(controller.restore(), throwsFormatException);
+
+    expect(controller.state.acceptedEvidenceIds, isEmpty);
+    expect(transport.acknowledgedReads, 0);
+  });
+
+  test('restore rejects evidence from a prior assessment attempt', () async {
+    final priorAttempt = MissionRuntimeState.initial(
+      'coc2_m3',
+      mode: MissionRuntimeMode.assessment,
+      assessmentAttemptId: 'attempt-a',
+    ).copyWith(acceptedEvidenceIds: const {'prior-action'});
+    final store = _FakeRuntimeStore(saved: priorAttempt);
+    final transport = _FakeEvidenceTransport();
+    final controller = _controller(
+      store: store,
+      transport: transport,
+      initialState: MissionRuntimeState.initial(
+        'coc2_m3',
+        mode: MissionRuntimeMode.assessment,
+        assessmentAttemptId: 'attempt-b',
+      ),
+    );
+
+    await expectLater(controller.restore(), throwsFormatException);
+
+    expect(controller.state.acceptedEvidenceIds, isEmpty);
+    expect(transport.acknowledgedReads, 0);
+  });
+
+  test('persistence keys isolate practice and assessment attempts', () async {
+    SharedPreferences.setMockInitialValues({});
+    final practice = MissionRuntimeState.initial('coc2_m3').copyWith(
+      acceptedEvidenceIds: const {'practice-action'},
+    );
+    final attemptA = MissionRuntimeState.initial(
+      'coc2_m3',
+      mode: MissionRuntimeMode.assessment,
+      assessmentAttemptId: 'attempt-a',
+    ).copyWith(acceptedEvidenceIds: const {'attempt-a-action'});
+
+    expect(
+      await ProgressResumeService.saveMissionRuntime(
+        userId: 'learner-1',
+        state: practice,
+      ),
+      isTrue,
+    );
+    expect(
+      await ProgressResumeService.saveMissionRuntime(
+        userId: 'learner-1',
+        state: attemptA,
+      ),
+      isTrue,
+    );
+
+    final restoredPractice = await ProgressResumeService.loadMissionRuntime(
+      userId: 'learner-1',
+      missionId: 'coc2_m3',
+      mode: MissionRuntimeMode.practice,
+    );
+    final restoredAttemptA = await ProgressResumeService.loadMissionRuntime(
+      userId: 'learner-1',
+      missionId: 'coc2_m3',
+      mode: MissionRuntimeMode.assessment,
+      assessmentAttemptId: 'attempt-a',
+    );
+    final restoredAttemptB = await ProgressResumeService.loadMissionRuntime(
+      userId: 'learner-1',
+      missionId: 'coc2_m3',
+      mode: MissionRuntimeMode.assessment,
+      assessmentAttemptId: 'attempt-b',
+    );
+
+    expect(restoredPractice?.acceptedEvidenceIds, {'practice-action'});
+    expect(restoredAttemptA?.acceptedEvidenceIds, {'attempt-a-action'});
+    expect(restoredAttemptB, isNull);
   });
 
   test('legacy resume APIs retain their existing payload contract', () async {
@@ -173,10 +270,11 @@ void main() {
 MissionRuntimeController _controller({
   required _FakeRuntimeStore store,
   required _FakeEvidenceTransport transport,
+  MissionRuntimeState? initialState,
 }) {
   return MissionRuntimeController(
     userId: 'learner-1',
-    initialState: MissionRuntimeState.initial('coc2_m3'),
+    initialState: initialState ?? MissionRuntimeState.initial('coc2_m3'),
     store: store,
     evidenceGateway: MissionEvidenceGateway(transport: transport),
     clientActionIdFactory: () => 'stable-generated-id',
@@ -206,6 +304,8 @@ final class _FakeRuntimeStore implements MissionRuntimeStore {
   Future<bool> clearMissionRuntime({
     required String userId,
     required String missionId,
+    required MissionRuntimeMode mode,
+    String? assessmentAttemptId,
   }) async {
     saved = null;
     return true;
@@ -215,6 +315,8 @@ final class _FakeRuntimeStore implements MissionRuntimeStore {
   Future<MissionRuntimeState?> loadMissionRuntime({
     required String userId,
     required String missionId,
+    required MissionRuntimeMode mode,
+    String? assessmentAttemptId,
   }) async =>
       saved;
 

@@ -12,11 +12,15 @@ abstract interface class MissionRuntimeStore {
   Future<MissionRuntimeState?> loadMissionRuntime({
     required String userId,
     required String missionId,
+    required MissionRuntimeMode mode,
+    String? assessmentAttemptId,
   });
 
   Future<bool> clearMissionRuntime({
     required String userId,
     required String missionId,
+    required MissionRuntimeMode mode,
+    String? assessmentAttemptId,
   });
 }
 
@@ -39,10 +43,14 @@ final class SharedPreferencesMissionRuntimeStore
   Future<MissionRuntimeState?> loadMissionRuntime({
     required String userId,
     required String missionId,
+    required MissionRuntimeMode mode,
+    String? assessmentAttemptId,
   }) {
     return ProgressResumeService.loadMissionRuntime(
       userId: userId,
       missionId: missionId,
+      mode: mode,
+      assessmentAttemptId: assessmentAttemptId,
     );
   }
 
@@ -50,10 +58,14 @@ final class SharedPreferencesMissionRuntimeStore
   Future<bool> clearMissionRuntime({
     required String userId,
     required String missionId,
+    required MissionRuntimeMode mode,
+    String? assessmentAttemptId,
   }) {
     return ProgressResumeService.clearMissionRuntime(
       userId: userId,
       missionId: missionId,
+      mode: mode,
+      assessmentAttemptId: assessmentAttemptId,
     );
   }
 }
@@ -71,7 +83,12 @@ class ProgressResumeService {
     try {
       final prefs = await SharedPreferences.getInstance();
       return await prefs.setString(
-        '$_missionRuntimePrefix${userId}_${state.missionId}',
+        _missionRuntimeKey(
+          userId: userId,
+          missionId: state.missionId,
+          mode: state.mode,
+          assessmentAttemptId: state.assessmentAttemptId,
+        ),
         jsonEncode(state.toJson()),
       );
     } catch (error) {
@@ -83,17 +100,25 @@ class ProgressResumeService {
   static Future<MissionRuntimeState?> loadMissionRuntime({
     required String userId,
     required String missionId,
+    required MissionRuntimeMode mode,
+    String? assessmentAttemptId,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final value =
-          prefs.getString('$_missionRuntimePrefix${userId}_$missionId');
+      final value = prefs.getString(_missionRuntimeKey(
+        userId: userId,
+        missionId: missionId,
+        mode: mode,
+        assessmentAttemptId: assessmentAttemptId,
+      ));
       if (value == null) return null;
       final snapshot = Map<String, dynamic>.from(jsonDecode(value) as Map);
       if (snapshot['schemaVersion'] != MissionRuntimeState.schemaVersion) {
         return null;
       }
       if (snapshot['missionId'] != missionId) return null;
+      if (snapshot['mode'] != mode.name) return null;
+      if (snapshot['assessmentAttemptId'] != assessmentAttemptId) return null;
       return MissionRuntimeState.fromJson(snapshot);
     } catch (error) {
       debugPrint('Mission runtime resume load failed: $error');
@@ -104,14 +129,49 @@ class ProgressResumeService {
   static Future<bool> clearMissionRuntime({
     required String userId,
     required String missionId,
+    required MissionRuntimeMode mode,
+    String? assessmentAttemptId,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      return await prefs.remove('$_missionRuntimePrefix${userId}_$missionId');
+      return await prefs.remove(_missionRuntimeKey(
+        userId: userId,
+        missionId: missionId,
+        mode: mode,
+        assessmentAttemptId: assessmentAttemptId,
+      ));
     } catch (error) {
       debugPrint('Mission runtime resume clear failed: $error');
       return false;
     }
+  }
+
+  static String _missionRuntimeKey({
+    required String userId,
+    required String missionId,
+    required MissionRuntimeMode mode,
+    String? assessmentAttemptId,
+  }) {
+    final attemptId = assessmentAttemptId;
+    if (mode == MissionRuntimeMode.assessment &&
+        (attemptId == null || attemptId.trim().isEmpty)) {
+      throw ArgumentError.value(
+        attemptId,
+        'assessmentAttemptId',
+        'is required for an assessment runtime',
+      );
+    }
+    if (mode == MissionRuntimeMode.practice && attemptId != null) {
+      throw ArgumentError.value(
+        attemptId,
+        'assessmentAttemptId',
+        'must be null for a practice runtime',
+      );
+    }
+    final scope = mode == MissionRuntimeMode.practice
+        ? 'practice'
+        : 'assessment_${Uri.encodeComponent(attemptId!)}';
+    return '$_missionRuntimePrefix${userId}_${missionId}_$scope';
   }
 
   static Future<bool> saveState({

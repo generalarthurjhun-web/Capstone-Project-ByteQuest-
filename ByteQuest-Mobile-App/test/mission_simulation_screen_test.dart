@@ -36,6 +36,31 @@ void main() {
       expect(store.saveCount, 0);
     });
 
+    testWidgets('unknown restored phase fails closed and can reset safely',
+        (tester) async {
+      final definition = MissionSimulationDefinitions.byId('coc1_m1');
+      final store = _MemoryStore()
+        ..saved = MissionRuntimeState.initial(definition.id).copyWith(
+          currentPhaseId: 'removed-catalog-phase',
+        );
+
+      await tester.pumpWidget(_host(
+        definition,
+        controller: _controller(definition, store: store),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TechnicalUnavailableState), findsOneWidget);
+      expect(find.byType(TapInspectInteraction), findsNothing);
+
+      await tester.tap(find.text('Reset saved progress'));
+      await tester.pumpAndSettle();
+
+      expect(store.clearCount, 1);
+      expect(find.byType(TechnicalUnavailableState), findsNothing);
+      expect(find.byType(TapInspectInteraction), findsOneWidget);
+    });
+
     testWidgets(
         'keeps the scene visible and controls scrollable at target sizes',
         (tester) async {
@@ -139,6 +164,37 @@ void main() {
       await tester.tap(confirmButton);
       await tester.pumpAndSettle();
 
+      expect(submissions, 1);
+    });
+
+    testWidgets('successful submission disables a second confirmation',
+        (tester) async {
+      final definition = MissionSimulationDefinitions.byId('coc1_m1');
+      var submissions = 0;
+
+      await tester.pumpWidget(_host(
+        definition,
+        controller: _controller(definition),
+        onSubmit: () async => submissions++,
+      ));
+      await tester.pumpAndSettle();
+      await _advanceToReview(tester, definition);
+
+      final confirmText = find.text('Confirm evidence');
+      await tester.ensureVisible(confirmText);
+      await tester.tap(confirmText);
+      await tester.pumpAndSettle();
+
+      final confirmButton = tester.widget<FilledButton>(
+        find.ancestor(
+          of: confirmText,
+          matching: find.byType(FilledButton),
+        ),
+      );
+      expect(confirmButton.onPressed, isNull);
+
+      await tester.tap(confirmText, warnIfMissed: false);
+      await tester.pumpAndSettle();
       expect(submissions, 1);
     });
   });
@@ -254,6 +310,18 @@ MissionRuntimeController _controller(
   );
 }
 
+Future<void> _advanceToReview(
+  WidgetTester tester,
+  MissionSimulationDefinition definition,
+) async {
+  for (var index = 1; index < definition.phases.length; index++) {
+    final next = find.byKey(const ValueKey('mission-next'));
+    await tester.ensureVisible(next);
+    await tester.tap(next);
+    await tester.pumpAndSettle();
+  }
+}
+
 ClientActionIdFactory _sequentialIds() {
   var value = 0;
   return () => 'action-${value++}';
@@ -347,12 +415,16 @@ final class _MemoryStore implements MissionRuntimeStore {
   MissionRuntimeState? saved;
   Completer<void>? loadGate;
   int saveCount = 0;
+  int clearCount = 0;
 
   @override
   Future<bool> clearMissionRuntime({
     required String userId,
     required String missionId,
+    required MissionRuntimeMode mode,
+    String? assessmentAttemptId,
   }) async {
+    clearCount++;
     saved = null;
     return true;
   }
@@ -361,6 +433,8 @@ final class _MemoryStore implements MissionRuntimeStore {
   Future<MissionRuntimeState?> loadMissionRuntime({
     required String userId,
     required String missionId,
+    required MissionRuntimeMode mode,
+    String? assessmentAttemptId,
   }) async {
     await loadGate?.future;
     return saved;

@@ -241,3 +241,25 @@
 - Primary solution: Invoke the same exact Git commit message through PowerShell single-quote parsing after restaging this ledger entry.
 - Alternatives: Escape the message for `cmd.exe` with verified caret quoting or use a temporary commit-message file created through an approved patch workflow.
 - Status: Resolved operationally; no commit was created by the failed command and the staged implementation remained intact for the corrected invocation.
+
+## 2026-08-21 14:51:43 +08:00 — Task 8 session-reset initial-state capture
+
+- Operation: Run the first focused controller and runtime-screen verification after adding session-scoped persistence and invalid-phase recovery.
+- Command: `flutter test test/mission_runtime_controller_test.dart test/mission_simulation_screen_test.dart`
+- Affected location: `ByteQuest-Mobile-App/lib/screens/simulation/mission_simulation_screen.dart` state initialization and `ByteQuest-Mobile-App/test/mission_simulation_screen_test.dart` invalid-phase reset regression.
+- Observed result: Session-isolation and submission tests passed, but resetting an unknown restored phase returned to the same unknown phase and `_phaseIndex` correctly threw instead of falling back to phase zero.
+- Root cause: The clean `_initialState` field used a lazy initializer, so its first read occurred after restore and captured the already-invalid restored controller state.
+- Primary solution: Assign `_initialState` explicitly in `initState` before starting asynchronous restore.
+- Alternatives: Construct a new clean runtime state inside the reset handler; have the controller retain its constructor state as a reset baseline.
+- Status: Resolved; the focused controller/runtime rerun passed all 32 tests, including invalid-phase reset and both session-mismatch regressions.
+
+## 2026-08-21 14:52:12 +08:00 — Task 8 failure-ledger patch encoding mismatch
+
+- Operation: Append the session-reset verification failure to this ledger.
+- Command/interaction: `apply_patch` using the console-rendered final Task 8 heading as context.
+- Affected location: No file was changed by the rejected patch; code line not applicable.
+- Observed result: Patch verification could not find the expected heading context.
+- Root cause: PowerShell rendered the UTF-8 em dash as mojibake in the earlier console output, so the copied patch context did not match the file's actual Unicode text.
+- Primary solution: Anchor the append to the preceding ASCII-only status line.
+- Alternatives: Copy the raw UTF-8 heading from an editor; use a smaller sequential append patch with a different stable context line.
+- Status: Resolved; the ASCII-anchored patch appended the failure entry successfully.
