@@ -111,15 +111,10 @@ final List<MissionSimulationDefinition> _coc3Definitions = [
           'configure_accounts_groups_permissions',
           presentation: const {'component': 'configuration'}),
       _phase(
-          'Inspect access',
-          'Inspect the effective access shown for the client session.',
-          InteractionFamily.troubleshoot,
-          'inspect_access'),
-      _phase(
-          'Test access',
-          'Run the client access test and preserve its output.',
+          'Inspect and test access',
+          'Inspect effective access, then run the client access test.',
           InteractionFamily.testRun,
-          'test_access'),
+          'inspect_and_test_access'),
       _phase(
         'Diagnose permission',
         'Reveal identity and resource facts before changing access.',
@@ -156,14 +151,22 @@ final List<MissionSimulationDefinition> _coc3Definitions = [
         InteractionFamily.decide,
         'correct_access',
         presentation: const {
-          'correction': {
-            'id': 'apply_permission_change',
-            'label': 'Apply the supported permission change',
-          },
-          'retest': {
-            'id': 'retest_client_access',
-            'label': 'Repeat the client access check',
-          },
+          'choices': [
+            {
+              'id': 'apply_permission_change',
+              'label': 'Apply the supported permission change',
+            },
+          ],
+        },
+      ),
+      _phase(
+        'Retest client access',
+        'Repeat the client access check after the permission change.',
+        InteractionFamily.testRun,
+        'retest_client_access',
+        presentation: const {
+          'actionType': 'retest_requested',
+          'target': 'retest_client_access',
         },
       ),
       _phase(
@@ -283,10 +286,12 @@ final List<MissionSimulationDefinition> _coc3Definitions = [
         InteractionFamily.decide,
         'correct_fault',
         presentation: const {
-          'correction': {
-            'id': 'apply_service_recovery',
-            'label': 'Apply the supported recovery action',
-          },
+          'choices': [
+            {
+              'id': 'apply_service_recovery',
+              'label': 'Apply the supported recovery action',
+            },
+          ],
         },
       ),
       _phase(
@@ -295,10 +300,8 @@ final List<MissionSimulationDefinition> _coc3Definitions = [
         InteractionFamily.testRun,
         'retest_recovery',
         presentation: const {
-          'retest': {
-            'id': 'retest_service_access',
-            'label': 'Retest client access to the service',
-          },
+          'actionType': 'retest_requested',
+          'target': 'retest_service_access',
         },
       ),
       _phase(

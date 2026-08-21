@@ -104,23 +104,25 @@ final List<MissionSimulationDefinition> _coc4Definitions = [
           presentation: const {'component': 'result_interpretation'}),
       _phase(
           'Identify fault',
-          'Choose the fault category supported by the measured evidence.',
-          InteractionFamily.troubleshoot,
-          'identify_fault'),
+          'Record the supported fault category and select the repair action.',
+          InteractionFamily.decide,
+          'identify_fault',
+          presentation: const {
+            'choices': [
+              {
+                'id': 'apply_component_repair',
+                'label': 'Apply the supported component repair',
+              },
+            ],
+          }),
       _phase(
         'Repair and verify',
         'Record the repair and run the post-repair verification.',
         InteractionFamily.testRun,
         'repair_and_verify',
         presentation: const {
-          'correction': {
-            'id': 'apply_component_repair',
-            'label': 'Apply the supported component repair',
-          },
-          'retest': {
-            'id': 'retest_component',
-            'label': 'Run the post-repair component test',
-          },
+          'actionType': 'retest_requested',
+          'target': 'retest_component',
         },
       ),
       _phase(
@@ -332,18 +334,14 @@ final List<MissionSimulationDefinition> _coc4Definitions = [
       _phase(
         'Maintain and repair configuration',
         'Record maintenance, repair, and configuration actions.',
-        InteractionFamily.troubleshoot,
+        InteractionFamily.decide,
         'maintain_repair_config',
         presentation: const {
-          'component': 'configuration',
-          'correction': {
-            'id': 'approve_maintenance_action',
-            'label': 'Record the prioritized maintenance action',
-          },
-          'required_fact_ids': [
-            'request_history_fact',
-            'system_health_fact',
-            'maintenance_due_fact',
+          'choices': [
+            {
+              'id': 'approve_maintenance_action',
+              'label': 'Record the prioritized maintenance action',
+            },
           ],
         },
       ),
@@ -353,11 +351,8 @@ final List<MissionSimulationDefinition> _coc4Definitions = [
         InteractionFamily.testRun,
         'test_and_interpret',
         presentation: const {
-          'component': 'test_with_interpretation',
-          'retest': {
-            'id': 'run_maintenance_check',
-            'label': 'Run the maintenance verification',
-          },
+          'actionType': 'retest_requested',
+          'target': 'run_maintenance_check',
         },
       ),
       _phase(

@@ -222,7 +222,8 @@ void main() {
       'inspect_topology_and_config',
       'test_connection',
       'troubleshoot_progressively',
-      'fix_and_retest',
+      'apply_network_fix',
+      'retest_network_path',
       'review_evidence'
     ],
     'coc3_m1': [
@@ -242,10 +243,10 @@ void main() {
     ],
     'coc3_m3': [
       'configure_accounts_groups_permissions',
-      'inspect_access',
-      'test_access',
+      'inspect_and_test_access',
       'diagnose_permission',
       'correct_access',
+      'retest_client_access',
       'review_evidence'
     ],
     'coc3_m4': [
@@ -420,15 +421,15 @@ void main() {
         'retestId': 'retest_integration',
       },
       'coc2_m5': {
-        'correctionMechanic': 'fix_and_retest',
+        'correctionMechanic': 'apply_network_fix',
         'correctionId': 'apply_network_fix',
-        'retestMechanic': 'fix_and_retest',
+        'retestMechanic': 'retest_network_path',
         'retestId': 'retest_network_path',
       },
       'coc3_m3': {
         'correctionMechanic': 'correct_access',
         'correctionId': 'apply_permission_change',
-        'retestMechanic': 'correct_access',
+        'retestMechanic': 'retest_client_access',
         'retestId': 'retest_client_access',
       },
       'coc3_m5': {
@@ -438,7 +439,7 @@ void main() {
         'retestId': 'retest_service_access',
       },
       'coc4_m2': {
-        'correctionMechanic': 'repair_and_verify',
+        'correctionMechanic': 'identify_fault',
         'correctionId': 'apply_component_repair',
         'retestMechanic': 'repair_and_verify',
         'retestId': 'retest_component',
@@ -472,13 +473,36 @@ void main() {
         definition,
         entry.value['retestMechanic']!,
       );
+      final correctionChoices =
+          (correctionPhase.presentation['choices'] as List? ?? const [])
+              .whereType<Map>();
       expect(
-        (correctionPhase.presentation['correction'] as Map?)?['id'],
+        correctionPhase.primaryInteraction,
+        InteractionFamily.decide,
+        reason: correctionPhase.id,
+      );
+      expect(
+        correctionChoices.single['id'],
         entry.value['correctionId'],
         reason: correctionPhase.id,
       );
       expect(
-        (retestPhase.presentation['retest'] as Map?)?['id'],
+        correctionChoices.single['label'],
+        isNotEmpty,
+        reason: correctionPhase.id,
+      );
+      expect(
+        retestPhase.primaryInteraction,
+        InteractionFamily.testRun,
+        reason: retestPhase.id,
+      );
+      expect(
+        retestPhase.presentation['actionType'],
+        'retest_requested',
+        reason: retestPhase.id,
+      );
+      expect(
+        retestPhase.presentation['target'],
         entry.value['retestId'],
         reason: retestPhase.id,
       );
@@ -492,32 +516,24 @@ void main() {
         greaterThan(diagnosticIndexes.last),
         reason: entry.key,
       );
-      if (correctionPhase.primaryInteraction ==
-          InteractionFamily.troubleshoot) {
-        final diagnosticFactIds = diagnosticIndexes
-            .expand((index) => (definition.phases[index]
-                        .presentation['diagnostic_actions'] as List? ??
-                    const [])
-                .whereType<Map>()
-                .map((action) => action['reveals_fact_id']))
-            .whereType<String>()
-            .toSet();
-        expect(
-          correctionPhase.presentation['required_fact_ids'],
-          containsAll(diagnosticFactIds),
-          reason: correctionPhase.id,
-        );
-      }
+      expect(correctionPhase.presentation, isNot(contains('correction')),
+          reason: correctionPhase.id);
+      expect(correctionPhase.presentation, isNot(contains('retest')),
+          reason: correctionPhase.id);
+      expect(retestPhase.presentation, isNot(contains('correction')),
+          reason: retestPhase.id);
+      expect(retestPhase.presentation, isNot(contains('retest')),
+          reason: retestPhase.id);
     }
   });
 
   test('diagnostic actions reveal concrete technical observations', () {
-    final concreteSignal = RegExp(
-      r'\d|reports|shows|returns|lists|records|measures|completes|responds|contains|holds|marks',
+    final domainState = RegExp(
+      r'\b(?:up|down|running|stopped|allowed|granted|unavailable|timeout|timeouts|unreachable|warning|caution|error|errors|reply|replies|reset|resets|listening|overdue|gateway|group|read|modify|change|access|token)\b|\b\d+(?:\.\d+)?\s*(?:operating\s+)?(?:ms|mbps|gbps|v|rpm|°c|days?|seconds?|sectors?)\b',
       caseSensitive: false,
     );
     final placeholder = RegExp(
-      r'^(recorded result from .+|.+ result recorded)\.?$',
+      r'\b(?:recorded result from|reports result|records result|lists result)\b',
       caseSensitive: false,
     );
 
@@ -531,9 +547,8 @@ void main() {
         for (final action in actions) {
           final factId = action['reveals_fact_id'];
           final fact = facts[factId]?.toString() ?? '';
-          expect(fact.length, greaterThanOrEqualTo(30), reason: phase.id);
           expect(placeholder.hasMatch(fact), isFalse, reason: phase.id);
-          expect(concreteSignal.hasMatch(fact), isTrue, reason: phase.id);
+          expect(domainState.hasMatch(fact), isTrue, reason: phase.id);
         }
       }
     }

@@ -1,3 +1,4 @@
+import 'package:bytequest/data/mission_simulation_definitions.dart';
 import 'package:bytequest/models/mission_model.dart';
 import 'package:bytequest/screens/simulation/interactions/mission_interactions.dart';
 import 'package:bytequest/screens/simulation/result_screen.dart';
@@ -402,6 +403,120 @@ void main() {
         ['inspect_switch', 'run_loopback']);
   });
 
+  testWidgets('catalog correction choices emit stable IDs behind enable gate',
+      (tester) async {
+    const cases = [
+      (
+        missionId: 'coc2_m5',
+        mechanic: 'apply_network_fix',
+        actionId: 'apply_network_fix'
+      ),
+      (
+        missionId: 'coc3_m3',
+        mechanic: 'correct_access',
+        actionId: 'apply_permission_change'
+      ),
+      (
+        missionId: 'coc4_m2',
+        mechanic: 'identify_fault',
+        actionId: 'apply_component_repair'
+      ),
+    ];
+
+    for (final item in cases) {
+      final phase = _catalogPhase(item.missionId, item.mechanic);
+      final actions = <Map<String, dynamic>>[];
+      var state = MissionRuntimeState(missionId: item.missionId);
+      var enabled = false;
+      Widget app() => _app(
+            ScenarioDecisionInteraction(
+              phase: phase,
+              state: state,
+              enabled: enabled,
+              onRuntimeTransition: (transition) => state = transition(state),
+              onAction: (type, target, value) async => actions.add({
+                'type': type,
+                'target': target,
+                'value': value,
+              }),
+            ),
+          );
+
+      await tester.pumpWidget(app());
+      final label = ((phase.presentation['choices'] as List).single
+          as Map)['label'] as String;
+      final button = find.widgetWithText(OutlinedButton, label);
+      expect(tester.widget<OutlinedButton>(button).onPressed, isNull);
+      expect(actions, isEmpty);
+
+      enabled = true;
+      await tester.pumpWidget(app());
+      await tester.tap(button);
+      await tester.pump();
+      expect(actions.single['type'], 'scenario_decision');
+      expect(actions.single['target'], item.actionId);
+      expect(state.selectedBranchActionIds, contains(item.actionId));
+
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
+  });
+
+  testWidgets('catalog retests emit configured action and stable target',
+      (tester) async {
+    const cases = [
+      (
+        missionId: 'coc2_m5',
+        mechanic: 'retest_network_path',
+        target: 'retest_network_path'
+      ),
+      (
+        missionId: 'coc3_m3',
+        mechanic: 'retest_client_access',
+        target: 'retest_client_access'
+      ),
+      (
+        missionId: 'coc4_m2',
+        mechanic: 'repair_and_verify',
+        target: 'retest_component'
+      ),
+    ];
+
+    for (final item in cases) {
+      final phase = _catalogPhase(item.missionId, item.mechanic);
+      final actions = <Map<String, dynamic>>[];
+      var enabled = false;
+      Widget app() => _app(
+            TestRunInteraction(
+              phase: phase,
+              state: MissionRuntimeState(missionId: item.missionId),
+              duration: Duration.zero,
+              enabled: enabled,
+              onAction: (type, target, value) async => actions.add({
+                'type': type,
+                'target': target,
+                'value': value,
+              }),
+            ),
+          );
+
+      await tester.pumpWidget(app());
+      final button = find.widgetWithText(FilledButton, 'Run test');
+      expect(tester.widget<FilledButton>(button).onPressed, isNull);
+      expect(actions, isEmpty);
+
+      enabled = true;
+      await tester.pumpWidget(app());
+      await tester.tap(button);
+      await tester.pump();
+      expect(actions.first['type'], 'retest_requested');
+      expect(actions.first['target'], item.target);
+      expect(actions.last['type'], 'test_completed');
+      expect(actions.last['target'], item.target);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
+  });
+
   testWidgets('review blocks pending and failed evidence', (tester) async {
     var returned = false;
     var confirmed = false;
@@ -634,3 +749,9 @@ final _mission = Mission(
   missionType: MissionType.troubleshooting,
   orderIndex: 1,
 );
+
+MissionPhaseDefinition _catalogPhase(String missionId, String mechanic) =>
+    MissionSimulationDefinitions.byId(missionId).phases.singleWhere(
+          (phase) =>
+              (phase.presentation['mechanics'] as List).contains(mechanic),
+        );

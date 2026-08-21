@@ -29,16 +29,20 @@ class _TestRunInteractionState extends State<TestRunInteraction> {
 
   Future<void> _run() async {
     if (_running || !widget.enabled) return;
-    final reduceMotion = widget.state.reducedMotion ||
-        MediaQuery.disableAnimationsOf(context);
+    final reduceMotion =
+        widget.state.reducedMotion || MediaQuery.disableAnimationsOf(context);
+    final actionType =
+        widget.phase.presentation['actionType'] as String? ?? 'test_started';
+    final target =
+        widget.phase.presentation['target'] as String? ?? widget.phase.id;
     setState(() => _running = true);
-    await widget.onAction('test_started', widget.phase.id, const {
+    await widget.onAction(actionType, target, const {
       'input_method': 'tap',
     });
     if (!reduceMotion && widget.duration > Duration.zero) {
       await Future<void>.delayed(widget.duration);
     }
-    await widget.onAction('test_completed', widget.phase.id, {
+    await widget.onAction('test_completed', target, {
       'duration_ms': reduceMotion ? 0 : widget.duration.inMilliseconds,
       'reduced_motion': reduceMotion,
     });
@@ -47,8 +51,8 @@ class _TestRunInteractionState extends State<TestRunInteraction> {
 
   @override
   Widget build(BuildContext context) {
-    final reduceMotion = widget.state.reducedMotion ||
-        MediaQuery.disableAnimationsOf(context);
+    final reduceMotion =
+        widget.state.reducedMotion || MediaQuery.disableAnimationsOf(context);
     return Semantics(
       container: true,
       label: 'Technical test run',

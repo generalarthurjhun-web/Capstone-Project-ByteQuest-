@@ -336,10 +336,12 @@ final List<MissionSimulationDefinition> _coc1Definitions = [
         InteractionFamily.decide,
         'apply_correction',
         presentation: const {
-          'correction': {
-            'id': 'apply_integration_correction',
-            'label': 'Apply the documented integration correction',
-          },
+          'choices': [
+            {
+              'id': 'apply_integration_correction',
+              'label': 'Apply the documented integration correction',
+            },
+          ],
         },
       ),
       _phase(
@@ -348,10 +350,8 @@ final List<MissionSimulationDefinition> _coc1Definitions = [
         InteractionFamily.testRun,
         'verify_integration',
         presentation: const {
-          'retest': {
-            'id': 'retest_integration',
-            'label': 'Retest workstation integration',
-          },
+          'actionType': 'retest_requested',
+          'target': 'retest_integration',
         },
       ),
       _phase(

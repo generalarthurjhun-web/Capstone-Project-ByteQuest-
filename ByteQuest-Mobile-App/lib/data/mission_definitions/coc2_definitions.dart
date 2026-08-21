@@ -319,19 +319,27 @@ final List<MissionSimulationDefinition> _coc2Definitions = [
         ),
       ),
       _phase(
-        'Fix and retest',
-        'Apply the fact-supported correction and repeat connectivity testing.',
+        'Apply network fix',
+        'Apply the fact-supported network correction.',
         InteractionFamily.decide,
-        'fix_and_retest',
+        'apply_network_fix',
         presentation: const {
-          'correction': {
-            'id': 'apply_network_fix',
-            'label': 'Apply the supported network correction',
-          },
-          'retest': {
-            'id': 'retest_network_path',
-            'label': 'Retest the network path',
-          },
+          'choices': [
+            {
+              'id': 'apply_network_fix',
+              'label': 'Apply the supported network correction',
+            },
+          ],
+        },
+      ),
+      _phase(
+        'Retest network path',
+        'Repeat end-to-end connectivity testing after the correction.',
+        InteractionFamily.testRun,
+        'retest_network_path',
+        presentation: const {
+          'actionType': 'retest_requested',
+          'target': 'retest_network_path',
         },
       ),
       _phase(
