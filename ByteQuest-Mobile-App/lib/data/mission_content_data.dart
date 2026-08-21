@@ -16,6 +16,174 @@ class HardwareItem {
 /// Mission Content Data
 /// Contains questions, components, steps, and scenarios for all missions
 class MissionContentData {
+  /// Learner-visible technical feedback keyed by stable mission and feedback
+  /// identifiers. Evaluation outcomes remain owned by authoritative services.
+  static const Map<String, Map<String, String>> missionFeedbackCatalogs = {
+    'coc1_m1': {
+      'coc1_m1_constraint':
+          'Inspect the component label and safety condition before recording the set.',
+      'coc1_m1_evidence':
+          'Readiness verification records the observed hardware state.',
+      'coc1_m1_review':
+          'Review the inspection, safety selection, and observation evidence before submission.',
+    },
+    'coc1_m2': {
+      'coc1_m2_constraint':
+          'Compatibility, orientation, and installation order must be recorded for each component.',
+      'coc1_m2_evidence':
+          'The installation check records seating and fastening observations.',
+      'coc1_m2_review':
+          'Review every placement and the final installation check before submission.',
+    },
+    'coc1_m3': {
+      'coc1_m3_constraint':
+          'Cable routing and configuration changes must be recorded before testing.',
+      'coc1_m3_evidence':
+          'The test record must include the displayed result for later interpretation.',
+      'coc1_m3_review':
+          'Review the connection, configuration, test, and interpretation evidence.',
+    },
+    'coc1_m4': {
+      'coc1_m4_constraint':
+          'Match the tool and connector to the inspected peripheral interface.',
+      'coc1_m4_evidence':
+          'Record the device-test output before interpreting peripheral status.',
+      'coc1_m4_review':
+          'Review inspected interfaces, connections, and test observations.',
+    },
+    'coc1_m5': {
+      'coc1_m5_constraint':
+          'Use recorded symptoms and diagnostic facts before applying a correction.',
+      'coc1_m5_evidence':
+          'Integration verification must follow the recorded corrective action.',
+      'coc1_m5_review':
+          'Review the diagnostic path, correction, and integration retest.',
+    },
+    'coc2_m1': {
+      'coc2_m1_constraint':
+          'Material, tool, and preparation evidence must precede the connection.',
+      'coc2_m1_evidence':
+          'Record tester output and a technical interpretation of the result.',
+      'coc2_m1_review':
+          'Review materials, preparation, connection, and tester evidence.',
+    },
+    'coc2_m2': {
+      'coc2_m2_constraint':
+          'Keep cable evidence identifiers and device configuration actions distinct.',
+      'coc2_m2_evidence':
+          'Connectivity verification records the tester and device observations.',
+      'coc2_m2_review':
+          'Review cable preparation, topology, configuration, and connectivity evidence.',
+    },
+    'coc2_m3': {
+      'coc2_m3_constraint':
+          'Each topology link must identify both selected endpoints.',
+      'coc2_m3_evidence':
+          'Run link verification again after recording the invalid-link repair.',
+      'coc2_m3_review':
+          'Review node selection, link construction, diagnosis, and repair evidence.',
+    },
+    'coc2_m4': {
+      'coc2_m4_constraint':
+          'Record device context with each network configuration value.',
+      'coc2_m4_evidence':
+          'Preserve the connectivity output before and after reconfiguration.',
+      'coc2_m4_review':
+          'Review configuration, interpretation, correction, and retest evidence.',
+    },
+    'coc2_m5': {
+      'coc2_m5_constraint':
+          'Reveal topology and configuration facts through diagnostic actions.',
+      'coc2_m5_evidence':
+          'The retest must follow a recorded network correction.',
+      'coc2_m5_review':
+          'Review the progressive diagnostic path and connectivity recovery.',
+    },
+    'coc3_m1': {
+      'coc3_m1_constraint':
+          'Confirm workspace, server role, and network prerequisites before setup.',
+      'coc3_m1_evidence':
+          'Readiness verification records the completed preparation sequence.',
+      'coc3_m1_review':
+          'Review requirement, role, readiness, and preparation evidence.',
+    },
+    'coc3_m2': {
+      'coc3_m2_constraint':
+          'Role and configuration decisions must be recorded before installation.',
+      'coc3_m2_evidence':
+          'Verify service readiness only after the simulated restart completes.',
+      'coc3_m2_review':
+          'Review installation choices, restart state, and service checks.',
+    },
+    'coc3_m3': {
+      'coc3_m3_constraint':
+          'Account, group, and permission changes require matching access evidence.',
+      'coc3_m3_evidence':
+          'Repeat the access test after recording the permission correction.',
+      'coc3_m3_review':
+          'Review identity configuration, diagnosis, correction, and access retest.',
+    },
+    'coc3_m4': {
+      'coc3_m4_constraint':
+          'Record configuration and service state before client testing.',
+      'coc3_m4_evidence':
+          'Client-test output must be preserved before interpretation.',
+      'coc3_m4_review':
+          'Review service configuration, status changes, and client response evidence.',
+    },
+    'coc3_m5': {
+      'coc3_m5_constraint':
+          'Inspect client, server, service, network, and permission facts progressively.',
+      'coc3_m5_evidence':
+          'Recovery verification must follow the selected corrective action.',
+      'coc3_m5_review':
+          'Review the earned facts, correction, retest, and recovery state.',
+    },
+    'coc4_m1': {
+      'coc4_m1_constraint':
+          'Base diagnostic priority on inspected symptoms and recorded observations.',
+      'coc4_m1_evidence':
+          'Verification records whether later observations support the preliminary diagnosis.',
+      'coc4_m1_review':
+          'Review inspection, priority, diagnosis, and verification evidence.',
+    },
+    'coc4_m2': {
+      'coc4_m2_constraint':
+          'Choose a diagnostic tool that can measure the inspected condition.',
+      'coc4_m2_evidence':
+          'Repair verification must record the post-repair test result.',
+      'coc4_m2_review':
+          'Review the test, interpretation, fault decision, and repair evidence.',
+    },
+    'coc4_m3': {
+      'coc4_m3_constraint':
+          'Interpret each earned diagnostic result before opening the next branch.',
+      'coc4_m3_evidence':
+          'Software and network findings remain separate evidence records.',
+      'coc4_m3_review':
+          'Review the ordered diagnostic actions and both interpretations.',
+    },
+    'coc4_m4': {
+      'coc4_m4_constraint':
+          'Record component compatibility, tool choice, and replacement sequence.',
+      'coc4_m4_evidence':
+          'Run the post-repair test after replacement and reconfiguration.',
+      'coc4_m4_review':
+          'Review replacement, configuration, sequence, and test evidence.',
+    },
+    'coc4_m5': {
+      'coc4_m5_constraint':
+          'Prioritize the service request before maintenance or repair changes.',
+      'coc4_m5_evidence':
+          'Final verification records the maintained configuration and test interpretation.',
+      'coc4_m5_review':
+          'Review the request, repair record, test evidence, and final report.',
+    },
+  };
+
+  static Map<String, String> feedbackForMission(String missionId) =>
+      Map.unmodifiable(missionFeedbackCatalogs[missionId] ?? const {});
+
   // ==========================================
   // COC 1 MISSION 1: Identify Computer Parts - WITH REAL IMAGES
   // ==========================================
