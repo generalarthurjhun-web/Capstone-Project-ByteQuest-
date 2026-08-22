@@ -35,6 +35,16 @@ ByteQuest has one reusable, data-driven 2D mission runtime and structural catalo
 
 Task 12 verification: focused review-fix gate 32/32 passed; full Flutter suite 178/178 passed; targeted seven-file analysis reported no issues; full `flutter analyze --no-fatal-infos` exited 0 with 212 pre-existing informational diagnostics; debug APK build passed. These are automated contract/build results, not live mission acceptance.
 
+### Task 12 review round 2
+
+- Practice evidence `SELECT` and `INSERT` policies now require the existing active-role-aware `public.is_learner()` predicate as well as authenticated row ownership.
+- Rollback lifecycle coverage now denies practice evidence reads/writes to Instructor, Admin, and a temporarily deactivated learner, then restores the learner fixture before the remaining lifecycle checks.
+- Evidence review exposes an explicit Retry pending evidence action. It calls the controller's serialized `flushPending()` path, disables while in flight, retains the original client action ID, updates live feedback, clears acknowledged pending state, and enables submission without exit/relaunch.
+- Idempotency remains layered: the controller retries its persisted action object, the evidence gateway reconciles acknowledged IDs, the service upserts on `(learner_id, client_action_id)` with duplicate-ignore semantics, and PostgreSQL enforces the matching unique constraint.
+- No new function or `SECURITY DEFINER` surface was added. Local database execution remains unverified because the Supabase CLI/prepared lifecycle environment is unavailable.
+
+Round 2 verification: focused retry/controller/gateway/service/interaction gate 60/60 passed; full Flutter suite 179/179 passed; targeted four-file analysis reported no issues; full `flutter analyze --no-fatal-infos` exited 0 with the same 212 pre-existing informational diagnostics; debug APK build passed; static active-learner RLS/lifecycle assertions passed.
+
 ## Prior checkpoint evidence
 
 The following artifacts are retained as historical automated/app-shell evidence and are not represented as current Task 12 gates or mission-level live acceptance:

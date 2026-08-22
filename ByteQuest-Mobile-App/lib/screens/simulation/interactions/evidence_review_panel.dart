@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../data/mission_content_data.dart';
 
 class EvidenceReviewPanel extends StatelessWidget {
   const EvidenceReviewPanel({
@@ -12,6 +13,8 @@ class EvidenceReviewPanel extends StatelessWidget {
     required this.canSubmit,
     required this.onReturn,
     required this.onConfirm,
+    this.onRetryPending,
+    this.retryingPending = false,
     this.returnLabel = 'Return',
     this.confirmLabel = 'Confirm submission',
   });
@@ -23,6 +26,8 @@ class EvidenceReviewPanel extends StatelessWidget {
   final bool canSubmit;
   final VoidCallback onReturn;
   final VoidCallback onConfirm;
+  final VoidCallback? onRetryPending;
+  final bool retryingPending;
   final String returnLabel;
   final String confirmLabel;
 
@@ -59,7 +64,26 @@ class EvidenceReviewPanel extends StatelessWidget {
               child: Text(
                 '$pendingEvidenceCount pending · '
                 '$failedEvidenceCount needs retry',
-                style: AppTheme.bodySmall.copyWith(color: AppTheme.warningYellow),
+                style:
+                    AppTheme.bodySmall.copyWith(color: AppTheme.warningYellow),
+              ),
+            ),
+          ],
+          if (pendingEvidenceCount > 0 && onRetryPending != null) ...[
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              key: const ValueKey('retry-pending-evidence'),
+              onPressed: retryingPending ? null : onRetryPending,
+              icon: retryingPending
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.sync_rounded),
+              label: Text(
+                retryingPending
+                    ? MissionContentData.retryingPendingEvidenceLabel
+                    : MissionContentData.retryPendingEvidenceLabel,
               ),
             ),
           ],

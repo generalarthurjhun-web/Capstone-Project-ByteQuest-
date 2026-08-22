@@ -55,3 +55,6 @@ This tracked index links every timestamped failure entry in the append-only [imp
 51. [2026-08-22 12:39:15 — Task 12 review driver rebuild timing](BYTEQUEST_IMPLEMENTATION_FAILURES.md#2026-08-22-123915-0800--task-12-review-driver-rebuild-timing)
 52. [2026-08-22 12:42:30 — Task 12 Supabase CLI unavailable](BYTEQUEST_IMPLEMENTATION_FAILURES.md#2026-08-22-124230-0800--task-12-supabase-cli-unavailable)
 53. [2026-08-22 12:43:25 — Task 12 failure-ledger patch encoding mismatch](BYTEQUEST_IMPLEMENTATION_FAILURES.md#2026-08-22-124325-0800--task-12-failure-ledger-patch-encoding-mismatch)
+54. [2026-08-22 12:52:30 — Task 12 round 2 Supabase reference filename mismatch](BYTEQUEST_IMPLEMENTATION_FAILURES.md#2026-08-22-125230-0800--task-12-round-2-supabase-reference-filename-mismatch)
+55. [2026-08-22 12:56:10 — Task 12 round 2 retry-action RED](BYTEQUEST_IMPLEMENTATION_FAILURES.md#2026-08-22-125610-0800--task-12-round-2-retry-action-red)
+56. [2026-08-22 12:58:05 — Task 12 round 2 active-learner RLS RED](BYTEQUEST_IMPLEMENTATION_FAILURES.md#2026-08-22-125805-0800--task-12-round-2-active-learner-rls-red)

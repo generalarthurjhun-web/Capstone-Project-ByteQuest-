@@ -222,6 +222,83 @@ void main() {
       expect(submissions, 1);
     });
 
+    testWidgets(
+        'retry synchronizes the same pending evidence and unblocks submission',
+        (tester) async {
+      final definition = MissionSimulationDefinitions.byId('coc1_m1');
+      final pending = MissionEvidenceAction(
+        clientActionId: 'pending-action-1',
+        missionId: definition.id,
+        phaseId: definition.phases[3].id,
+        actionType: 'test_completed',
+        target: definition.phases[3].id,
+        value: const {'test_status': 'completed'},
+        occurredAt: DateTime.utc(2026, 8, 22),
+      );
+      final appendGate = Completer<void>();
+      final transport = _MemoryTransport(appendGate: appendGate);
+      final controller = _controller(
+        definition,
+        transport: transport,
+        initialState: MissionRuntimeState.initial(definition.id).copyWith(
+          currentPhaseId: definition.phases.last.id,
+          completedPhaseIds: definition.phases
+              .take(definition.phases.length - 1)
+              .map((phase) => phase.id)
+              .toSet(),
+          pendingEvidence: [pending],
+        ),
+      );
+
+      await tester.pumpWidget(_host(definition, controller: controller));
+      await tester.pumpAndSettle();
+
+      final retry = find.widgetWithText(
+        OutlinedButton,
+        'Retry pending evidence',
+      );
+      expect(retry, findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Confirm evidence'),
+            )
+            .onPressed,
+        isNull,
+      );
+
+      await tester.tap(retry);
+      await tester.pump();
+
+      expect(
+        tester
+            .widget<OutlinedButton>(
+              find.widgetWithText(OutlinedButton, 'Retrying evidence…'),
+            )
+            .onPressed,
+        isNull,
+      );
+      expect(controller.state.pendingEvidence.single.clientActionId,
+          'pending-action-1');
+
+      appendGate.complete();
+      await tester.pumpAndSettle();
+
+      expect(transport.appendedIds, ['pending-action-1']);
+      expect(controller.state.pendingEvidence, isEmpty);
+      expect(controller.state.acceptedEvidenceIds, {'pending-action-1'});
+      expect(find.text('Pending evidence synchronized.'), findsOneWidget);
+      expect(find.text('Retry pending evidence'), findsNothing);
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Confirm evidence'),
+            )
+            .onPressed,
+        isNotNull,
+      );
+    });
+
     testWidgets('incompatible placement never renders as installed',
         (tester) async {
       final definition = _incompatiblePlacementDefinition();
@@ -354,14 +431,19 @@ Widget _host(
 MissionRuntimeController _controller(
   MissionSimulationDefinition definition, {
   _MemoryStore? store,
+  MissionEvidenceTransport? transport,
+  MissionRuntimeState? initialState,
 }) {
   return MissionRuntimeController(
     userId: 'learner-1',
-    initialState: MissionRuntimeState.initial(definition.id).copyWith(
-      currentPhaseId: definition.phases.first.id,
-    ),
+    initialState: initialState ??
+        MissionRuntimeState.initial(definition.id).copyWith(
+          currentPhaseId: definition.phases.first.id,
+        ),
     store: store ?? _MemoryStore(),
-    evidenceGateway: MissionEvidenceGateway(transport: _MemoryTransport()),
+    evidenceGateway: MissionEvidenceGateway(
+      transport: transport ?? _MemoryTransport(),
+    ),
     submissionPhaseIds: {definition.phases.last.id},
     clientActionIdFactory: _sequentialIds(),
   );
@@ -621,13 +703,19 @@ final class _MemoryStore implements MissionRuntimeStore {
 }
 
 final class _MemoryTransport implements MissionEvidenceTransport {
+  _MemoryTransport({this.appendGate});
+
+  final Completer<void>? appendGate;
   final Set<String> accepted = <String>{};
+  final List<String> appendedIds = <String>[];
 
   @override
   Future<Set<String>> acknowledgedClientActionIds() async => accepted;
 
   @override
   Future<void> append(MissionEvidenceAction action) async {
+    appendedIds.add(action.clientActionId);
+    await appendGate?.future;
     accepted.add(action.clientActionId);
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../data/mission_content_data.dart';
 import '../../models/mission_model.dart';
 import '../../services/auth_service.dart';
 import '../../services/authoritative_assessment_service.dart';
@@ -81,6 +82,7 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
   var _restoring = true;
   var _writing = false;
   var _submitting = false;
+  var _retryingEvidence = false;
   var _submitted = false;
   String? _restoreFailure;
   String? _technicalFeedback;
@@ -318,7 +320,11 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
             authoritativeEvidenceCount: _state.acceptedEvidenceIds.length,
             pendingEvidenceCount: _state.pendingEvidence.length,
             failedEvidenceCount: _controller.failedPendingEvidence.length,
-            canSubmit: _controller.canSubmit && !_submitting && !_submitted,
+            canSubmit: _controller.canSubmit &&
+                !_submitting &&
+                !_submitted &&
+                !_retryingEvidence,
+            retryingPendingEvidence: _retryingEvidence,
             returnLabel:
                 widget.definition.reviewMetadata['returnLabel'] as String? ??
                     'Return to mission',
@@ -327,6 +333,7 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
                     'Confirm evidence',
             onReturnFromReview: () => unawaited(_returnFromReview()),
             onConfirmReview: () => unawaited(_confirmSubmission()),
+            onRetryPendingEvidence: () => unawaited(_retryPendingEvidence()),
           ),
           if (_technicalFeedback case final feedback?) ...[
             const SizedBox(height: 14),
@@ -621,6 +628,30 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
     }
   }
 
+  Future<void> _retryPendingEvidence() async {
+    if (_retryingEvidence || _state.pendingEvidence.isEmpty) return;
+    setState(() {
+      _retryingEvidence = true;
+      _technicalFeedback = MissionContentData.retryingPendingEvidenceFeedback;
+    });
+    late final String feedback;
+    try {
+      await _controller.flushPending();
+      feedback = _state.pendingEvidence.isEmpty
+          ? MissionContentData.pendingEvidenceSynchronizedFeedback
+          : MissionContentData.pendingEvidenceRetryFailedFeedback;
+    } catch (_) {
+      feedback = MissionContentData.pendingEvidenceRetryFailedFeedback;
+    } finally {
+      if (mounted) {
+        setState(() {
+          _retryingEvidence = false;
+          _technicalFeedback = feedback;
+        });
+      }
+    }
+  }
+
   Future<void> _submitAuthoritatively() async {
     final assessment = AuthoritativeAssessmentService.instance;
     if (assessment.activeSession == null) {
@@ -655,9 +686,11 @@ class MissionPhaseInteraction extends StatelessWidget {
     this.pendingEvidenceCount = 0,
     this.failedEvidenceCount = 0,
     this.canSubmit = false,
+    this.retryingPendingEvidence = false,
     this.returnLabel = 'Return',
     this.confirmLabel = 'Confirm submission',
     this.enabled = true,
+    this.onRetryPendingEvidence,
   });
 
   final MissionPhaseDefinition phase;
@@ -671,9 +704,11 @@ class MissionPhaseInteraction extends StatelessWidget {
   final int pendingEvidenceCount;
   final int failedEvidenceCount;
   final bool canSubmit;
+  final bool retryingPendingEvidence;
   final String returnLabel;
   final String confirmLabel;
   final bool enabled;
+  final VoidCallback? onRetryPendingEvidence;
 
   @override
   Widget build(BuildContext context) {
@@ -814,6 +849,8 @@ class MissionPhaseInteraction extends StatelessWidget {
           canSubmit: canSubmit,
           onReturn: onReturnFromReview,
           onConfirm: onConfirmReview,
+          onRetryPending: onRetryPendingEvidence,
+          retryingPending: retryingPendingEvidence,
           returnLabel: returnLabel,
           confirmLabel: confirmLabel,
         ),

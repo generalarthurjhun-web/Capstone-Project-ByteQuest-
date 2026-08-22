@@ -43,7 +43,10 @@ create policy practice_mission_actions_select_own
 on public.practice_mission_actions
 for select
 to authenticated
-using ((select auth.uid()) = learner_id);
+using (
+  (select public.is_learner())
+  and (select auth.uid()) = learner_id
+);
 
 drop policy if exists practice_mission_actions_insert_own
   on public.practice_mission_actions;
@@ -51,7 +54,10 @@ create policy practice_mission_actions_insert_own
 on public.practice_mission_actions
 for insert
 to authenticated
-with check ((select auth.uid()) = learner_id);
+with check (
+  (select public.is_learner())
+  and (select auth.uid()) = learner_id
+);
 
 revoke all on table public.practice_mission_actions from public, anon;
 grant select, insert on table public.practice_mission_actions to authenticated;

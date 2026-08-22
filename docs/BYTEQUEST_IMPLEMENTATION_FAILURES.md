@@ -582,3 +582,36 @@
 - Primary solution: Anchor the append on the stable ASCII status line immediately below the heading.
 - Alternatives: Inspect the final bytes with explicit UTF-8 decoding; append through a newly introduced ASCII sentinel.
 - Status: Resolved; the ASCII-anchored patch appended all entries without rewriting existing history.
+
+## 2026-08-22 12:52:30 +08:00 — Task 12 round 2 Supabase reference filename mismatch
+
+- Operation: Read the RLS and upsert references required by the Supabase Postgres guidance.
+- Command: `Get-Content` for guessed `security-rls.md` and `data-upserts.md` paths.
+- Affected location: Local agent-skill reference lookup; repository code line not applicable.
+- Observed result: PowerShell reported both guessed reference paths were absent; the foreign-key reference in the same command was read successfully.
+- Root cause: The installed skill uses the more specific filenames `security-rls-basics.md`, `security-rls-performance.md`, and singular `data-upsert.md`.
+- Primary solution: Enumerate the reference directory with `rg --files`, then read the exact relevant files in full.
+- Alternatives: Follow the reference index if one is present; read the official Supabase RLS and PostgreSQL upsert documentation directly.
+- Status: Resolved; all applicable local references and current official Supabase RLS/changelog material were reviewed before the schema edit.
+
+## 2026-08-22 12:56:10 +08:00 — Task 12 round 2 retry-action RED
+
+- Operation: Run the review-screen regression for retrying one locally pending evidence action without remounting.
+- Command: `flutter test test/mission_simulation_screen_test.dart --plain-name "retry synchronizes the same pending evidence and unblocks submission"`.
+- Affected location: `ByteQuest-Mobile-App/test/mission_simulation_screen_test.dart`; production review UI had no retry control.
+- Observed result: The test found no `OutlinedButton` labelled `Retry pending evidence`.
+- Root cause: Pending and failed counts disabled submission but exposed no user action that called `MissionRuntimeController.flushPending()`.
+- Primary solution: Add an explicit review action wired to `flushPending()`, preserve the pending action ID, disable it in flight, and rebuild feedback/submission state on completion.
+- Alternatives: Retry automatically on a timer; require exit/relaunch to trigger restore reconciliation. Both were rejected because the review requires an explicit in-place retry.
+- Status: Resolved; the focused regression passes and records exactly the original pending client action ID.
+
+## 2026-08-22 12:58:05 +08:00 — Task 12 round 2 active-learner RLS RED
+
+- Operation: Verify that both practice-evidence policies include the repository's active learner predicate before changing the migration.
+- Command: PowerShell policy-contract assertion counting `public.is_learner()` in `20260822124500_practice_mission_evidence.sql`.
+- Affected location: Practice evidence `SELECT` and `INSERT` RLS policies.
+- Observed result: The assertion expected two active-learner predicates and found zero.
+- Root cause: Ownership and the PostgreSQL `authenticated` role were enforced, but application-role/status authorization was not.
+- Primary solution: Combine `(select public.is_learner())` with `(select auth.uid()) = learner_id` in both policies.
+- Alternatives: Duplicate the profile-role/status lookup inline; create a new helper function. Both were rejected in favor of the existing audited predicate and no new `SECURITY DEFINER` surface.
+- Status: Resolved statically; both policies contain the active-learner predicate and lifecycle assertions cover instructor, admin, and deactivated-learner denial. Database execution remains pending the prepared Supabase environment.

@@ -469,6 +469,163 @@ begin
 end
 $$;
 
+reset role;
+select set_config(
+  'request.jwt.claim.sub',
+  (select instructor_id::text from bytequest_test_context),
+  true
+);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+
+do $$
+declare
+  v_context bytequest_test_context;
+begin
+  select * into v_context from bytequest_test_context;
+
+  if (select count(*) from public.practice_mission_actions) <> 0 then
+    raise exception 'INSTRUCTOR_PRACTICE_EVIDENCE_READ_WAS_NOT_BLOCKED';
+  end if;
+
+  begin
+    insert into public.practice_mission_actions (
+      learner_id,
+      client_action_id,
+      mission_id,
+      phase_id,
+      action_type,
+      value,
+      client_occurred_at
+    ) values (
+      v_context.instructor_id,
+      'forbidden-instructor-practice-action',
+      v_context.mission_id::text,
+      'forbidden-role-phase',
+      'object_inspected',
+      '{}'::jsonb,
+      v_context.action_at
+    );
+    raise exception 'INSTRUCTOR_PRACTICE_EVIDENCE_WRITE_WAS_NOT_BLOCKED';
+  exception
+    when insufficient_privilege then null;
+  end;
+end
+$$;
+
+reset role;
+select set_config(
+  'request.jwt.claim.sub',
+  (select admin_id::text from bytequest_test_context),
+  true
+);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+
+do $$
+declare
+  v_context bytequest_test_context;
+begin
+  select * into v_context from bytequest_test_context;
+
+  if (select count(*) from public.practice_mission_actions) <> 0 then
+    raise exception 'ADMIN_PRACTICE_EVIDENCE_READ_WAS_NOT_BLOCKED';
+  end if;
+
+  begin
+    insert into public.practice_mission_actions (
+      learner_id,
+      client_action_id,
+      mission_id,
+      phase_id,
+      action_type,
+      value,
+      client_occurred_at
+    ) values (
+      v_context.admin_id,
+      'forbidden-admin-practice-action',
+      v_context.mission_id::text,
+      'forbidden-role-phase',
+      'object_inspected',
+      '{}'::jsonb,
+      v_context.action_at
+    );
+    raise exception 'ADMIN_PRACTICE_EVIDENCE_WRITE_WAS_NOT_BLOCKED';
+  exception
+    when insufficient_privilege then null;
+  end;
+end
+$$;
+
+reset role;
+
+update public.profiles
+set status = 'deactivated'::public.account_status,
+    deactivated_at = clock_timestamp(),
+    deactivation_reason = 'Rollback practice evidence active-role verification',
+    deactivated_by = (select admin_id from bytequest_test_context)
+where user_id = (select learner_id from bytequest_test_context);
+
+select set_config(
+  'request.jwt.claim.sub',
+  (select learner_id::text from bytequest_test_context),
+  true
+);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+
+do $$
+declare
+  v_context bytequest_test_context;
+begin
+  select * into v_context from bytequest_test_context;
+
+  if (select count(*) from public.practice_mission_actions) <> 0 then
+    raise exception 'INACTIVE_LEARNER_PRACTICE_EVIDENCE_READ_WAS_NOT_BLOCKED';
+  end if;
+
+  begin
+    insert into public.practice_mission_actions (
+      learner_id,
+      client_action_id,
+      mission_id,
+      phase_id,
+      action_type,
+      value,
+      client_occurred_at
+    ) values (
+      v_context.learner_id,
+      'forbidden-inactive-learner-practice-action',
+      v_context.mission_id::text,
+      'forbidden-status-phase',
+      'object_inspected',
+      '{}'::jsonb,
+      v_context.action_at
+    );
+    raise exception 'INACTIVE_LEARNER_PRACTICE_EVIDENCE_WRITE_WAS_NOT_BLOCKED';
+  exception
+    when insufficient_privilege then null;
+  end;
+end
+$$;
+
+reset role;
+
+update public.profiles
+set status = 'active'::public.account_status,
+    deactivated_at = null,
+    deactivation_reason = null,
+    deactivated_by = null
+where user_id = (select learner_id from bytequest_test_context);
+
+select set_config(
+  'request.jwt.claim.sub',
+  (select learner_id::text from bytequest_test_context),
+  true
+);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+set local role authenticated;
+
 update bytequest_test_context context
 set attempt_id = (
   select id
@@ -1116,6 +1273,9 @@ select jsonb_build_object(
     'ordered_action_idempotency',
     'practice_evidence_idempotency',
     'practice_evidence_append_only',
+    'instructor_practice_evidence_blocked',
+    'admin_practice_evidence_blocked',
+    'inactive_learner_practice_evidence_blocked',
     'deactivated_membership_write_blocked',
     'submission_idempotency',
     'learner_score_write_blocked',

@@ -16,6 +16,15 @@ class HardwareItem {
 /// Mission Content Data
 /// Contains questions, components, steps, and scenarios for all missions
 class MissionContentData {
+  static const retryPendingEvidenceLabel = 'Retry pending evidence';
+  static const retryingPendingEvidenceLabel = 'Retrying evidence…';
+  static const retryingPendingEvidenceFeedback =
+      'Retrying pending evidence with its original action identifier.';
+  static const pendingEvidenceSynchronizedFeedback =
+      'Pending evidence synchronized.';
+  static const pendingEvidenceRetryFailedFeedback =
+      'Pending evidence is still saved locally. Check the connection and retry.';
+
   /// Learner-visible technical feedback keyed by stable mission and feedback
   /// identifiers. Evaluation outcomes remain owned by authoritative services.
   static const Map<String, Map<String, String>> missionFeedbackCatalogs = {
