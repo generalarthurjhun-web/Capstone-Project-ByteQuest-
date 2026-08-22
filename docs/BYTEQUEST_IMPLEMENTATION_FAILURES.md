@@ -417,3 +417,14 @@
 - Primary solution: Reject missing or false compatibility before changing `MissionRuntimeState.placements`; retain the evidence action for authoritative review without rendering client success.
 - Alternatives: Store accepted and rejected attempts in separate runtime fields; add a typed placement-result model and render accepted results only.
 - Status: Resolved; the focused screen/controller regression passes and accepted evidence remains recorded.
+
+## 2026-08-22 12:00:52 +08:00 — Task 10 isolated-worktree context-file lookup
+
+- Operation: Resume Task 10 under the newly supplied standing repository instructions and read `CODEX_STATE.md` and `bytequest.md` before further work.
+- Command: `Get-Content -Raw CODEX_STATE.md; Get-Content -Raw bytequest.md` from the isolated `feature/bytequest-simulation-platform` worktree.
+- Affected location: Repository context lookup; application code line not applicable.
+- Observed result: PowerShell reported that both files were absent from the isolated worktree.
+- Root cause: `CODEX_STATE.md`, `bytequest.md`, and `AGENTS.md` were added independently on `Dro-branch` after the feature worktree diverged from their common base.
+- Primary solution: Read the canonical tracked copies from `C:\Users\Drooo\Desktop\ByteQuest-Capstone-Project` before continuing, then reconcile the documentation branches during final integration.
+- Alternatives: Merge `Dro-branch` into the feature branch after resolving the duplicated mobile-folder rename; or create a fresh worktree from `Dro-branch` and transplant the reviewed feature commits.
+- Status: Resolved for Task 10 context; all required documents were read in full from the canonical root checkout, with branch reconciliation deferred until implementation and QA are complete.
