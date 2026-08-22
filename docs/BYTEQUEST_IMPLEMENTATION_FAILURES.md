@@ -472,3 +472,47 @@
 - Primary solution: Rerun the documented 20-mission emulator matrix with an authorized disposable learner test account and record each live result without storing credentials in the repository.
 - Alternatives: Execute a repository-owned authenticated integration harness that creates/cleans its own fixtures; have an instructor assign all 20 missions to a disposable learner and perform the matrix manually; or run the existing widget/catalog/launcher suites as non-device contract evidence while marking live checks unverified.
 - Status: Externally blocked; no authentication bypass was added. All 20 launcher/catalog/runtime contracts remain automated-pass, while authenticated emulator interaction and submission are explicitly unverified.
+
+## 2026-08-22 12:14:46 +08:00 — Task 12 pnpm command unavailable
+
+- Operation: Run the repository's authenticated all-missions lifecycle command.
+- Command: `pnpm test:all-missions` from `ByteQuest Web Dashboard`.
+- Affected location: Local Node package-manager command resolution; application code line not applicable.
+- Observed result: PowerShell reported that `pnpm` was not recognized.
+- Root cause: pnpm 11.17.0 is declared by the project but its executable shim is not on the active PATH.
+- Primary solution: Use Corepack's project-pinned pnpm version or enable its shim, then rerun the unchanged package script.
+- Alternatives: Invoke the package script's exact underlying Node command; use a project-local pnpm executable; or run the command from the repository's documented prepared development shell.
+- Status: Bypassed for diagnosis with Corepack and the exact Node command; authenticated execution remains blocked by missing configuration.
+
+## 2026-08-22 12:14:55 +08:00 — Task 12 Corepack pnpm dependency check
+
+- Operation: Run the all-missions lifecycle package script using the pinned Corepack pnpm version.
+- Command: `corepack pnpm test:all-missions`.
+- Affected location: Local Corepack/pnpm process bootstrap; application code line not applicable.
+- Observed result: Corepack resolved pnpm 11.17.0, but pnpm's dependency check spawned plain `pnpm install`, which was not available on PATH, and exited 1 before the lifecycle script.
+- Root cause: The Corepack binary was callable directly, but no pnpm shim existed for its child process.
+- Primary solution: Run the package script's exact underlying Node command to determine the next safe blocker without changing global tooling.
+- Alternatives: Run `corepack enable` in an authorized prepared shell; add Corepack's shim directory to PATH; or install the pinned pnpm version locally.
+- Status: Resolved diagnostically; the underlying script command was invoked directly and stopped safely on missing `.env.local`.
+
+## 2026-08-22 12:15:09 +08:00 — Task 12 all-missions lifecycle configuration absent
+
+- Operation: Execute the authenticated submit/evaluate/release lifecycle for all missions.
+- Command: `node --env-file=.env.local ../scripts/authenticated-all-missions-lifecycle-e2e.mjs`.
+- Affected location: `ByteQuest Web Dashboard/.env.local`; lifecycle script code was not entered.
+- Observed result: Node exited immediately with `.env.local: not found`.
+- Root cause: The dashboard's gitignored Supabase/service-role/test-account configuration and `BYTEQUEST_E2E_PASSWORD` are intentionally absent in this workspace.
+- Primary solution: Supply an authorized local `.env.local` and disposable E2E password, then run `pnpm test:all-missions` without committing or printing secrets.
+- Alternatives: Run the script in CI with protected secret variables; use an authorized prepared test environment; or manually execute learner submit, instructor evaluation/release, and learner result verification while recording non-secret evidence.
+- Status: Externally blocked and marked unverified; no Supabase request or database mutation occurred.
+
+## 2026-08-22 12:15:14 +08:00 — Task 12 realtime lifecycle configuration absent
+
+- Operation: Execute the authenticated learner-submit/instructor-view and instructor-release/learner-result realtime check.
+- Command: `node --env-file=.env.local ../scripts/authenticated-realtime-sync-e2e.mjs`.
+- Affected location: `ByteQuest Web Dashboard/.env.local`; realtime script code was not entered.
+- Observed result: Node exited immediately with `.env.local: not found`.
+- Root cause: The required gitignored Supabase and disposable account credentials are not present in this workspace.
+- Primary solution: Supply the authorized local environment and E2E password, then run `pnpm test:realtime` without exposing values.
+- Alternatives: Run the realtime script in protected CI; verify the flow with separate learner and instructor sessions; or capture Supabase Realtime/log evidence from an authorized test project.
+- Status: Externally blocked and marked unverified; no connection, subscription, or database mutation occurred.
