@@ -25,6 +25,7 @@ create temporary table bytequest_test_context (
   other_learner_attempt_id uuid,
   wrong_sequence_attempt_id uuid,
   action_id uuid,
+  practice_action_id bigint,
   provisional_revision_id uuid,
   final_revision_id uuid,
   release_id uuid,
@@ -391,6 +392,82 @@ select set_config(
 );
 select set_config('request.jwt.claim.role', 'authenticated', true);
 set local role authenticated;
+
+with inserted as (
+  insert into public.practice_mission_actions (
+    learner_id,
+    client_action_id,
+    mission_id,
+    phase_id,
+    action_type,
+    target,
+    value,
+    client_occurred_at
+  )
+  select
+    learner_id,
+    'rollback-practice-action',
+    mission_id::text,
+    'rollback-practice-phase',
+    'object_inspected',
+    'rollback-target',
+    jsonb_build_object('input_method', 'tap'),
+    action_at
+  from bytequest_test_context
+  on conflict (learner_id, client_action_id) do nothing
+  returning id
+)
+update bytequest_test_context
+set practice_action_id = inserted.id
+from inserted;
+
+insert into public.practice_mission_actions (
+  learner_id,
+  client_action_id,
+  mission_id,
+  phase_id,
+  action_type,
+  target,
+  value,
+  client_occurred_at
+)
+select
+  learner_id,
+  'rollback-practice-action',
+  mission_id::text,
+  'rollback-practice-phase',
+  'object_inspected',
+  'rollback-target',
+  jsonb_build_object('input_method', 'tap'),
+  action_at
+from bytequest_test_context
+on conflict (learner_id, client_action_id) do nothing;
+
+do $$
+declare
+  v_context bytequest_test_context;
+begin
+  select * into v_context from bytequest_test_context;
+
+  if (
+    select count(*)
+    from public.practice_mission_actions
+    where learner_id = v_context.learner_id
+      and client_action_id = 'rollback-practice-action'
+  ) <> 1 then
+    raise exception 'PRACTICE_EVIDENCE_IDEMPOTENCY_FAILED';
+  end if;
+
+  begin
+    update public.practice_mission_actions
+    set target = 'forbidden-mutation'
+    where id = v_context.practice_action_id;
+    raise exception 'PRACTICE_EVIDENCE_MUTATION_WAS_NOT_BLOCKED';
+  exception
+    when insufficient_privilege then null;
+  end;
+end
+$$;
 
 update bytequest_test_context context
 set attempt_id = (
@@ -1009,6 +1086,13 @@ begin
   end;
 
   begin
+    perform count(*) from public.practice_mission_actions;
+    raise exception 'UNAUTHENTICATED_PRACTICE_EVIDENCE_READ_WAS_NOT_BLOCKED';
+  exception
+    when insufficient_privilege then null;
+  end;
+
+  begin
     perform public.create_class('Forbidden anonymous class', null);
     raise exception 'UNAUTHENTICATED_RPC_WAS_NOT_BLOCKED';
   exception
@@ -1030,6 +1114,8 @@ select jsonb_build_object(
     'coc_bypass_access_only',
     'attempt_start_idempotency',
     'ordered_action_idempotency',
+    'practice_evidence_idempotency',
+    'practice_evidence_append_only',
     'deactivated_membership_write_blocked',
     'submission_idempotency',
     'learner_score_write_blocked',
@@ -1051,6 +1137,7 @@ select jsonb_build_object(
     'append_only_revisions',
     'gamification_exactly_once',
     'audit_visibility',
+    'unauthenticated_practice_evidence_blocked',
     'unauthenticated_protected_access_blocked',
     'learner_released_result_visibility'
   )

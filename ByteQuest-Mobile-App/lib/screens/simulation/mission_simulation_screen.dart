@@ -7,10 +7,12 @@ import '../../core/theme/app_theme.dart';
 import '../../models/mission_model.dart';
 import '../../services/auth_service.dart';
 import '../../services/authoritative_assessment_service.dart';
+import '../../services/practice_mission_evidence_service.dart';
 import '../../services/progress_resume_service.dart';
 import 'components/simulation_scene.dart';
 import 'interactions/mission_interactions.dart';
 import 'runtime/mission_evidence_gateway.dart';
+import 'runtime/mission_phase_completion_policy.dart';
 import 'runtime/mission_runtime_controller.dart';
 import 'runtime/mission_runtime_models.dart';
 
@@ -88,11 +90,15 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
   MissionRuntimeController _createController() {
     final assessment = AuthoritativeAssessmentService.instance;
     final firstPhaseId = widget.definition.phases.first.id;
-    final userId = AuthService().currentUserId ?? 'local-practice';
-    final assessmentSession = assessment.activeSession?.isAssessment == true
-        ? assessment.activeSession
-        : null;
-    final isAssessment = assessmentSession != null;
+    final userId = AuthService().currentUserId;
+    if (userId == null) {
+      throw StateError('An authenticated learner is required.');
+    }
+    final activeSession = assessment.activeSession;
+    final isAssessment = activeSession?.isAssessment == true;
+    final evidenceTransport = activeSession == null
+        ? PracticeMissionEvidenceService(missionId: widget.definition.id)
+        : assessment;
     return MissionRuntimeController(
       userId: userId,
       initialState: MissionRuntimeState.initial(
@@ -100,13 +106,13 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
         mode: isAssessment
             ? MissionRuntimeMode.assessment
             : MissionRuntimeMode.practice,
-        assessmentAttemptId: assessmentSession?.attemptId,
+        assessmentAttemptId: isAssessment ? activeSession!.attemptId : null,
       ).copyWith(
         currentPhaseId: firstPhaseId,
       ),
       store: const SharedPreferencesMissionRuntimeStore(),
       evidenceGateway: MissionEvidenceGateway(
-        transport: isAssessment ? assessment : _PracticeEvidenceTransport(),
+        transport: evidenceTransport,
       ),
       submissionPhaseIds: {widget.definition.phases.last.id},
     );
@@ -340,8 +346,10 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
             const SizedBox(height: 18),
             FilledButton.icon(
               key: const ValueKey('mission-next'),
-              onPressed:
-                  _writing ? null : () => unawaited(_advance(phaseIndex)),
+              onPressed: _writing ||
+                      !MissionPhaseCompletionPolicy.canAdvance(phase, _state)
+                  ? null
+                  : () => unawaited(_advance(phaseIndex)),
               icon: const Icon(Icons.arrow_forward_rounded),
               label: Text(
                 phaseIndex == widget.definition.phases.length - 2
@@ -386,13 +394,23 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
         actionType: _adaptActionType(phase, emittedActionType),
         target: target,
         value: value,
-        transition: queuedTransition ??
-            (state) => _transitionForAction(
-                  state,
-                  emittedActionType,
-                  target,
-                  value,
-                ),
+        transition: (state) {
+          final interactionTransition = queuedTransition ??
+              (runtime) => _transitionForAction(
+                    runtime,
+                    emittedActionType,
+                    target,
+                    value,
+                  );
+          final transitioned = interactionTransition(state);
+          return MissionPhaseCompletionPolicy.afterAction(
+            phase: phase,
+            state: transitioned,
+            emittedActionType: emittedActionType,
+            target: target,
+            value: value,
+          );
+        },
       );
       if (phase.feedbackIds.isNotEmpty) {
         _technicalFeedback =
@@ -453,6 +471,7 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
         });
       case 'tool_attempted':
         final toolId = value['tool_id'] as String?;
+        if (value['compatible'] != true) return state;
         return state.copyWith(
           selectedToolId: toolId,
           toolApplications: target == null || toolId == null
@@ -507,6 +526,15 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
             : state.copyWith(
                 revealedFactIds: {...state.revealedFactIds, factId},
               );
+      case 'correction_applied':
+      case 'retest_requested':
+        if (target == null) return state;
+        return state.copyWith(
+          selectedBranchActionIds: {
+            ...state.selectedBranchActionIds,
+            target,
+          },
+        );
       case 'observation_recorded':
         final observation = value['observation'];
         return observation is String && target != null
@@ -531,6 +559,7 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
   Future<void> _advance(int phaseIndex) async {
     if (_writing || phaseIndex >= widget.definition.phases.length - 1) return;
     final current = widget.definition.phases[phaseIndex];
+    if (!MissionPhaseCompletionPolicy.canAdvance(current, _state)) return;
     final next = widget.definition.phases[phaseIndex + 1];
     setState(() => _writing = true);
     try {
@@ -997,17 +1026,4 @@ enum _MissionComponent {
   decide,
   interpret,
   review,
-}
-
-final class _PracticeEvidenceTransport implements MissionEvidenceTransport {
-  final Set<String> _acceptedIds = <String>{};
-
-  @override
-  Future<void> append(MissionEvidenceAction action) async {
-    _acceptedIds.add(action.clientActionId);
-  }
-
-  @override
-  Future<Set<String>> acknowledgedClientActionIds() async =>
-      Set<String>.from(_acceptedIds);
 }

@@ -4,7 +4,7 @@ Date: 2026-08-22 (Asia/Manila)
 
 ## Outcome
 
-ByteQuest now has one reusable, data-driven 2D mission runtime and definitions for all 20 COC missions. Automated implementation acceptance is complete. Authenticated emulator mission execution and live Supabase submit/evaluate/release/realtime checks remain explicitly unverified because disposable account credentials and dashboard secrets were not available; no authentication or authority bypass was introduced.
+ByteQuest has one reusable, data-driven 2D mission runtime and structural catalog definitions for all 20 COC missions. Catalog structure and automated contracts are implemented; final mission acceptance is not claimed. Authenticated emulator mission execution, mission-level responsive/accessibility observation, and live Supabase submit/evaluate/release/realtime checks remain explicitly unverified because disposable account credentials and dashboard secrets were not available; no authentication or authority bypass was introduced.
 
 ## Priority coverage
 
@@ -22,9 +22,22 @@ ByteQuest now has one reusable, data-driven 2D mission runtime and definitions f
 12. Evidence review and explicit terminal submission: complete.
 13. Accessibility matrix (semantics, 48 dp targets, gesture alternatives, 2× text): complete.
 14. Mode/attempt-scoped pause/resume and evidence reconciliation: complete.
-15. Automated full QA, APK, scorecard, and device-shell QA: complete; authenticated external lifecycle is unverified.
+15. Automated QA, APK, scorecard, and device-shell QA: prior checkpoints recorded; authenticated external lifecycle and human mission acceptance remain unverified.
 
-## Verification evidence
+## Task 12 review-fix addendum
+
+- Phase advance now fails closed until the current interaction reports phase-specific terminal state; review retains separate return-to-phase navigation.
+- Regression coverage exercises the fourteen catalog interaction families before and after their terminal action and verifies completion cannot leak across phases.
+- Standalone practice actions now use an authenticated Supabase service transport. The runtime's existing pending queue remains the offline source of retry truth until server acknowledgement.
+- Assigned practice and assessment sessions continue to use authoritative attempt actions; no client score, pass/fail, competency, release, or reward authority was added.
+- `practice_mission_actions` is learner-owned, append-only through grants/RLS, and idempotent on `(learner_id, client_action_id)`; rollback lifecycle assertions cover duplicate insert, mutation denial, and anonymous-read denial.
+- Local Supabase lifecycle execution is unverified because the Supabase CLI is unavailable. The migration must be run through the prepared authorized lifecycle environment before deployment acceptance.
+
+Task 12 verification: focused review-fix gate 32/32 passed; full Flutter suite 178/178 passed; targeted seven-file analysis reported no issues; full `flutter analyze --no-fatal-infos` exited 0 with 212 pre-existing informational diagnostics; debug APK build passed. These are automated contract/build results, not live mission acceptance.
+
+## Prior checkpoint evidence
+
+The following artifacts are retained as historical automated/app-shell evidence and are not represented as current Task 12 gates or mission-level live acceptance:
 
 - `flutter analyze --no-fatal-infos`: exit 0, 0 errors, 0 warnings, 212 informational diagnostics.
 - `flutter test`: 169/169 passed.
@@ -43,7 +56,7 @@ ByteQuest now has one reusable, data-driven 2D mission runtime and definitions f
 - Evidence: structured immutable actions, idempotent reconciliation, pending/accepted/rejected handling, and authoritative submission gateway.
 - Persistence: phase, evidence, configuration, connections, placements, inspections, decisions, and test status restore without cross-mode/attempt leakage.
 - Assessment: no client score/pass/reward/release authority; protected evaluator routes remain explicit.
-- Detailed scores: `docs/BYTEQUEST_20_MISSION_SCORECARD.md`.
+- Detailed provisional structural scores: `docs/BYTEQUEST_20_MISSION_SCORECARD.md`.
 
 ## Showcase missions
 
@@ -69,10 +82,12 @@ These four emphasize different interaction families so the defense presents Byte
 
 ## Failure evidence
 
-Every failed operation is timestamped with location, observed result, root cause, primary solution, alternatives, and status in `docs/BYTEQUEST_IMPLEMENTATION_FAILURES.md`. Emulator-specific evidence is in `docs/BYTEQUEST_EMULATOR_QA.md`.
+Every failed operation is timestamped with location, observed result, root cause, primary solution, alternatives, and status in `docs/BYTEQUEST_IMPLEMENTATION_FAILURES.md`. The per-entry anchored index is `docs/BYTEQUEST_IMPLEMENTATION_FAILURE_INDEX.md`. Emulator-specific evidence is in `docs/BYTEQUEST_EMULATOR_QA.md`.
 
 ## Final status
 
-Implementation and automated acceptance: **complete**.
+Structural catalog implementation and automated contract coverage: **implemented; provisional pending current integration gates**.
 
-Authenticated device and Supabase lifecycle acceptance: **externally blocked / unverified** until authorized disposable credentials are supplied. This limitation does not justify weakening authentication, RLS, backend evaluation, or instructor-release controls.
+Final/live mission acceptance: **not claimed**. Authenticated device, mission-level responsive/accessibility observation, and Supabase lifecycle acceptance are externally blocked/unverified until authorized disposable credentials and the prepared database test environment are supplied.
+
+Integration into the active `Dro-branch`: **pending** until this feature worktree commit is explicitly reconciled and its gates are rerun on the integrated branch. This limitation does not justify weakening authentication, RLS, backend evaluation, or instructor-release controls.

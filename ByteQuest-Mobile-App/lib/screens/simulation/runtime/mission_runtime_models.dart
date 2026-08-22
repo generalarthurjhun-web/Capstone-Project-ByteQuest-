@@ -442,6 +442,7 @@ final class MissionRuntimeState {
     required this.missionId,
     this.currentPhaseId,
     Iterable<String> completedPhaseIds = const [],
+    Iterable<String> interactionCompletedPhaseIds = const [],
     Map<String, HotspotVisualState> hotspotStates = const {},
     this.selectedToolId,
     Map<String, String> toolApplications = const {},
@@ -465,6 +466,8 @@ final class MissionRuntimeState {
     this.cameraOffsetY = 0,
     DateTime? updatedAt,
   })  : completedPhaseIds = Set.unmodifiable(completedPhaseIds),
+        interactionCompletedPhaseIds =
+            Set.unmodifiable(interactionCompletedPhaseIds),
         hotspotStates = Map.unmodifiable(
             Map<String, HotspotVisualState>.from(hotspotStates)),
         toolApplications =
@@ -530,6 +533,8 @@ final class MissionRuntimeState {
       missionId: json['missionId'] as String,
       currentPhaseId: json['currentPhaseId'] as String?,
       completedPhaseIds: _stringSet(json['completedPhaseIds']),
+      interactionCompletedPhaseIds:
+          _stringSet(json['interactionCompletedPhaseIds']),
       hotspotStates: _hotspotStates(json['hotspotStates']),
       selectedToolId: json['selectedToolId'] as String?,
       toolApplications: _stringMap(json['toolApplications']),
@@ -564,6 +569,7 @@ final class MissionRuntimeState {
   final String missionId;
   final String? currentPhaseId;
   final Set<String> completedPhaseIds;
+  final Set<String> interactionCompletedPhaseIds;
   final Map<String, HotspotVisualState> hotspotStates;
   final String? selectedToolId;
   final Map<String, String> toolApplications;
@@ -595,6 +601,7 @@ final class MissionRuntimeState {
     Set<String>? connectedNodePairs,
     Set<String>? acceptedEvidenceIds,
     Set<String>? completedPhaseIds,
+    Set<String>? interactionCompletedPhaseIds,
     Map<String, HotspotVisualState>? hotspotStates,
     Map<String, String>? toolApplications,
     Map<String, String>? placements,
@@ -621,6 +628,8 @@ final class MissionRuntimeState {
       currentPhaseId:
           clearCurrentPhaseId ? null : currentPhaseId ?? this.currentPhaseId,
       completedPhaseIds: completedPhaseIds ?? this.completedPhaseIds,
+      interactionCompletedPhaseIds:
+          interactionCompletedPhaseIds ?? this.interactionCompletedPhaseIds,
       hotspotStates: hotspotStates ?? this.hotspotStates,
       selectedToolId:
           clearSelectedToolId ? null : selectedToolId ?? this.selectedToolId,
@@ -676,6 +685,7 @@ final class MissionRuntimeState {
         'missionId': missionId,
         'currentPhaseId': currentPhaseId,
         'completedPhaseIds': completedPhaseIds.toList(),
+        'interactionCompletedPhaseIds': interactionCompletedPhaseIds.toList(),
         'hotspotStates': hotspotStates.map(
           (id, state) => MapEntry(id, state.name),
         ),
@@ -710,6 +720,10 @@ final class MissionRuntimeState {
       other.missionId == missionId &&
       other.currentPhaseId == currentPhaseId &&
       _deepEquals(other.completedPhaseIds, completedPhaseIds) &&
+      _deepEquals(
+        other.interactionCompletedPhaseIds,
+        interactionCompletedPhaseIds,
+      ) &&
       _deepEquals(other.hotspotStates, hotspotStates) &&
       other.selectedToolId == selectedToolId &&
       _deepEquals(other.toolApplications, toolApplications) &&
@@ -739,6 +753,7 @@ final class MissionRuntimeState {
         missionId,
         currentPhaseId,
         _deepHash(completedPhaseIds),
+        _deepHash(interactionCompletedPhaseIds),
         _deepHash(hotspotStates),
         selectedToolId,
         _deepHash(toolApplications),

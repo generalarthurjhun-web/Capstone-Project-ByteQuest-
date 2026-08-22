@@ -516,3 +516,69 @@
 - Primary solution: Supply the authorized local environment and E2E password, then run `pnpm test:realtime` without exposing values.
 - Alternatives: Run the realtime script in protected CI; verify the flow with separate learner and instructor sessions; or capture Supabase Realtime/log evidence from an authorized test project.
 - Status: Externally blocked and marked unverified; no connection, subscription, or database mutation occurred.
+
+## 2026-08-22 12:33:46 +08:00 — Task 12 mission-evidence RED gate
+
+- Operation: Run the new phase-completion, practice-evidence, and mission-screen regressions before production implementation.
+- Command: `flutter test test/mission_phase_completion_policy_test.dart test/practice_mission_evidence_service_test.dart test/mission_simulation_screen_test.dart`.
+- Affected location: `ByteQuest-Mobile-App/test/mission_simulation_screen_test.dart:29` and the two intentionally absent production units.
+- Observed result: Continue was callable before any interaction, the requested policy/service imports did not exist, and one new helper accidentally resolved `isEmpty` as a matcher instead of the collection property.
+- Root cause: The first two failures reproduced the reviewed production gaps; the collection failure was a test-harness name collision.
+- Primary solution: Preserve the production failures as RED evidence, qualify the helper with `this.isEmpty`, then implement the smallest policy and service boundaries.
+- Alternatives: Split the three suites into separate RED commands; use a deliberately failing stub interface before adding the concrete units.
+- Status: Resolved; the corrected tests fail only on the intended missing behavior before implementation and pass after the production changes.
+
+## 2026-08-22 12:36:20 +08:00 — Task 12 first GREEN fixture mismatch
+
+- Operation: Run the focused suites after the first implementation pass.
+- Command: Same three-file focused Flutter test gate.
+- Affected location: `practice_mission_evidence_service_test.dart` unauthenticated expectation and `mission_simulation_screen_test.dart` review-navigation fixtures.
+- Observed result: The unauthenticated transport threw synchronously instead of through its `Future`, while review tests still attempted to reach submission using Continue-only navigation.
+- Root cause: The service method lacked an `async` boundary, and pre-existing review fixtures encoded the exact behavior now prohibited by the completion gate.
+- Primary solution: Make transport failure asynchronous and drive every catalog phase to its terminal action before advancing.
+- Alternatives: Use `expect(() => ...)` for a synchronous API; add a controller fixture already seeded with phase completion evidence. Both were rejected because they would weaken the production contract or regression realism.
+- Status: Resolved; unauthenticated access fails through the transport future and review tests exercise actual mission interactions.
+
+## 2026-08-22 12:38:10 +08:00 — Task 12 review driver target mismatch
+
+- Operation: Rerun the mission-screen review regression after adding terminal-action drivers.
+- Command: Focused `flutter test test/mission_simulation_screen_test.dart` invocation.
+- Affected location: The COC1 M1 multi-select phase test driver.
+- Observed result: The driver searched for a definition-specific option key that the renderer normalizes to `multi-select-motherboard`.
+- Root cause: The fixture guessed the widget key instead of following the renderer's established fallback key contract.
+- Primary solution: Use the rendered stable key already asserted by interaction tests.
+- Alternatives: Locate the option by visible label; expose a helper on the renderer for tests.
+- Status: Resolved; the corrected key selects and confirms the phase.
+
+## 2026-08-22 12:39:15 +08:00 — Task 12 review driver rebuild timing
+
+- Operation: Rerun the review regression after correcting the multi-select target.
+- Command: Focused `flutter test test/mission_simulation_screen_test.dart` invocation.
+- Affected location: The COC1 M1 observation phase test driver.
+- Observed result: The record button remained disabled immediately after text entry.
+- Root cause: The test driver did not pump the rebuild that updates the button's enabled state.
+- Primary solution: Pump once after `enterText`, then tap the now-enabled terminal action.
+- Alternatives: Submit through the text field action; seed an observation action directly through the controller.
+- Status: Resolved; the review regression now reaches review only after terminal evidence for every prior phase.
+
+## 2026-08-22 12:42:30 +08:00 — Task 12 Supabase CLI unavailable
+
+- Operation: Verify the Supabase CLI version and request migration command help before generating and testing the schema change.
+- Commands: `supabase --version` and `supabase migration new --help`.
+- Affected location: Local toolchain command resolution; migration source line not applicable.
+- Observed result: PowerShell reported that `supabase` was not recognized for both invocations.
+- Root cause: The Supabase CLI is not installed or exposed on PATH in this worktree shell.
+- Primary solution: Add the chronologically named migration with the repository patch workflow, add rollback-lifecycle assertions, and report live execution as unverified rather than weakening the schema test.
+- Alternatives: Run the repository migration/lifecycle suite in prepared CI; use an authorized local Supabase installation; validate against a disposable linked test project with protected credentials.
+- Status: Tooling-blocked for local database execution; migration and lifecycle assertions are tracked for the prepared integration environment.
+
+## 2026-08-22 12:43:25 +08:00 — Task 12 failure-ledger patch encoding mismatch
+
+- Operation: Append the Task 12 review-fix failures to this ledger.
+- Command/interaction: `apply_patch` anchored on the console-rendered final Unicode heading.
+- Affected location: This documentation file; application code line not applicable.
+- Observed result: Patch context verification failed because the console rendering did not match the file's encoded em dash bytes.
+- Root cause: The patch used a lossy console representation of the Unicode heading as context.
+- Primary solution: Anchor the append on the stable ASCII status line immediately below the heading.
+- Alternatives: Inspect the final bytes with explicit UTF-8 decoding; append through a newly introduced ASCII sentinel.
+- Status: Resolved; the ASCII-anchored patch appended all entries without rewriting existing history.

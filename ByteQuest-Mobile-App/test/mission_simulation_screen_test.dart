@@ -16,6 +16,33 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('MissionSimulationScreen', () {
+    testWidgets('does not advance before the active interaction is terminal',
+        (tester) async {
+      final definition = MissionSimulationDefinitions.byId('coc1_m1');
+      final controller = _controller(definition);
+
+      await tester.pumpWidget(_host(definition, controller: controller));
+      await tester.pumpAndSettle();
+
+      final nextFinder = find.byKey(const ValueKey('mission-next'));
+      final before = tester.widget<FilledButton>(nextFinder);
+      expect(before.onPressed, isNull);
+
+      for (final object in const ['motherboard', 'cpu', 'ram', 'psu']) {
+        final target = find.byKey(ValueKey('inspect-target-$object'));
+        await tester.ensureVisible(target);
+        await tester.tap(target);
+        await tester.pumpAndSettle();
+      }
+
+      final after = tester.widget<FilledButton>(nextFinder);
+      expect(after.onPressed, isNotNull);
+      await tester.ensureVisible(nextFinder);
+      await tester.tap(nextFinder);
+      await tester.pumpAndSettle();
+      expect(controller.state.currentPhaseId, definition.phases[1].id);
+    });
+
     testWidgets('restores before exposing the interactive workspace',
         (tester) async {
       final definition = MissionSimulationDefinitions.byId('coc1_m1');
@@ -131,20 +158,16 @@ void main() {
         (tester) async {
       final definition = MissionSimulationDefinitions.byId('coc1_m1');
       var submissions = 0;
+      final controller = _controller(definition);
 
       await tester.pumpWidget(_host(
         definition,
-        controller: _controller(definition),
+        controller: controller,
         onSubmit: () async => submissions++,
       ));
       await tester.pumpAndSettle();
 
-      for (var index = 1; index < definition.phases.length; index++) {
-        final next = find.byKey(const ValueKey('mission-next'));
-        await tester.ensureVisible(next);
-        await tester.tap(next);
-        await tester.pumpAndSettle();
-      }
+      await _advanceToReview(tester, definition, controller);
 
       expect(find.byType(EvidenceReviewPanel), findsOneWidget);
       expect(submissions, 0);
@@ -171,14 +194,15 @@ void main() {
         (tester) async {
       final definition = MissionSimulationDefinitions.byId('coc1_m1');
       var submissions = 0;
+      final controller = _controller(definition);
 
       await tester.pumpWidget(_host(
         definition,
-        controller: _controller(definition),
+        controller: controller,
         onSubmit: () async => submissions++,
       ));
       await tester.pumpAndSettle();
-      await _advanceToReview(tester, definition);
+      await _advanceToReview(tester, definition, controller);
 
       final confirmText = find.text('Confirm evidence');
       await tester.ensureVisible(confirmText);
@@ -416,9 +440,51 @@ MissionSimulationDefinition _incompatiblePlacementDefinition() =>
 Future<void> _advanceToReview(
   WidgetTester tester,
   MissionSimulationDefinition definition,
+  MissionRuntimeController controller,
 ) async {
-  for (var index = 1; index < definition.phases.length; index++) {
+  for (var phaseIndex = 0;
+      phaseIndex < definition.phases.length - 1;
+      phaseIndex++) {
+    switch (phaseIndex) {
+      case 0:
+        for (final object in const ['motherboard', 'cpu', 'ram', 'psu']) {
+          final target = find.byKey(ValueKey('inspect-target-$object'));
+          await tester.ensureVisible(target);
+          await tester.tap(target);
+          await tester.pumpAndSettle();
+        }
+      case 1:
+        final choice = find.byKey(const ValueKey('multi-select-motherboard'));
+        await tester.ensureVisible(choice);
+        await tester.tap(choice);
+        final confirm = find.byKey(const ValueKey('multi-select-confirm'));
+        await tester.ensureVisible(confirm);
+        await tester.tap(confirm);
+        await tester.pumpAndSettle();
+      case 2:
+        final input = find.byKey(
+          const ValueKey('observation-input-coc1_m1_p3'),
+        );
+        await tester.ensureVisible(input);
+        await tester.enterText(input, 'No visible damage was observed.');
+        await tester.pump();
+        final record = find.text('Record observation');
+        await tester.ensureVisible(record);
+        await tester.tap(record);
+        await tester.pumpAndSettle();
+      case 3:
+        final run = find.byKey(const ValueKey('test-run-start'));
+        await tester.ensureVisible(run);
+        await tester.tap(run);
+        await tester.pumpAndSettle();
+    }
     final next = find.byKey(const ValueKey('mission-next'));
+    expect(
+      tester.widget<FilledButton>(next).onPressed,
+      isNotNull,
+      reason: 'phase $phaseIndex did not reach terminal interaction state: '
+          '${controller.state.toJson()}',
+    );
     await tester.ensureVisible(next);
     await tester.tap(next);
     await tester.pumpAndSettle();
