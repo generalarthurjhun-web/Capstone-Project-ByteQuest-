@@ -52,10 +52,24 @@ class TapInspectInteraction extends StatelessWidget {
               const {'input_method': 'tap'},
             )),
           ),
-          if (object.data['imageAsset'] case final String imagePath
+          if (object.imageAsset case final String imagePath
               when imagePath.isNotEmpty) ...[
             const SizedBox(height: 6),
-            _InspectionImage(assetPath: imagePath, label: object.label),
+            _InspectionImage(
+              objectName: object.label,
+              description: object.description,
+              assetPath: imagePath,
+            ),
+          ] else ...[
+            Builder(
+              builder: (context) {
+                debugPrint(
+                  '[ByteQuest image] missing imageAsset for '
+                  'object name: ${object.label}',
+                );
+                return const SizedBox.shrink();
+              },
+            ),
           ],
           if (selectedIds.contains(object.id) &&
               object.data['inspection'] is String) ...[
@@ -79,10 +93,15 @@ class TapInspectInteraction extends StatelessWidget {
 }
 
 class _InspectionImage extends StatefulWidget {
-  const _InspectionImage({required this.assetPath, required this.label});
+  const _InspectionImage({
+    required this.objectName,
+    required this.description,
+    required this.assetPath,
+  });
 
+  final String objectName;
+  final String description;
   final String assetPath;
-  final String label;
 
   @override
   State<_InspectionImage> createState() => _InspectionImageState();
@@ -93,7 +112,10 @@ class _InspectionImageState extends State<_InspectionImage> {
   void initState() {
     super.initState();
     debugPrint(
-        '[ByteQuest image] loading inspection asset: ${widget.assetPath}');
+      '[ByteQuest image] object name: ${widget.objectName}; '
+      'imageAsset: ${widget.assetPath}; '
+      'description: ${widget.description}',
+    );
     rootBundle.load(widget.assetPath).then<void>(
           (_) =>
               debugPrint('[ByteQuest image] asset exists: ${widget.assetPath}'),
@@ -104,17 +126,34 @@ class _InspectionImageState extends State<_InspectionImage> {
   }
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-        height: 120,
-        child: Image.asset(
-          widget.assetPath,
-          fit: BoxFit.contain,
-          semanticLabel: widget.label,
-          errorBuilder: (context, error, stackTrace) => Container(
-            color: Colors.red.shade100,
-            alignment: Alignment.center,
-            child: const Icon(Icons.broken_image_outlined, color: Colors.red),
-          ),
-        ),
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final mediaSize = MediaQuery.sizeOf(context);
+          final width = constraints.hasBoundedWidth && constraints.maxWidth > 0
+              ? constraints.maxWidth
+              : mediaSize.width;
+          const height = 120.0;
+          debugPrint(
+            '[ByteQuest image] layout object name: ${widget.objectName}; '
+            'media: ${mediaSize.width}x${mediaSize.height}; '
+            'parent constraints: $constraints; '
+            'widget size: ${width}x$height',
+          );
+          return SizedBox(
+            width: width,
+            height: height,
+            child: Image.asset(
+              widget.assetPath,
+              fit: BoxFit.contain,
+              semanticLabel: widget.objectName,
+              errorBuilder: (context, error, stackTrace) => Container(
+                color: Colors.red.shade100,
+                alignment: Alignment.center,
+                child:
+                    const Icon(Icons.broken_image_outlined, color: Colors.red),
+              ),
+            ),
+          );
+        },
       );
 }

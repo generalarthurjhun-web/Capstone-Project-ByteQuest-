@@ -90,6 +90,27 @@ MissionSimulationDefinition _mission({
         : spec.family == InteractionFamily.testRun
             ? 'evidence'
             : 'constraint';
+    final presentation = _presentationWithImageAssets(
+      id,
+      spec.presentation,
+    )..addAll({
+        'mechanics': [spec.mechanic],
+      });
+    // Inspect phases commonly rely on the mission object catalog instead of
+    // repeating an objects list. Normalize those fallback objects here so the
+    // shared runtime renderer receives the complete visual payload too.
+    if (renderedFamily == InteractionFamily.inspect &&
+        presentation['objects'] is! List) {
+      presentation['objects'] = [
+        for (final entry in objects.entries)
+          {
+            'id': entry.key,
+            'label': entry.value,
+            'description': entry.value,
+            'imageAsset': _imageAssetForObject(id, entry.key),
+          },
+      ];
+    }
     definitions.add(MissionPhaseDefinition(
       id: '${id}_p${index + 1}',
       title: spec.title,
@@ -97,12 +118,7 @@ MissionSimulationDefinition _mission({
       primaryInteraction: renderedFamily,
       availableObjectIds: objectIds,
       feedbackIds: ['${id}_$feedbackKind'],
-      presentation: _presentationWithImageAssets(
-        id,
-        spec.presentation,
-      )..addAll({
-          'mechanics': [spec.mechanic],
-        }),
+      presentation: presentation,
     ));
   }
 
@@ -171,6 +187,7 @@ SimulationSceneDefinition _scene(
           connectionNodeIds: ['${entries[index].key}_port'],
           metadata: {
             'schematicRole': index == 0 ? 'primary' : 'supporting',
+            'description': entries[index].value,
             'replaceableAsset':
                 'assets/simulation/schematics/${entries[index].key}.svg',
             'imageAsset': _imageAssetForObject(
@@ -209,6 +226,7 @@ Map<String, dynamic> _presentationWithImageAssets(
           (() {
             final item = Map<String, dynamic>.from(entry);
             if (item['id'] is String) {
+              item['description'] ??= item['label'] ?? item['id'];
               item['imageAsset'] =
                   _imageAssetForObject(missionId, item['id'] as String);
             }

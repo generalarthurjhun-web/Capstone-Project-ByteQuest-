@@ -142,11 +142,18 @@ class MultiSelectInspection extends StatelessWidget {
 }
 
 class InteractionItem {
-  const InteractionItem(
-      {required this.id, required this.label, this.data = const {}});
+  const InteractionItem({
+    required this.id,
+    required this.label,
+    this.description = '',
+    this.imageAsset,
+    this.data = const {},
+  });
 
   final String id;
   final String label;
+  final String description;
+  final String? imageAsset;
   final Map<String, dynamic> data;
 }
 
@@ -159,6 +166,10 @@ List<InteractionItem> interactionItems(
     return InteractionItem(
       id: map['id'] as String,
       label: map['label'] as String? ?? map['id'] as String,
+      description: map['description'] as String? ??
+          map['label'] as String? ??
+          map['id'] as String,
+      imageAsset: map['imageAsset'] as String?,
       data: map,
     );
   }).toList(growable: false);

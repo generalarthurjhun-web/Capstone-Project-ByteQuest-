@@ -2,6 +2,7 @@ import 'package:bytequest/data/mission_simulation_definitions.dart';
 import 'package:bytequest/screens/simulation/components/hotspot_widget.dart';
 import 'package:bytequest/screens/simulation/components/scene_connection_painter.dart';
 import 'package:bytequest/screens/simulation/components/simulation_scene.dart';
+import 'package:bytequest/screens/simulation/interactions/multi_select_interaction.dart';
 import 'package:bytequest/screens/simulation/runtime/mission_runtime_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -173,6 +174,14 @@ void main() {
         .firstWhere((item) => item['id'] == 'motherboard');
     expect(
       motherboard['imageAsset'],
+      'assets/COC1/Mission 1/motherboard.png',
+    );
+    final motherboardItem = interactionItems([motherboard]).single;
+    expect(motherboardItem.id, 'motherboard');
+    expect(motherboardItem.label, 'Motherboard');
+    expect(motherboardItem.description, 'Motherboard');
+    expect(
+      motherboardItem.imageAsset,
       'assets/COC1/Mission 1/motherboard.png',
     );
   });
