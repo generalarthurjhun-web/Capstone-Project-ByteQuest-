@@ -31,11 +31,20 @@ class HotspotWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = _colorsFor(state);
+    final rawImageAsset = object.metadata['imageAsset'];
     final imageAsset = object.metadata['imageAsset'];
     final imagePath =
         imageAsset is String && imageAsset.isNotEmpty ? imageAsset : null;
+    debugPrint(
+      '[ByteQuest workspace] hotspot id: ${object.id}; '
+      'label: ${object.label}; imageAsset: $rawImageAsset; '
+      'Image.asset called: ${imagePath != null}',
+    );
     if (imagePath != null) {
-      debugPrint('[ByteQuest image] loading asset: $imagePath');
+      debugPrint(
+        '[ByteQuest workspace] Image.asset called for '
+        '${object.id}: $imagePath',
+      );
       unawaited(
         rootBundle.load(imagePath).then<void>(
               (_) => debugPrint('[ByteQuest image] asset exists: $imagePath'),
@@ -76,6 +85,7 @@ class HotspotWidget extends StatelessWidget {
               ),
               alignment: Alignment.center,
               child: Stack(
+                fit: StackFit.expand,
                 alignment: Alignment.center,
                 children: [
                   if (imagePath != null)
