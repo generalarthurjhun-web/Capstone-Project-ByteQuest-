@@ -67,8 +67,9 @@ The following artifacts are retained as historical automated/app-shell evidence 
 - `flutter test`: 169/169 passed.
 - Task 9 six-suite UI gate: 84/84 passed.
 - Debug APK: `ByteQuest-Mobile-App/build/app/outputs/flutter-apk/app-debug.apk`.
-- APK size: 170,424,168 bytes.
-- APK SHA-256: `032D2E7DD07CFC3700F801EBA70F30549D440AE627AADE1E884F2B3A89B0C6C6`.
+- Final integrated `Dro-branch` APK size: 195,186,392 bytes.
+- Final integrated `Dro-branch` APK SHA-256: `CE1663F11351B08461719AC4AA9284C251B0DF5346C320618B95A77D9F985410`.
+- The earlier emulator-shell QA used the reviewed feature-worktree APK identified in `docs/BYTEQUEST_EMULATOR_QA.md`; authenticated mission execution remained unverified for both artifacts.
 - Emulator: Android 16/API 36 x86_64 (`emulator-5554`), hardware rendering enabled.
 - App-shell emulator checks: install, startup, portrait, landscape, 2× text, reduced motion, background/resume, force-stop/relaunch passed without observed Flutter/Android fatal exceptions.
 

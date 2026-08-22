@@ -69,7 +69,7 @@ static SQL/lifecycle sentinels   PASS — 8/8
 whole-branch review              PASS — no Critical/High/Medium findings
 ```
 
-APK location (ignored): `ByteQuest-Mobile-App/build/app/outputs/flutter-apk/app-debug.apk`.
+APK location (ignored): `ByteQuest-Mobile-App/build/app/outputs/flutter-apk/app-debug.apk`; integrated size 195,186,392 bytes; SHA-256 `CE1663F11351B08461719AC4AA9284C251B0DF5346C320618B95A77D9F985410`.
 
 ## Durable evidence
 
