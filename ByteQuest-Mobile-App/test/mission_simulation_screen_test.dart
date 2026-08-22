@@ -136,7 +136,7 @@ void main() {
       expect(store.saveCount, 1);
     });
 
-    testWidgets('requests landscape on entry and restores orientations on exit',
+    testWidgets('does not force landscape and restores orientations on exit',
         (tester) async {
       final definition = MissionSimulationDefinitions.byId('coc1_m1');
       final orientation = _FakeOrientationCoordinator();
@@ -147,7 +147,6 @@ void main() {
         orientationCoordinator: orientation,
       ));
       await tester.pumpAndSettle();
-      expect(orientation.landscapeRequests, 1);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpAndSettle();
@@ -839,11 +838,7 @@ final class _MemoryTransport implements MissionEvidenceTransport {
 
 final class _FakeOrientationCoordinator
     implements MissionOrientationCoordinator {
-  int landscapeRequests = 0;
   int restoreRequests = 0;
-
-  @override
-  Future<void> requestLandscape() async => landscapeRequests++;
 
   @override
   Future<void> restoreSupportedOrientations() async => restoreRequests++;

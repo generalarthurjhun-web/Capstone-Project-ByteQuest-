@@ -324,15 +324,10 @@ class _SceneViewport extends StatelessWidget {
                       children: [
                         Positioned.fill(
                           child: backgroundRenderer ??
-                              Semantics(
-                                label: 'Replaceable technical schematic',
-                                image: true,
-                                child: CustomPaint(
-                                  painter: _SchematicScenePainter(
-                                    kind: resolved.legacyKind,
-                                    objects: resolved.definition.objects,
-                                  ),
-                                ),
+                              _SceneBackground(
+                                assetPath: resolved.definition.backgroundAsset,
+                                kind: resolved.legacyKind,
+                                objects: resolved.definition.objects,
                               ),
                         ),
                         Positioned.fill(
@@ -386,6 +381,50 @@ class _SceneViewport extends StatelessWidget {
               ),
             );
           },
+        ),
+      );
+}
+
+class _SceneBackground extends StatelessWidget {
+  const _SceneBackground({
+    required this.assetPath,
+    required this.kind,
+    required this.objects,
+  });
+
+  final String? assetPath;
+  final SimulationSceneKind? kind;
+  final List<SceneObjectDefinition> objects;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        label: 'Technical mission workspace',
+        image: true,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (assetPath != null)
+              Opacity(
+                opacity: .16,
+                child: Image.asset(
+                  assetPath!,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    debugPrint(
+                      '[ByteQuest image] workspace asset failed: '
+                      '$assetPath ($error)',
+                    );
+                    return const ColoredBox(
+                      color: Color(0xFFFFE5E8),
+                      child: Center(child: Icon(Icons.broken_image_outlined)),
+                    );
+                  },
+                ),
+              ),
+            CustomPaint(
+              painter: _SchematicScenePainter(kind: kind, objects: objects),
+            ),
+          ],
         ),
       );
 }

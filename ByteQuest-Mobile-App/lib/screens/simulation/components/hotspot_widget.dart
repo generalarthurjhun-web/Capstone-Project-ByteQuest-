@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../runtime/mission_runtime_models.dart';
@@ -28,6 +31,20 @@ class HotspotWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = _colorsFor(state);
+    final imageAsset = object.metadata['imageAsset'];
+    final imagePath =
+        imageAsset is String && imageAsset.isNotEmpty ? imageAsset : null;
+    if (imagePath != null) {
+      debugPrint('[ByteQuest image] loading asset: $imagePath');
+      unawaited(
+        rootBundle.load(imagePath).then<void>(
+              (_) => debugPrint('[ByteQuest image] asset exists: $imagePath'),
+              onError: (Object error, StackTrace stack) => debugPrint(
+                '[ByteQuest image] asset missing: $imagePath ($error)',
+              ),
+            ),
+      );
+    }
     final transitionDuration = MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
         : AppTheme.simulationTransitionDuration;
@@ -58,21 +75,51 @@ class HotspotWidget extends StatelessWidget {
                 border: Border.all(color: colors.foreground, width: 2),
               ),
               alignment: Alignment.center,
-              child: AnimatedScale(
-                duration: transitionDuration,
-                curve: Curves.easeOutCubic,
-                scale: state == HotspotVisualState.neutral ? .92 : 1,
-                child: AnimatedSwitcher(
-                  duration: transitionDuration,
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  child: Icon(
-                    _stateIcon(state, icon ?? _iconFor(object.hotspotType)),
-                    key: ValueKey(state),
-                    color: colors.foreground,
-                    size: 24,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  if (imagePath != null)
+                    Positioned.fill(
+                      child: Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: Image.asset(
+                          imagePath,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) =>
+                              ColoredBox(
+                            color: AppTheme.errorRed,
+                            child: Tooltip(
+                              message: 'Image failed: $imagePath',
+                              child: Icon(
+                                Icons.broken_image_outlined,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  AnimatedScale(
+                    duration: transitionDuration,
+                    curve: Curves.easeOutCubic,
+                    scale: state == HotspotVisualState.neutral ? .92 : 1,
+                    child: AnimatedSwitcher(
+                      duration: transitionDuration,
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      child: Icon(
+                        _stateIcon(
+                          state,
+                          icon ?? _iconFor(object.hotspotType),
+                        ),
+                        key: ValueKey(state),
+                        color: colors.foreground,
+                        size: 24,
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
           ),

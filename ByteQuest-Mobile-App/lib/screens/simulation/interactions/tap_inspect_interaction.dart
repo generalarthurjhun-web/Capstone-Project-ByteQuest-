@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../components/tool_tray.dart';
 import '../runtime/mission_runtime_models.dart';
@@ -51,6 +52,11 @@ class TapInspectInteraction extends StatelessWidget {
               const {'input_method': 'tap'},
             )),
           ),
+          if (object.data['imageAsset'] case final String imagePath
+              when imagePath.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            _InspectionImage(assetPath: imagePath, label: object.label),
+          ],
           if (selectedIds.contains(object.id) &&
               object.data['inspection'] is String) ...[
             const SizedBox(height: 6),
@@ -70,4 +76,45 @@ class TapInspectInteraction extends StatelessWidget {
       ],
     );
   }
+}
+
+class _InspectionImage extends StatefulWidget {
+  const _InspectionImage({required this.assetPath, required this.label});
+
+  final String assetPath;
+  final String label;
+
+  @override
+  State<_InspectionImage> createState() => _InspectionImageState();
+}
+
+class _InspectionImageState extends State<_InspectionImage> {
+  @override
+  void initState() {
+    super.initState();
+    debugPrint(
+        '[ByteQuest image] loading inspection asset: ${widget.assetPath}');
+    rootBundle.load(widget.assetPath).then<void>(
+          (_) =>
+              debugPrint('[ByteQuest image] asset exists: ${widget.assetPath}'),
+          onError: (Object error, StackTrace stack) => debugPrint(
+            '[ByteQuest image] asset missing: ${widget.assetPath} ($error)',
+          ),
+        );
+  }
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        height: 120,
+        child: Image.asset(
+          widget.assetPath,
+          fit: BoxFit.contain,
+          semanticLabel: widget.label,
+          errorBuilder: (context, error, stackTrace) => Container(
+            color: Colors.red.shade100,
+            alignment: Alignment.center,
+            child: const Icon(Icons.broken_image_outlined, color: Colors.red),
+          ),
+        ),
+      );
 }

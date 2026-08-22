@@ -97,10 +97,12 @@ MissionSimulationDefinition _mission({
       primaryInteraction: renderedFamily,
       availableObjectIds: objectIds,
       feedbackIds: ['${id}_$feedbackKind'],
-      presentation: {
-        ...spec.presentation,
-        'mechanics': [spec.mechanic],
-      },
+      presentation: _presentationWithImageAssets(
+        id,
+        spec.presentation,
+      )..addAll({
+          'mechanics': [spec.mechanic],
+        }),
     ));
   }
 
@@ -171,15 +173,118 @@ SimulationSceneDefinition _scene(
             'schematicRole': index == 0 ? 'primary' : 'supporting',
             'replaceableAsset':
                 'assets/simulation/schematics/${entries[index].key}.svg',
+            'imageAsset': _imageAssetForObject(
+              missionId,
+              entries[index].key,
+            ),
           },
         ),
     ],
+    backgroundAsset: _backgroundAssetForMission(missionId),
     initialStatus: const {
       'schematic': true,
       'replaceableAssets': true,
       'statusLabel': 'Awaiting inspection',
     },
   );
+}
+
+Map<String, dynamic> _presentationWithImageAssets(
+  String missionId,
+  Map<String, dynamic> presentation,
+) {
+  final result = Map<String, dynamic>.from(presentation);
+  for (final key in const [
+    'objects',
+    'items',
+    'targets',
+    'sources',
+    'destinations',
+  ]) {
+    final raw = result[key];
+    if (raw is! List) continue;
+    result[key] = [
+      for (final entry in raw)
+        if (entry is Map)
+          (() {
+            final item = Map<String, dynamic>.from(entry);
+            if (item['id'] is String) {
+              item['imageAsset'] =
+                  _imageAssetForObject(missionId, item['id'] as String);
+            }
+            return item;
+          })()
+        else
+          entry,
+    ];
+  }
+  return result;
+}
+
+String? _backgroundAssetForMission(String missionId) {
+  final coc = missionId.substring(0, 4);
+  return switch (coc) {
+    'coc1' => 'assets/images/COC1.png',
+    'coc2' => 'assets/images/COC2.png',
+    'coc3' => 'assets/images/COC3.png',
+    'coc4' => 'assets/images/COC4.png',
+    _ => null,
+  };
+}
+
+String? _imageAssetForObject(String missionId, String objectId) {
+  final coc = missionId.substring(0, 4);
+  if (coc == 'coc1') {
+    if (objectId == 'system_unit') {
+      return 'assets/COC1/Mission 3/System Unit.png';
+    }
+    final folder = switch (missionId) {
+      'coc1_m2' => 'Mission 2',
+      'coc1_m3' => 'Mission 3',
+      _ => 'Mission 1',
+    };
+    final filename = switch (missionId) {
+      'coc1_m3' => const {
+          '24pin_cable': '24 Pin ATX.png',
+          'cpu_power': 'CPU Power.png',
+          'sata_data': 'Sata Cable.png',
+          'sata_power': 'Sata Power.png',
+          'front_panel': 'Front Panel.png',
+        }[objectId],
+      _ => const {
+          'motherboard': 'motherboard.png',
+          'cpu': 'cpu.png',
+          'ram': 'ram.png',
+          'psu': 'psu.png',
+          'anti_static_strap': 'anti_static_wrist_strap.png',
+          'storage': 'ssd.png',
+          'cooling_fan': 'cooling_fan.png',
+          'monitor': 'monitor.png',
+          'keyboard': 'keyboard.png',
+          'mouse': 'mouse.png',
+        }[objectId],
+    };
+    return filename == null
+        ? 'assets/images/COC1.png'
+        : 'assets/COC1/$folder/$filename';
+  }
+  if (coc == 'coc2') {
+    final filename = const {
+      'copper_cable': 'Lan Cable.png',
+      'rj45_connector': 'RJ45 Connector.png',
+      'wire_stripper': 'Wire Stripper.png',
+      'crimping_tool': 'Crimping Tool.png',
+      'lan_cable_tester': 'LAN Tester.png',
+      'router': 'Router.png',
+      'switch': 'Switch.png',
+      'modem': 'Modem.png',
+      'network_adapter': 'NIC.png',
+    }[objectId];
+    return filename == null
+        ? 'assets/images/COC2.png'
+        : 'assets/COC2/Mission 1/$filename';
+  }
+  return _backgroundAssetForMission(missionId);
 }
 
 Map<String, dynamic> _progressiveDiagnostics({

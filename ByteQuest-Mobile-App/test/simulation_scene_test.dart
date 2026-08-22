@@ -4,6 +4,7 @@ import 'package:bytequest/screens/simulation/components/scene_connection_painter
 import 'package:bytequest/screens/simulation/components/simulation_scene.dart';
 import 'package:bytequest/screens/simulation/runtime/mission_runtime_models.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -147,6 +148,47 @@ void main() {
 
     expect(_connectionPainter(tester).connections, hasLength(1));
     expect(_connectionPainter(tester).connections.single.id, 'router>switch');
+  });
+
+  test('all catalog missions provide a bundled visual asset for their scene',
+      () {
+    for (final definition in MissionSimulationDefinitions.all) {
+      expect(definition.scene.backgroundAsset, isNotNull,
+          reason: definition.id);
+      for (final object in definition.scene.objects) {
+        expect(object.metadata['imageAsset'], isA<String>(),
+            reason: '${definition.id}/${object.id}');
+        expect(
+          (object.metadata['imageAsset'] as String).isNotEmpty,
+          isTrue,
+          reason: '${definition.id}/${object.id}',
+        );
+      }
+    }
+
+    final inspectPhase =
+        MissionSimulationDefinitions.byId('coc1_m1').phases.first;
+    final motherboard = (inspectPhase.presentation['objects'] as List)
+        .whereType<Map>()
+        .firstWhere((item) => item['id'] == 'motherboard');
+    expect(
+      motherboard['imageAsset'],
+      'assets/COC1/Mission 1/motherboard.png',
+    );
+  });
+
+  test('all catalog image paths resolve through the Flutter asset bundle',
+      () async {
+    for (final definition in MissionSimulationDefinitions.all) {
+      final paths = <String>{
+        definition.scene.backgroundAsset!,
+        for (final object in definition.scene.objects)
+          object.metadata['imageAsset'] as String,
+      };
+      for (final path in paths) {
+        await rootBundle.load(path);
+      }
+    }
   });
 }
 

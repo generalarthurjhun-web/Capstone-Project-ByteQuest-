@@ -21,22 +21,12 @@ import 'runtime/mission_runtime_models.dart';
 typedef MissionSubmitCallback = Future<void> Function();
 
 abstract interface class MissionOrientationCoordinator {
-  Future<void> requestLandscape();
-
   Future<void> restoreSupportedOrientations();
 }
 
 final class SystemMissionOrientationCoordinator
     implements MissionOrientationCoordinator {
   const SystemMissionOrientationCoordinator();
-
-  @override
-  Future<void> requestLandscape() => SystemChrome.setPreferredOrientations(
-        const [
-          DeviceOrientation.landscapeLeft,
-          DeviceOrientation.landscapeRight,
-        ],
-      );
 
   @override
   Future<void> restoreSupportedOrientations() =>
@@ -127,7 +117,6 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
     super.initState();
     _initialState = _controller.state;
     WidgetsBinding.instance.addObserver(this);
-    unawaited(widget.orientationCoordinator.requestLandscape());
     unawaited(_restore());
   }
 
