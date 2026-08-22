@@ -428,3 +428,47 @@
 - Primary solution: Read the canonical tracked copies from `C:\Users\Drooo\Desktop\ByteQuest-Capstone-Project` before continuing, then reconcile the documentation branches during final integration.
 - Alternatives: Merge `Dro-branch` into the feature branch after resolving the duplicated mobile-folder rename; or create a fresh worktree from `Dro-branch` and transplant the reviewed feature commits.
 - Status: Resolved for Task 10 context; all required documents were read in full from the canonical root checkout, with branch reconciliation deferred until implementation and QA are complete.
+
+## 2026-08-22 12:04:34 +08:00 — Task 11 plan lookup from mobile directory
+
+- Operation: Read the Task 11 emulator acceptance steps immediately before device detection.
+- Command: `rg -n -A 100 -B 5 "Task 11" docs/superpowers/plans/2026-08-20-bytequest-simulation-platform.md` from `ByteQuest-Mobile-App`.
+- Affected location: Read-only plan lookup; application code line not applicable.
+- Observed result: `rg` reported that the relative plan path did not exist.
+- Root cause: The command was run one directory below the repository root, so the repository-relative `docs/...` path resolved under the mobile project.
+- Primary solution: Run the lookup from the repository root, then return to `ByteQuest-Mobile-App` for Flutter commands.
+- Alternatives: Prefix the path with `..\`; or use the verified absolute worktree plan path.
+- Status: Resolved; the complete Task 11 and Task 12 plan sections were read from the repository root.
+
+## 2026-08-22 12:04:34 +08:00 — Task 11 Android emulator initially absent
+
+- Operation: Detect the Android emulator required for the 20-mission device matrix.
+- Command: `flutter devices --machine`.
+- Affected location: Android development environment; application code line not applicable.
+- Observed result: Flutter returned only Windows and Edge targets, with no running Android device.
+- Root cause: The installed AVD existed but was not running at the start of Task 11.
+- Primary solution: Enumerate AVDs with `flutter emulators`, then launch `my_android36_emulator` with `flutter emulators --launch my_android36_emulator`.
+- Alternatives: Start the AVD through Android Studio Device Manager; install the APK through Android Studio; or connect a supported physical Android device with USB debugging.
+- Status: Resolved; Flutter detected `emulator-5554`, Android 16/API 36, with hardware rendering enabled.
+
+## 2026-08-22 12:05:46 +08:00 — Task 11 adb PATH resolution
+
+- Operation: Launch the installed APK and inspect its process/activity state.
+- Command: `adb -s emulator-5554 shell ...`.
+- Affected location: Local Android SDK command resolution; application code line not applicable.
+- Observed result: PowerShell reported that `adb` was not recognized for each requested probe.
+- Root cause: Android platform-tools was installed but its directory was not on the active PowerShell PATH.
+- Primary solution: Invoke `C:\android-sdk\platform-tools\adb.exe` explicitly for all device operations.
+- Alternatives: Add the platform-tools directory to the session PATH; use `flutter run -d emulator-5554`; or use Android Studio's device controls and Logcat.
+- Status: Resolved; the explicit SDK executable launched the app, captured process/activity evidence, and exercised lifecycle/settings variants.
+
+## 2026-08-22 12:08:23 +08:00 — Task 11 authenticated mission matrix blocked
+
+- Operation: Enter and execute every mission from `coc1_m1` through `coc4_m5` on the Android emulator.
+- Command/interaction: Launch the installed APK, complete onboarding, and open the learner login boundary; inspect only the presence of credential configuration without printing values.
+- Affected location: Runtime authentication boundary; mission code line not applicable.
+- Observed result: The canonical APK reached the learner login screen, but no authorized learner email/password or `BYTEQUEST_E2E_PASSWORD` was available in the environment. The mobile Supabase URL and anonymous key were configured, but they do not authorize a learner session.
+- Root cause: Task 11 requires an authenticated learner account to reach assigned missions, while this environment supplies project connectivity only and intentionally contains no reusable user credentials.
+- Primary solution: Rerun the documented 20-mission emulator matrix with an authorized disposable learner test account and record each live result without storing credentials in the repository.
+- Alternatives: Execute a repository-owned authenticated integration harness that creates/cleans its own fixtures; have an instructor assign all 20 missions to a disposable learner and perform the matrix manually; or run the existing widget/catalog/launcher suites as non-device contract evidence while marking live checks unverified.
+- Status: Externally blocked; no authentication bypass was added. All 20 launcher/catalog/runtime contracts remain automated-pass, while authenticated emulator interaction and submission are explicitly unverified.
