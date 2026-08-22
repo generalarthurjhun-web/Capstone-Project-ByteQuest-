@@ -85,6 +85,8 @@ class AuthoritativeAssessmentService implements MissionEvidenceTransport {
         value: {
           ...action.value,
           'client_action_id': action.clientActionId,
+          'mission_id': action.missionId,
+          'phase_id': action.phaseId,
         },
         occurredAt: action.occurredAt,
         clientActionId: action.clientActionId);
@@ -92,19 +94,54 @@ class AuthoritativeAssessmentService implements MissionEvidenceTransport {
   }
 
   @override
-  Future<Set<String>> acknowledgedClientActionIds() async {
+  Future<List<AcknowledgedMissionEvidenceAction>>
+      readAcknowledgedActions() async {
     final actions = await getActiveAttemptActions();
-    final acknowledgedIds = actions
-        .map((action) => action['value'])
-        .whereType<Map>()
-        .map((value) => value['client_action_id'])
-        .whereType<String>()
-        .toSet();
+    final acknowledged = <AcknowledgedMissionEvidenceAction>[];
+    for (final row in actions) {
+      final value = Map<String, dynamic>.from(row['value'] as Map? ?? const {});
+      final clientActionId = value['client_action_id'];
+      final missionId = value['mission_id'];
+      final phaseId = value['phase_id'];
+      if (clientActionId is! String ||
+          missionId is! String ||
+          phaseId is! String) {
+        continue;
+      }
+      final occurredAt = DateTime.parse(row['client_occurred_at'] as String);
+      final sequence = row['sequence_number'] as int;
+      acknowledged.add(
+        AcknowledgedMissionEvidenceAction(
+          action: MissionEvidenceAction(
+            clientActionId: clientActionId,
+            missionId: missionId,
+            phaseId: phaseId,
+            actionType: row['action_type'] as String,
+            target: row['target'] as String?,
+            value: value,
+            occurredAt: occurredAt,
+          ),
+          serverRecordId:
+              row['id']?.toString() ?? '${_activeSession!.attemptId}:$sequence',
+          serverOrder: sequence,
+          recordedAt: row['recorded_at'] is String
+              ? DateTime.parse(row['recorded_at'] as String)
+              : occurredAt,
+        ),
+      );
+    }
+    final acknowledgedIds =
+        acknowledged.map((record) => record.action.clientActionId).toSet();
     _missionActionWriteErrors.removeWhere(
       (clientActionId, _) => acknowledgedIds.contains(clientActionId),
     );
-    return acknowledgedIds;
+    return List.unmodifiable(acknowledged);
   }
+
+  Future<Set<String>> acknowledgedClientActionIds() async =>
+      (await readAcknowledgedActions())
+          .map((record) => record.action.clientActionId)
+          .toSet();
 
   Future<List<AssignedActivity>> getAssignedActivities() async {
     final responses = await Future.wait<dynamic>([
@@ -423,7 +460,10 @@ class AuthoritativeAssessmentService implements MissionEvidenceTransport {
     if (activeActionsOverride != null) return activeActionsOverride();
     final response = await _supabase
         .from('attempt_actions')
-        .select('sequence_number,action_type,target,value,client_occurred_at')
+        .select(
+          'id,sequence_number,action_type,target,value,client_occurred_at,'
+          'recorded_at',
+        )
         .eq('attempt_id', session.attemptId)
         .order('sequence_number');
     return (response as List)

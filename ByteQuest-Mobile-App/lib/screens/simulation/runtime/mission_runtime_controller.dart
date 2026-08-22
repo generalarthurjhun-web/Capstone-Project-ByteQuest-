@@ -2,6 +2,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../services/progress_resume_service.dart';
 import 'mission_evidence_gateway.dart';
+import 'mission_runtime_action_reducer.dart';
 import 'mission_runtime_models.dart';
 
 typedef MissionRuntimeTransition = MissionRuntimeState Function(
@@ -19,20 +20,25 @@ final class MissionRuntimeController {
     required MissionRuntimeStore store,
     required MissionEvidenceGateway evidenceGateway,
     Iterable<String> submissionPhaseIds = const {'review', 'final'},
+    MissionRuntimeActionReducer? restoreReducer,
     ClientActionIdFactory? clientActionIdFactory,
     MissionRuntimeClock? clock,
   })  : _userId = userId,
+        _initialState = initialState,
         _state = initialState,
         _store = store,
         _evidenceGateway = evidenceGateway,
         _submissionPhaseIds = Set<String>.unmodifiable(submissionPhaseIds),
+        _restoreReducer = restoreReducer,
         _clientActionIdFactory = clientActionIdFactory ?? const Uuid().v4,
         _clock = clock ?? DateTime.now;
 
   final String _userId;
+  final MissionRuntimeState _initialState;
   final MissionRuntimeStore _store;
   final MissionEvidenceGateway _evidenceGateway;
   final Set<String> _submissionPhaseIds;
+  final MissionRuntimeActionReducer? _restoreReducer;
   final ClientActionIdFactory _clientActionIdFactory;
   final MissionRuntimeClock _clock;
   final Set<String> _failedEvidenceIds = <String>{};
@@ -74,16 +80,69 @@ final class MissionRuntimeController {
 
   Future<void> restore() {
     return _enqueue(() async {
-      final restored = await _store.loadMissionRuntime(
+      final local = await _store.loadMissionRuntime(
         userId: _userId,
         missionId: _state.missionId,
         mode: _state.mode,
         assessmentAttemptId: _state.assessmentAttemptId,
       );
-      if (restored == null) return;
-      _assertSameSession(restored, source: 'snapshot');
-      _state = restored;
+      if (local != null) {
+        _assertSameSession(local, source: 'snapshot');
+        for (final action in local.pendingEvidence) {
+          if (action.missionId != _state.missionId) {
+            throw FormatException(
+              'Pending evidence ${action.clientActionId} does not match '
+              '${_state.missionId}.',
+            );
+          }
+        }
+      }
+
+      late final List<AcknowledgedMissionEvidenceAction> acknowledged;
+      try {
+        acknowledged = await _evidenceGateway.readAcknowledgedActions();
+      } catch (_) {
+        if (local == null) rethrow;
+        _state = local;
+        _failedEvidenceIds.clear();
+        return;
+      }
+
+      final serverIds =
+          acknowledged.map((record) => record.action.clientActionId).toSet();
+      final baseline = local ?? _initialState;
+      final pending = baseline.pendingEvidence
+          .where((action) => !serverIds.contains(action.clientActionId))
+          .toList(growable: false);
+      final reducer = _restoreReducer;
+      var rebuilt = reducer == null
+          ? local ?? _initialState
+          : acknowledged.fold<MissionRuntimeState>(
+              _initialState,
+              (state, record) => reducer.reduce(state, record.action),
+            );
+      if (reducer != null) {
+        for (final action in pending) {
+          rebuilt = reducer.reduce(rebuilt, action);
+        }
+      }
+      rebuilt = rebuilt.copyWith(
+        acceptedEvidenceIds: serverIds,
+        pendingEvidence: pending,
+        reducedMotion: local?.reducedMotion ?? rebuilt.reducedMotion,
+        cameraScale: local?.cameraScale ?? rebuilt.cameraScale,
+        cameraOffsetX: local?.cameraOffsetX ?? rebuilt.cameraOffsetX,
+        cameraOffsetY: local?.cameraOffsetY ?? rebuilt.cameraOffsetY,
+      );
+      _state = rebuilt;
       _failedEvidenceIds.clear();
+      final shouldSave = acknowledged.isNotEmpty ||
+          (local != null && reducer != null) ||
+          baseline.pendingEvidence.length != pending.length ||
+          (local == null && pending.isNotEmpty);
+      if (shouldSave && !await _saveState()) {
+        throw StateError('Restored mission progress could not be saved.');
+      }
       await _flushPendingNow();
     });
   }

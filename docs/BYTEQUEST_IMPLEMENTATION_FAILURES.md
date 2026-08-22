@@ -615,3 +615,91 @@
 - Primary solution: Combine `(select public.is_learner())` with `(select auth.uid()) = learner_id` in both policies.
 - Alternatives: Duplicate the profile-role/status lookup inline; create a new helper function. Both were rejected in favor of the existing audited predicate and no new `SECURITY DEFINER` surface.
 - Status: Resolved statically; both policies contain the active-learner predicate and lifecycle assertions cover instructor, admin, and deactivated-learner denial. Database execution remains pending the prepared Supabase environment.
+
+## 2026-08-22 13:54:55 +08:00 — Final catalog render RED
+
+- Operation: Render every phase in the 20-mission catalog through its declared presentation contract.
+- Command: `flutter test test/mission_simulation_screen_test.dart --plain-name "renders every catalog phase without technical unavailability"`.
+- Affected location: `ByteQuest-Mobile-App/test/mission_simulation_screen_test.dart:406` and the four COC definition files.
+- Observed result: 28 of 116 phases resolved to `TechnicalUnavailable` because required tools, targets, choices, fields, diagnostics, or component contracts were absent.
+- Root cause: Metadata families had been declared without complete renderer-owned presentation data.
+- Primary solution: Populate each phase with meaningful mission-specific presentation data and add the exhaustive render contract.
+- Alternatives: Add widget defaults or hardcoded feedback; rejected because it would hide catalog defects and violate data ownership.
+- Status: Resolved; 116/116 phases render and the consolidated focused gate passes 100/100.
+
+## 2026-08-22 13:54:55 +08:00 — Canonical interaction-family RED
+
+- Operation: Reject divergence between a phase's declared primary interaction and its resolved component family.
+- Command: `flutter test test/mission_runtime_models_test.dart`.
+- Affected location: `ByteQuest-Mobile-App/test/mission_runtime_models_test.dart:42` and `lib/screens/simulation/runtime/mission_runtime_models.dart`.
+- Observed result: A declared decision phase could render a selection component, and COC1 M4 initially resolved to five families after canonical derivation.
+- Root cause: Validation trusted metadata labels and a duplicated screen resolver instead of the component actually rendered.
+- Primary solution: Introduce one canonical presentation resolver, derive the real family set, and reshape over-broad missions with meaningful combined or equivalent mechanics.
+- Alternatives: Raise the 2-4 limit or relabel metadata; rejected because neither changes learner interaction.
+- Status: Resolved; all 20 definitions validate against their actual 2-4 rendered family sets.
+
+## 2026-08-22 13:54:55 +08:00 — Full-action restore RED
+
+- Operation: Rebuild runtime state from acknowledged server actions without a local snapshot and merge a stale snapshot with pending actions.
+- Command: `flutter test test/mission_runtime_controller_test.dart`.
+- Affected location: `ByteQuest-Mobile-App/test/mission_runtime_controller_test.dart:39` and runtime transport/controller files.
+- Observed result: Compilation failed on missing `AcknowledgedMissionEvidenceAction`, `readAcknowledgedActions`, `MissionRuntimeActionReducer`, and `restoreReducer`; the old controller returned immediately on a missing cache.
+- Root cause: The transport exposed acknowledged IDs only, so accepted interaction state could not be reconstructed.
+- Primary solution: Transport full ordered, identified RLS-scoped actions and reduce them from a clean initial state before de-duplicated pending actions.
+- Alternatives: Trust stale local presentation state or evaluate locally; rejected because neither is server-reconciled and local evaluation is prohibited.
+- Status: Resolved; no-cache rebuild, stale merge/de-duplication, offline preservation, and legacy runtime JSON tests pass.
+
+## 2026-08-22 13:54:55 +08:00 — Restore implementation compile and validation RED
+
+- Operation: Run the first restore implementation against existing controller regressions.
+- Command: `flutter test test/mission_runtime_controller_test.dart`.
+- Affected location: `lib/screens/simulation/runtime/mission_runtime_controller.dart:81` and `test/mission_runtime_controller_test.dart:263`.
+- Observed result: Dart rejected nullable field promotion for the reducer; after correction, the mismatched pending-mission test observed one server read instead of zero.
+- Root cause: The nullable reducer field was referenced directly inside closures, and pending evidence identity was validated after transport access.
+- Primary solution: Capture the reducer in a local variable and validate all local pending mission IDs before any server request.
+- Alternatives: Use forced null assertions; defer validation to reconciliation. Both were rejected as less safe.
+- Status: Resolved; focused restore/gateway/service gate passes 23/23.
+
+## 2026-08-22 13:54:55 +08:00 — TestRun terminal-action RED
+
+- Operation: Protect configured evaluator action types from non-terminal test starts and verify two retests.
+- Command: `flutter test test/advanced_mission_interactions_test.dart test/mission_catalog_acceptance_test.dart`.
+- Affected location: `test/advanced_mission_interactions_test.dart:543`, `test/mission_simulation_screen_test.dart:342`, and `lib/screens/simulation/interactions/test_run_interaction.dart`.
+- Observed result: The first event was `retest_requested` instead of `test_started`; catalog assertions also found legacy key names.
+- Root cause: Both the widget and screen rewrote every TestRun event to the configured terminal evidence action.
+- Primary solution: Keep starts as `test_started`, map only `test_completed` to `evidenceActionType`, retain legacy-key read compatibility, and preserve the canonical runtime type in action value.
+- Alternatives: Introduce another terminal-looking start type; rejected because it would inflate evaluator counts.
+- Status: Resolved; two runs produce exactly two configured terminal actions and two non-terminal starts.
+
+## 2026-08-22 13:54:55 +08:00 — Catalog connection scene RED
+
+- Operation: Draw an accepted `router>switch` connection from the actual COC2 M3 catalog scene.
+- Command: `flutter test test/simulation_scene_test.dart --plain-name "catalog object IDs resolve to connection nodes"`.
+- Affected location: `test/simulation_scene_test.dart:134` and `lib/screens/simulation/components/simulation_scene.dart:510`.
+- Observed result: The connection painter received zero segments.
+- Root cause: Runtime stored canonical object IDs while scene lookup indexed only generated `*_port` IDs.
+- Primary solution: Index each scene object ID as a node alias and add any catalog connection endpoints missing from the base scene object map.
+- Alternatives: Rewrite accepted runtime evidence to presentation-only port IDs; rejected because it would destabilize evidence identity.
+- Status: Resolved; the actual scene painter and all-catalog endpoint-resolution regressions pass.
+
+## 2026-08-22 13:54:55 +08:00 — Composite interpretation and restore-fixture RED
+
+- Operation: Require an interpretation after combined test phases and rerun the full mission screen suite under server-first restore.
+- Command: Focused composite widget test followed by `flutter test test/mission_catalog_acceptance_test.dart test/mission_phase_completion_policy_test.dart test/mission_simulation_screen_test.dart`.
+- Affected location: `test/advanced_mission_interactions_test.dart:199` and mission-screen restore/lifecycle/retry fixtures.
+- Observed result: The interpretation button was tapped before its enabled rebuild; three screen fixtures also assumed restore performed no server read/save/replay.
+- Root cause: One widget driver missed a pump/visibility step, while legacy fixtures encoded the pre-fix local-cache-first restore contract.
+- Primary solution: Pump and expose the enabled interpretation control, avoid no-op restore saves, and model offline retry with an existing local snapshot before clearing the simulated network error.
+- Alternatives: Make interpretation optional or restore local state without server reconciliation; rejected because both weaken acceptance behavior.
+- Status: Resolved; the composite drive test and full focused 100-test gate pass.
+
+## 2026-08-22 13:54:55 +08:00 — Static SQL assertion wording mismatch
+
+- Operation: Run static migration and rollback-lifecycle contract assertions.
+- Command: PowerShell assertions over `20260822124500_practice_mission_evidence.sql` and `foundation_lifecycle_rollback.sql`.
+- Affected location: Verification command only; repository SQL line not applicable.
+- Observed result: Migration checks passed, but three lifecycle checks returned false because the probe searched guessed prose rather than the file's uppercase exception sentinels.
+- Root cause: The verification script did not first inspect the established lifecycle assertion vocabulary.
+- Primary solution: Read the relevant SQL block and assert the exact `PRACTICE_EVIDENCE_*`, role-denial, inactive-learner, and rollback sentinels.
+- Alternatives: Treat the first false result as a schema defect; run a live database mutation without authorization. Both were rejected.
+- Status: Resolved; all eight static SQL/lifecycle assertions pass. Live lifecycle execution remains unverified.

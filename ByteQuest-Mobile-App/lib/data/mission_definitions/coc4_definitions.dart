@@ -31,12 +31,38 @@ final List<MissionSimulationDefinition> _coc4Definitions = [
           'Prioritize diagnostics',
           'Choose the next diagnostic priority from the available evidence.',
           InteractionFamily.decide,
-          'prioritize_diagnostics'),
+          'prioritize_diagnostics',
+          presentation: const {
+            'component': 'scenario_decision',
+            'choices': [
+              {
+                'id': 'prioritize_power_and_display',
+                'label': 'Prioritize power and display signal checks',
+              },
+              {
+                'id': 'prioritize_network_path',
+                'label': 'Prioritize physical and logical network-path checks',
+              },
+            ],
+          }),
       _phase(
           'State preliminary diagnosis',
           'Record a preliminary diagnosis without claiming an untested root cause.',
           InteractionFamily.decide,
-          'state_preliminary_diagnosis'),
+          'state_preliminary_diagnosis',
+          presentation: const {
+            'component': 'scenario_decision',
+            'choices': [
+              {
+                'id': 'preliminary_hardware_path',
+                'label': 'Record a preliminary hardware-path diagnosis',
+              },
+              {
+                'id': 'preliminary_network_path',
+                'label': 'Record a preliminary network-path diagnosis',
+              },
+            ],
+          }),
       _phase(
           'Verify diagnosis',
           'Run a verification check against the preliminary diagnosis.',
@@ -69,7 +95,25 @@ final List<MissionSimulationDefinition> _coc4Definitions = [
           'Inspect symptom and component',
           'Inspect the reported symptom and component condition.',
           InteractionFamily.troubleshoot,
-          'inspect_symptom_component'),
+          'inspect_symptom_component',
+          presentation: _progressiveDiagnostics(
+            symptom:
+                'The workstation intermittently stops during sustained operation.',
+            actions: const [
+              (
+                'inspect_component_seating',
+                'Inspect component seating',
+                'component_seating_fact',
+                'The memory latches are fully closed and the storage connector is seated without visible damage.'
+              ),
+              (
+                'inspect_event_indicator',
+                'Inspect event indicator',
+                'event_indicator_fact',
+                'The system event indicator records repeated storage retry warnings before each stop.'
+              ),
+            ],
+          )),
       _phase(
         'Select tool and run test',
         'Choose diagnostic actions that measure the inspected condition.',
@@ -121,7 +165,7 @@ final List<MissionSimulationDefinition> _coc4Definitions = [
         InteractionFamily.testRun,
         'repair_and_verify',
         presentation: const {
-          'actionType': 'retest_requested',
+          'evidenceActionType': 'retest_requested',
           'target': 'retest_component',
         },
       ),
@@ -152,7 +196,8 @@ final List<MissionSimulationDefinition> _coc4Definitions = [
           'Inspect symptoms',
           'Inspect only the initial software and network symptoms.',
           InteractionFamily.troubleshoot,
-          'inspect_symptoms'),
+          'inspect_symptoms',
+          presentation: const {'component': 'tap_inspect'}),
       _phase(
         'Run software diagnostic',
         'Choose a software diagnostic to reveal one recorded fact.',
@@ -237,7 +282,24 @@ final List<MissionSimulationDefinition> _coc4Definitions = [
           'Select component and tool',
           'Inspect and select a compatible component and service tool.',
           InteractionFamily.place,
-          'select_component_tool'),
+          'select_component_tool',
+          presentation: const {
+            'component': 'controlled_placement',
+            'items': [
+              {
+                'id': 'replacement_component',
+                'label': 'Replacement component',
+                'category': 'service_part',
+                'orientations': ['aligned', 'rotated'],
+              },
+            ],
+            'destinations': [
+              {
+                'id': 'workstation',
+                'label': 'Service location',
+              },
+            ],
+          }),
       _phase(
         'Replace accessibly',
         'Select the component, destination, and orientation, then confirm placement.',
@@ -264,7 +326,22 @@ final List<MissionSimulationDefinition> _coc4Definitions = [
           'Record the replacement component configuration.',
           InteractionFamily.decide,
           'reconfigure_component',
-          presentation: const {'component': 'configuration'}),
+          presentation: const {
+            'component': 'configuration',
+            'fields': [
+              {'id': 'device_mode', 'label': 'Replacement device mode'},
+              {'id': 'device_identifier', 'label': 'Device identifier'},
+              {
+                'id': 'driver_state',
+                'label': 'Driver state',
+                'type': 'dropdown',
+                'options': [
+                  {'id': 'installed', 'label': 'Installed'},
+                  {'id': 'pending_restart', 'label': 'Pending restart'},
+                ],
+              },
+            ],
+          }),
       _phase(
           'Sequence repair',
           'Record removal, replacement, fastening, and close-out actions.',
@@ -300,7 +377,25 @@ final List<MissionSimulationDefinition> _coc4Definitions = [
           'Inspect request and system',
           'Inspect the request, system condition, and maintenance context.',
           InteractionFamily.troubleshoot,
-          'inspect_request_system'),
+          'inspect_request_system',
+          presentation: _progressiveDiagnostics(
+            symptom:
+                'A maintenance request reports heat, fan noise, and overdue preventive service.',
+            actions: const [
+              (
+                'inspect_request_details',
+                'Inspect request details',
+                'request_details_fact',
+                'The request records fan noise under load and two thermal warning events this week.'
+              ),
+              (
+                'inspect_visible_condition',
+                'Inspect visible system condition',
+                'visible_condition_fact',
+                'The intake grille has a visible dust layer while the CPU fan connector remains closed and seated.'
+              ),
+            ],
+          )),
       _phase(
         'Prioritize issue and tool',
         'Use diagnostic facts to prioritize the issue and choose a tool.',
@@ -351,7 +446,9 @@ final List<MissionSimulationDefinition> _coc4Definitions = [
         InteractionFamily.testRun,
         'test_and_interpret',
         presentation: const {
-          'actionType': 'retest_requested',
+          'component': 'test_with_interpretation',
+          'requires_interpretation': true,
+          'evidenceActionType': 'retest_requested',
           'target': 'run_maintenance_check',
         },
       ),
@@ -359,7 +456,8 @@ final List<MissionSimulationDefinition> _coc4Definitions = [
           'Final verify',
           'Verify system condition and complete the service report.',
           InteractionFamily.troubleshoot,
-          'final_verify'),
+          'final_verify',
+          presentation: const {'component': 'observation'}),
       _phase(
           'Review evidence',
           'Review request, maintenance, test, verification, and report evidence.',

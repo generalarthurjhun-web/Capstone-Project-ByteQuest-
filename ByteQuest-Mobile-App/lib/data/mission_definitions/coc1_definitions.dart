@@ -59,7 +59,7 @@ final List<MissionSimulationDefinition> _coc1Definitions = [
         'Run the readiness check against the recorded inspection.',
         InteractionFamily.testRun,
         'verify_readiness',
-        presentation: const {'action_type': 'hardware_readiness_test'},
+        presentation: const {'evidenceActionType': 'hardware_readiness_test'},
       ),
       _phase(
         'Review evidence',
@@ -136,7 +136,9 @@ final List<MissionSimulationDefinition> _coc1Definitions = [
         'Run seating, fastening, and clearance checks.',
         InteractionFamily.testRun,
         'verify_installation',
-        presentation: const {'action_type': 'installation_test_requested'},
+        presentation: const {
+          'evidenceActionType': 'installation_test_requested'
+        },
       ),
       _phase(
         'Review evidence',
@@ -198,7 +200,7 @@ final List<MissionSimulationDefinition> _coc1Definitions = [
         'Run the connection test after routing and inspection.',
         InteractionFamily.testRun,
         'run_test',
-        presentation: const {'action_type': 'cable_test_requested'},
+        presentation: const {'evidenceActionType': 'cable_test_requested'},
       ),
       _phase(
         'Interpret output',
@@ -241,7 +243,38 @@ final List<MissionSimulationDefinition> _coc1Definitions = [
           'Choose the tool appropriate to the inspected interface.',
           InteractionFamily.decide,
           'choose_tool',
-          presentation: const {'component': 'tool_selection'}),
+          presentation: const {
+            'component': 'tool_selection',
+            'targets': [
+              {
+                'id': 'monitor',
+                'label': 'Monitor video interface',
+                'category': 'video_interface',
+              },
+              {
+                'id': 'network_adapter',
+                'label': 'Network adapter port',
+                'category': 'network_interface',
+              },
+            ],
+            'tools': [
+              {
+                'id': 'interface_inspection_light',
+                'label': 'Inspection light',
+                'category': 'inspection',
+                'compatible_categories': [
+                  'video_interface',
+                  'network_interface',
+                ],
+              },
+              {
+                'id': 'lan_loopback_adapter',
+                'label': 'LAN loopback adapter',
+                'category': 'network_test',
+                'compatible_categories': ['network_interface'],
+              },
+            ],
+          }),
       _phase(
         'Connect devices',
         'Select a device and then confirm its destination interface.',
@@ -261,14 +294,17 @@ final List<MissionSimulationDefinition> _coc1Definitions = [
           ],
         },
       ),
-      _phase('Run device test', 'Run the peripheral device test.',
-          InteractionFamily.testRun, 'run_device_test'),
       _phase(
-          'Interpret results',
-          'Record an interpretation of the displayed device status.',
-          InteractionFamily.decide,
-          'interpret_results',
-          presentation: const {'component': 'result_interpretation'}),
+        'Run and interpret device test',
+        'Run the peripheral device test, then record an interpretation of the displayed status.',
+        InteractionFamily.testRun,
+        'run_device_test_and_interpret',
+        presentation: const {
+          'component': 'test_with_interpretation',
+          'target': 'peripheral_device_test',
+          'requires_interpretation': true,
+        },
+      ),
       _phase(
           'Review evidence',
           'Review inspection, connection, and device-test records.',
@@ -294,12 +330,36 @@ final List<MissionSimulationDefinition> _coc1Definitions = [
           'Inspect symptom',
           'Inspect the reported symptom and visible system state.',
           InteractionFamily.troubleshoot,
-          'inspect_symptom'),
+          'inspect_symptom',
+          presentation: _progressiveDiagnostics(
+            symptom:
+                'The workstation starts, but the storage subsystem remains unavailable.',
+            actions: const [
+              (
+                'inspect_startup_indicators',
+                'Inspect startup indicators',
+                'startup_indicator_fact',
+                'The power indicator remains steady while the storage activity LED stays amber after three startup flashes.'
+              ),
+            ],
+          )),
       _phase(
           'Choose diagnostic tool',
           'Choose a diagnostic action that can reveal a new fact.',
           InteractionFamily.troubleshoot,
-          'choose_diagnostic_tool'),
+          'choose_diagnostic_tool',
+          presentation: _progressiveDiagnostics(
+            symptom:
+                'Select a diagnostic action that can distinguish device detection from operating-system access.',
+            actions: const [
+              (
+                'open_storage_inventory',
+                'Open storage inventory',
+                'storage_inventory_fact',
+                'The firmware storage inventory lists one device on SATA port 1, and the port status is up.'
+              ),
+            ],
+          )),
       _phase(
         'Troubleshoot progressively',
         'Record diagnostic facts before unlocking the corrective action.',
@@ -350,7 +410,7 @@ final List<MissionSimulationDefinition> _coc1Definitions = [
         InteractionFamily.testRun,
         'verify_integration',
         presentation: const {
-          'actionType': 'retest_requested',
+          'evidenceActionType': 'retest_requested',
           'target': 'retest_integration',
         },
       ),

@@ -81,6 +81,10 @@ MissionSimulationDefinition _mission({
 
   for (var index = 0; index < phases.length; index++) {
     final spec = phases[index];
+    final component = spec.presentation['component'];
+    final renderedFamily = component is String
+        ? MissionPhasePresentation.familyForComponent(component) ?? spec.family
+        : spec.family;
     final feedbackKind = spec.family == InteractionFamily.review
         ? 'review'
         : spec.family == InteractionFamily.testRun
@@ -90,7 +94,7 @@ MissionSimulationDefinition _mission({
       id: '${id}_p${index + 1}',
       title: spec.title,
       instruction: spec.instruction,
-      primaryInteraction: spec.family,
+      primaryInteraction: renderedFamily,
       availableObjectIds: objectIds,
       feedbackIds: ['${id}_$feedbackKind'],
       presentation: {
@@ -107,9 +111,11 @@ MissionSimulationDefinition _mission({
     scenario: scenario,
     environmentLabel: environmentLabel,
     practiceGuidance: practiceGuidance,
-    scene: _scene(id, objects),
+    scene: _scene(id, _sceneObjects(objects, definitions)),
     phases: definitions,
-    interactionFamilies: definitions.map((phase) => phase.primaryInteraction),
+    interactionFamilies: definitions
+        .map((phase) => phase.resolvedInteraction)
+        .where((family) => family != InteractionFamily.review),
     feedbackCatalog: feedback,
     reviewMetadata: const {
       'title': 'Evidence review',
@@ -119,9 +125,31 @@ MissionSimulationDefinition _mission({
   );
 }
 
+Map<String, String> _sceneObjects(
+  Map<String, String> objects,
+  List<MissionPhaseDefinition> phases,
+) {
+  final sceneObjects = Map<String, String>.from(objects);
+  for (final phase in phases) {
+    if (phase.resolvedInteraction != InteractionFamily.connect) continue;
+    for (final key in const ['sources', 'destinations']) {
+      for (final endpoint
+          in (phase.presentation[key] as List? ?? const []).whereType<Map>()) {
+        final id = endpoint['id'];
+        final label = endpoint['label'];
+        if (id is String && label is String) {
+          sceneObjects.putIfAbsent(id, () => label);
+        }
+      }
+    }
+  }
+  return sceneObjects;
+}
+
 SimulationSceneDefinition _scene(
     String missionId, Map<String, String> objects) {
   final entries = objects.entries.toList(growable: false);
+  final columns = entries.length > 9 ? 4 : 3;
   return SimulationSceneDefinition(
     id: '${missionId}_scene',
     objects: [
@@ -129,9 +157,13 @@ SimulationSceneDefinition _scene(
         SceneObjectDefinition(
           id: entries[index].key,
           label: entries[index].value,
-          x: 0.08 + (index % 3) * 0.30,
-          y: 0.10 + (index ~/ 3) * 0.34,
-          width: 0.24,
+          x: columns == 3
+              ? 0.08 + (index % 3) * 0.30
+              : 0.04 + (index % 4) * 0.24,
+          y: columns == 3
+              ? 0.10 + (index ~/ 3) * 0.34
+              : 0.08 + (index ~/ 4) * 0.31,
+          width: columns == 3 ? 0.24 : 0.20,
           height: 0.22,
           hotspotType: 'inspect_and_select',
           connectionNodeIds: ['${entries[index].key}_port'],
@@ -156,6 +188,7 @@ Map<String, dynamic> _progressiveDiagnostics({
 }) {
   final factIds = actions.map((action) => action.$3).toList(growable: false);
   return {
+    'component': 'troubleshooting',
     'symptom': symptom,
     'diagnostic_actions': [
       for (final action in actions)

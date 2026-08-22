@@ -14,6 +14,7 @@ import 'components/simulation_scene.dart';
 import 'interactions/mission_interactions.dart';
 import 'runtime/mission_evidence_gateway.dart';
 import 'runtime/mission_phase_completion_policy.dart';
+import 'runtime/mission_runtime_action_reducer.dart';
 import 'runtime/mission_runtime_controller.dart';
 import 'runtime/mission_runtime_models.dart';
 
@@ -116,6 +117,7 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
       evidenceGateway: MissionEvidenceGateway(
         transport: evidenceTransport,
       ),
+      restoreReducer: MissionRuntimeActionReducer(widget.definition),
       submissionPhaseIds: {widget.definition.phases.last.id},
     );
   }
@@ -400,10 +402,13 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
         phaseId: phase.id,
         actionType: _adaptActionType(phase, emittedActionType),
         target: target,
-        value: value,
+        value: {
+          ...value,
+          'runtime_action_type': emittedActionType,
+        },
         transition: (state) {
           final interactionTransition = queuedTransition ??
-              (runtime) => _transitionForAction(
+              (runtime) => MissionRuntimeActionReducer.transitionForAction(
                     runtime,
                     emittedActionType,
                     target,
@@ -437,6 +442,13 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
     MissionPhaseDefinition phase,
     String emittedActionType,
   ) {
+    if (phase.resolvedInteraction == InteractionFamily.testRun) {
+      if (emittedActionType != 'test_completed') return emittedActionType;
+      final evidenceType = phase.presentation['evidenceActionType'];
+      if (evidenceType is String && evidenceType.isNotEmpty) {
+        return evidenceType;
+      }
+    }
     final protectedType = phase.presentation['action_type'];
     if (protectedType is String && protectedType.isNotEmpty) {
       return protectedType;
@@ -446,121 +458,6 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
       return configuredType;
     }
     return emittedActionType;
-  }
-
-  MissionRuntimeState _transitionForAction(
-    MissionRuntimeState state,
-    String actionType,
-    String? target,
-    Map<String, dynamic> value,
-  ) {
-    final testStatusName = value['test_status'];
-    if (target != null && testStatusName is String) {
-      for (final status in MissionTestStatus.values) {
-        if (status.name == testStatusName) {
-          return state.withTestStatus(target, status);
-        }
-      }
-    }
-    switch (actionType) {
-      case 'object_inspected':
-        if (target == null) return state;
-        return state.copyWith(hotspotStates: {
-          ...state.hotspotStates,
-          target: HotspotVisualState.selected,
-        });
-      case 'selection_confirmed':
-        final selected =
-            (value['selected_ids'] as List? ?? const []).whereType<String>();
-        return state.copyWith(hotspotStates: {
-          ...state.hotspotStates,
-          for (final id in selected) id: HotspotVisualState.selected,
-        });
-      case 'tool_attempted':
-        final toolId = value['tool_id'] as String?;
-        if (value['compatible'] != true) return state;
-        return state.copyWith(
-          selectedToolId: toolId,
-          toolApplications: target == null || toolId == null
-              ? state.toolApplications
-              : {...state.toolApplications, target: toolId},
-        );
-      case 'connection_created':
-        final source = value['source_id'] as String?;
-        final destination = value['destination_id'] as String?;
-        if (source == null || destination == null) return state;
-        return state.copyWith(connectedNodePairs: {
-          ...state.connectedNodePairs,
-          '$source>$destination',
-        });
-      case 'configuration_applied':
-        final values = value['values'];
-        return values is Map
-            ? state.copyWith(
-                configurationValues: {
-                  ...state.configurationValues,
-                  ...Map<String, dynamic>.from(values),
-                },
-              )
-            : state;
-      case 'sequence_reordered':
-        return state.copyWith(
-          sequenceOrder: (value['order'] as List? ?? const [])
-              .whereType<String>()
-              .toList(growable: false),
-        );
-      case 'match_created':
-        final source = value['source_id'] as String?;
-        final destination = value['destination_id'] as String?;
-        if (source == null || destination == null) return state;
-        return state.copyWith(matches: {...state.matches, source: destination});
-      case 'placement_attempted':
-        final item = value['item_id'] as String?;
-        final destination = value['destination_id'] as String?;
-        if (item == null ||
-            destination == null ||
-            value['compatible'] != true) {
-          return state;
-        }
-        return state.copyWith(placements: {
-          ...state.placements,
-          item: destination,
-        });
-      case 'diagnostic_action':
-        final factId = value['reveals_fact_id'] as String?;
-        return factId == null
-            ? state
-            : state.copyWith(
-                revealedFactIds: {...state.revealedFactIds, factId},
-              );
-      case 'correction_applied':
-      case 'retest_requested':
-        if (target == null) return state;
-        return state.copyWith(
-          selectedBranchActionIds: {
-            ...state.selectedBranchActionIds,
-            target,
-          },
-        );
-      case 'observation_recorded':
-        final observation = value['observation'];
-        return observation is String && target != null
-            ? state.copyWith(observations: {
-                ...state.observations,
-                target: observation,
-              })
-            : state;
-      case 'result_interpreted':
-        final interpretation = value['interpretation'];
-        return interpretation is String && target != null
-            ? state.copyWith(interpretations: {
-                ...state.interpretations,
-                target: interpretation,
-              })
-            : state;
-      default:
-        return state;
-    }
   }
 
   Future<void> _advance(int phaseIndex) async {
@@ -713,135 +610,98 @@ class MissionPhaseInteraction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     try {
-      final component = _componentForPhase();
-      if (component == null) {
-        return TechnicalUnavailableState(phaseTitle: phase.title);
-      }
-      return _buildComponent(component);
+      return _buildComponent(phase.resolvedInteraction);
     } catch (_) {
       return TechnicalUnavailableState(phaseTitle: phase.title);
     }
   }
 
-  _MissionComponent? _componentForPhase() {
-    final override = phase.presentation['component'];
-    if (override != null && override is! String) return null;
-    if (override is String) {
-      return switch (override) {
-        'tap_inspect' => _MissionComponent.inspect,
-        'multi_select' => _MissionComponent.select,
-        'tool_selection' => _MissionComponent.tool,
-        'connection' => _MissionComponent.connect,
-        'configuration' ||
-        'configuration_decision' ||
-        'service_controls' =>
-          _MissionComponent.configure,
-        'sequencing' ||
-        'sequencing_and_placement' =>
-          _MissionComponent.sequence,
-        'matching' => _MissionComponent.match,
-        'controlled_placement' => _MissionComponent.place,
-        'troubleshooting' => _MissionComponent.troubleshoot,
-        'test_run' ||
-        'link_test' ||
-        'test_with_interpretation' =>
-          _MissionComponent.testRun,
-        'observation' => _MissionComponent.observe,
-        'scenario_decision' => _MissionComponent.decide,
-        'result_interpretation' => _MissionComponent.interpret,
-        'evidence_review' => _MissionComponent.review,
-        _ => null,
-      };
-    }
-    return _MissionComponent.values[phase.primaryInteraction.index];
-  }
-
-  Widget _buildComponent(_MissionComponent component) {
+  Widget _buildComponent(InteractionFamily component) {
     final adaptedPhase = _adaptedPhase(component);
     if (!_hasRequiredInputs(component, adaptedPhase)) {
       return TechnicalUnavailableState(phaseTitle: phase.title);
     }
     return switch (component) {
-      _MissionComponent.inspect => TapInspectInteraction(
+      InteractionFamily.inspect => TapInspectInteraction(
           phase: adaptedPhase,
           state: state,
           onAction: onAction,
           enabled: enabled,
         ),
-      _MissionComponent.select => MultiSelectInteraction(
+      InteractionFamily.select => MultiSelectInteraction(
           phase: adaptedPhase,
           state: state,
           onAction: onAction,
           enabled: enabled,
         ),
-      _MissionComponent.tool => ToolSelectionInteraction(
+      InteractionFamily.tool => ToolSelectionInteraction(
           phase: adaptedPhase,
           state: state,
           onAction: onAction,
           enabled: enabled,
         ),
-      _MissionComponent.connect => ConnectionInteraction(
+      InteractionFamily.connect => ConnectionInteraction(
           phase: adaptedPhase,
           state: state,
           onAction: onAction,
           enabled: enabled,
         ),
-      _MissionComponent.configure => ConfigurationPanel(
+      InteractionFamily.configure => ConfigurationPanel(
           phase: adaptedPhase,
           state: state,
           onAction: onAction,
           enabled: enabled,
         ),
-      _MissionComponent.sequence => SequencingInteraction(
+      InteractionFamily.sequence => SequencingInteraction(
           phase: adaptedPhase,
           state: state,
           onAction: onAction,
           enabled: enabled,
         ),
-      _MissionComponent.match => MatchingInteraction(
+      InteractionFamily.match => MatchingInteraction(
           phase: adaptedPhase,
           state: state,
           onAction: onAction,
           enabled: enabled,
         ),
-      _MissionComponent.place => ControlledPlacementInteraction(
+      InteractionFamily.place => ControlledPlacementInteraction(
           phase: adaptedPhase,
           state: state,
           onAction: onAction,
           enabled: enabled,
         ),
-      _MissionComponent.troubleshoot => TroubleshootingBranchInteraction(
+      InteractionFamily.troubleshoot => TroubleshootingBranchInteraction(
           phase: adaptedPhase,
           state: state,
           onAction: onAction,
           enabled: enabled,
         ),
-      _MissionComponent.testRun => TestRunInteraction(
+      InteractionFamily.testRun => TestRunInteraction(
           phase: adaptedPhase,
           state: state,
           onAction: onAction,
           enabled: enabled,
         ),
-      _MissionComponent.observe => ObservationInteraction(
+      InteractionFamily.observe => ObservationInteraction(
           phase: adaptedPhase,
           state: state,
           onAction: onAction,
           enabled: enabled,
         ),
-      _MissionComponent.decide => ScenarioDecisionInteraction(
+      InteractionFamily.decide => ScenarioDecisionInteraction(
           phase: adaptedPhase,
           state: state,
           onAction: onAction,
           onRuntimeTransition: onRuntimeTransition,
           enabled: enabled,
         ),
-      _MissionComponent.interpret => ResultInterpretationInteraction(
+      InteractionFamily.interpret => ResultInterpretationInteraction(
           phase: adaptedPhase,
           state: state,
           onAction: onAction,
           enabled: enabled,
         ),
-      _MissionComponent.review => EvidenceReviewPanel(
+      InteractionFamily.review => EvidenceReviewPanel(
           completedPhaseTitles: completedPhaseTitles,
           authoritativeEvidenceCount: authoritativeEvidenceCount,
           pendingEvidenceCount: pendingEvidenceCount,
@@ -857,8 +717,8 @@ class MissionPhaseInteraction extends StatelessWidget {
     };
   }
 
-  MissionPhaseDefinition _adaptedPhase(_MissionComponent component) {
-    if (component != _MissionComponent.sequence) return phase;
+  MissionPhaseDefinition _adaptedPhase(InteractionFamily component) {
+    if (component != InteractionFamily.sequence) return phase;
     if (_nonEmptyList(phase.presentation['items'])) return phase;
     final rawItems = phase.presentation['conductors'];
     final items = _nonEmptyList(rawItems)
@@ -880,32 +740,32 @@ class MissionPhaseInteraction extends StatelessWidget {
   }
 
   bool _hasRequiredInputs(
-    _MissionComponent component,
+    InteractionFamily component,
     MissionPhaseDefinition candidate,
   ) {
     final data = candidate.presentation;
     return switch (component) {
-      _MissionComponent.inspect ||
-      _MissionComponent.select =>
+      InteractionFamily.inspect ||
+      InteractionFamily.select =>
         candidate.availableObjectIds.isNotEmpty ||
             _nonEmptyList(data['objects']) ||
             _nonEmptyList(data['options']),
-      _MissionComponent.tool =>
+      InteractionFamily.tool =>
         _nonEmptyList(data['targets']) && _nonEmptyList(data['tools']),
-      _MissionComponent.connect ||
-      _MissionComponent.match =>
+      InteractionFamily.connect ||
+      InteractionFamily.match =>
         _nonEmptyList(data['sources']) && _nonEmptyList(data['destinations']),
-      _MissionComponent.configure => _nonEmptyList(data['fields']),
-      _MissionComponent.sequence => _nonEmptyList(data['items']),
-      _MissionComponent.place =>
+      InteractionFamily.configure => _nonEmptyList(data['fields']),
+      InteractionFamily.sequence => _nonEmptyList(data['items']),
+      InteractionFamily.place =>
         _nonEmptyList(data['items']) && _nonEmptyList(data['destinations']),
-      _MissionComponent.troubleshoot =>
+      InteractionFamily.troubleshoot =>
         _nonEmptyList(data['diagnostic_actions']),
-      _MissionComponent.decide => _nonEmptyList(data['choices']),
-      _MissionComponent.testRun ||
-      _MissionComponent.observe ||
-      _MissionComponent.interpret ||
-      _MissionComponent.review =>
+      InteractionFamily.decide => _nonEmptyList(data['choices']),
+      InteractionFamily.testRun ||
+      InteractionFamily.observe ||
+      InteractionFamily.interpret ||
+      InteractionFamily.review =>
         true,
     };
   }
@@ -1046,21 +906,4 @@ class _MissionHeader extends StatelessWidget {
           ],
         ),
       );
-}
-
-enum _MissionComponent {
-  inspect,
-  select,
-  tool,
-  connect,
-  configure,
-  sequence,
-  match,
-  place,
-  troubleshoot,
-  testRun,
-  observe,
-  decide,
-  interpret,
-  review,
 }

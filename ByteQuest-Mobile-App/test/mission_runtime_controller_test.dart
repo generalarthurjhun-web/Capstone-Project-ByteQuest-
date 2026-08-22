@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:bytequest/data/mission_simulation_definitions.dart';
+import 'package:bytequest/screens/simulation/runtime/mission_runtime_action_reducer.dart';
 import 'package:bytequest/screens/simulation/runtime/mission_evidence_gateway.dart';
 import 'package:bytequest/screens/simulation/runtime/mission_runtime_controller.dart';
 import 'package:bytequest/screens/simulation/runtime/mission_runtime_models.dart';
@@ -32,6 +34,147 @@ void main() {
     expect(controller.state.acceptedEvidenceIds, {'stable-1'});
     expect(controller.state.pendingEvidence, isEmpty);
     expect(controller.canSubmit, isTrue);
+  });
+
+  test('restore rebuilds runtime from ordered server actions without a cache',
+      () async {
+    final definition = MissionSimulationDefinitions.byId('coc2_m3');
+    final selectPhase = definition.phases[0];
+    final connectPhase = definition.phases[1];
+    final transport = _FakeEvidenceTransport(
+      acknowledgedActions: [
+        _acknowledged(
+          _actionFor(
+            id: 'server-connect',
+            missionId: definition.id,
+            phaseId: connectPhase.id,
+            actionType: 'connection_created',
+            target: 'switch',
+            value: const {
+              'source_id': 'router',
+              'destination_id': 'switch',
+            },
+          ),
+          order: 3,
+        ),
+        _acknowledged(
+          _actionFor(
+            id: 'server-phase',
+            missionId: definition.id,
+            phaseId: selectPhase.id,
+            actionType: 'phase_completed',
+            target: connectPhase.id,
+          ),
+          order: 2,
+        ),
+        _acknowledged(
+          _actionFor(
+            id: 'server-select',
+            missionId: definition.id,
+            phaseId: selectPhase.id,
+            actionType: 'selection_confirmed',
+            target: selectPhase.id,
+            value: const {
+              'selected_ids': ['router', 'switch'],
+            },
+          ),
+          order: 1,
+        ),
+      ],
+    );
+    final controller = _controller(
+      store: _FakeRuntimeStore(),
+      transport: transport,
+      initialState: MissionRuntimeState.initial(definition.id).copyWith(
+        currentPhaseId: selectPhase.id,
+      ),
+      restoreReducer: MissionRuntimeActionReducer(definition),
+    );
+
+    await controller.restore();
+
+    expect(controller.state.currentPhaseId, connectPhase.id);
+    expect(controller.state.completedPhaseIds, {selectPhase.id});
+    expect(
+        controller.state.hotspotStates.keys, containsAll(['router', 'switch']));
+    expect(controller.state.connectedNodePairs, {'router>switch'});
+    expect(controller.state.acceptedEvidenceIds,
+        {'server-select', 'server-phase', 'server-connect'});
+    expect(transport.appendedIds, isEmpty);
+  });
+
+  test('restore replaces stale state then de-duplicates pending server action',
+      () async {
+    final definition = MissionSimulationDefinitions.byId('coc2_m3');
+    final selectPhase = definition.phases[0];
+    final connectPhase = definition.phases[1];
+    final serverSelection = _actionFor(
+      id: 'server-select',
+      missionId: definition.id,
+      phaseId: selectPhase.id,
+      actionType: 'selection_confirmed',
+      target: selectPhase.id,
+      value: const {
+        'selected_ids': ['router'],
+      },
+    );
+    final pendingConnection = _actionFor(
+      id: 'pending-connect',
+      missionId: definition.id,
+      phaseId: connectPhase.id,
+      actionType: 'connection_created',
+      target: 'switch',
+      value: const {
+        'source_id': 'router',
+        'destination_id': 'switch',
+      },
+    );
+    final store = _FakeRuntimeStore(
+      saved: MissionRuntimeState.initial(definition.id).copyWith(
+        currentPhaseId: definition.phases.last.id,
+        hotspotStates: const {'stale-object': HotspotVisualState.completed},
+        acceptedEvidenceIds: const {'stale-accepted'},
+        pendingEvidence: [serverSelection, pendingConnection],
+      ),
+    );
+    final transport = _FakeEvidenceTransport(
+      acknowledgedActions: [_acknowledged(serverSelection, order: 1)],
+    );
+    final controller = _controller(
+      store: store,
+      transport: transport,
+      initialState: MissionRuntimeState.initial(definition.id).copyWith(
+        currentPhaseId: selectPhase.id,
+      ),
+      restoreReducer: MissionRuntimeActionReducer(definition),
+    );
+
+    await controller.restore();
+
+    expect(controller.state.hotspotStates, isNot(contains('stale-object')));
+    expect(controller.state.acceptedEvidenceIds,
+        {'server-select', 'pending-connect'});
+    expect(controller.state.connectedNodePairs, {'router>switch'});
+    expect(controller.state.pendingEvidence, isEmpty);
+    expect(transport.appendedIds, ['pending-connect']);
+  });
+
+  test('offline restore preserves an existing local snapshot without replay',
+      () async {
+    final saved = MissionRuntimeState.initial('coc2_m3').copyWith(
+      currentPhaseId: 'local-phase',
+      pendingEvidence: [_action('local-pending')],
+    );
+    final transport = _FakeEvidenceTransport(readError: StateError('offline'));
+    final controller = _controller(
+      store: _FakeRuntimeStore(saved: saved),
+      transport: transport,
+    );
+
+    await controller.restore();
+
+    expect(controller.state, saved);
+    expect(transport.appendedIds, isEmpty);
   });
 
   test('dispatch persists pending before transport and accepted afterward',
@@ -271,16 +414,47 @@ MissionRuntimeController _controller({
   required _FakeRuntimeStore store,
   required _FakeEvidenceTransport transport,
   MissionRuntimeState? initialState,
+  MissionRuntimeActionReducer? restoreReducer,
 }) {
   return MissionRuntimeController(
     userId: 'learner-1',
     initialState: initialState ?? MissionRuntimeState.initial('coc2_m3'),
     store: store,
     evidenceGateway: MissionEvidenceGateway(transport: transport),
+    restoreReducer: restoreReducer,
     clientActionIdFactory: () => 'stable-generated-id',
     clock: () => DateTime.utc(2026),
   );
 }
+
+MissionEvidenceAction _actionFor({
+  required String id,
+  required String missionId,
+  required String phaseId,
+  required String actionType,
+  String? target,
+  Map<String, dynamic> value = const {},
+}) =>
+    MissionEvidenceAction(
+      clientActionId: id,
+      missionId: missionId,
+      phaseId: phaseId,
+      actionType: actionType,
+      target: target,
+      value: value,
+      occurredAt: DateTime.utc(2026, 1, 1, 0, 0, 1),
+    );
+
+AcknowledgedMissionEvidenceAction _acknowledged(
+  MissionEvidenceAction action, {
+  required int order,
+}) =>
+    AcknowledgedMissionEvidenceAction(
+      action: action,
+      serverRecordId: 'server-$order',
+      serverOrder: order,
+      recordedAt: DateTime.utc(2026, 1, 1, 0, 0, order),
+    );
 
 MissionEvidenceAction _action(String id) {
   return MissionEvidenceAction(
@@ -335,23 +509,37 @@ final class _FakeRuntimeStore implements MissionRuntimeStore {
 final class _FakeEvidenceTransport implements MissionEvidenceTransport {
   _FakeEvidenceTransport({
     Set<String> acknowledgedIds = const {},
+    List<AcknowledgedMissionEvidenceAction> acknowledgedActions = const [],
     Set<String> failIds = const {},
     List<String>? events,
+    this.readError,
   })  : acknowledgedIds = Set<String>.from(acknowledgedIds),
+        acknowledgedActions = List.from(acknowledgedActions),
         failIds = Set<String>.from(failIds),
         events = events ?? <String>[];
 
   final Set<String> acknowledgedIds;
+  final List<AcknowledgedMissionEvidenceAction> acknowledgedActions;
   final Set<String> failIds;
   final List<String> events;
+  final Object? readError;
   final List<String> appendedIds = [];
   int acknowledgedReads = 0;
 
   @override
-  Future<Set<String>> acknowledgedClientActionIds() async {
+  Future<List<AcknowledgedMissionEvidenceAction>>
+      readAcknowledgedActions() async {
     acknowledgedReads += 1;
     events.add('acknowledged');
-    return Set<String>.from(acknowledgedIds);
+    if (readError case final error?) throw error;
+    return [
+      ...acknowledgedActions,
+      for (final id in acknowledgedIds)
+        if (!acknowledgedActions.any(
+          (record) => record.action.clientActionId == id,
+        ))
+          _acknowledged(_action(id), order: acknowledgedActions.length + 1),
+    ];
   }
 
   @override

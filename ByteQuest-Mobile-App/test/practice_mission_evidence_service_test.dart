@@ -11,7 +11,7 @@ void main() {
         missionId: 'coc1_m1',
         currentUserId: () => 'learner-1',
         upsertAction: (row) async => written = row,
-        readAcknowledgedIds: (_, __) async => const <String>{},
+        readActions: (_, __) async => const [],
       );
       final action = _action();
 
@@ -39,24 +39,38 @@ void main() {
       );
     });
 
-    test('reads only acknowledged IDs for the authenticated learner', () async {
+    test('reads full ordered actions for the authenticated learner', () async {
       String? queriedLearner;
       String? queriedMission;
       final service = PracticeMissionEvidenceService.forTesting(
         missionId: 'coc1_m1',
         currentUserId: () => 'learner-1',
         upsertAction: (_) async {},
-        readAcknowledgedIds: (learnerId, missionId) async {
+        readActions: (learnerId, missionId) async {
           queriedLearner = learnerId;
           queriedMission = missionId;
-          return const {'stable-1', 'stable-2'};
+          return [
+            {
+              'id': 4,
+              'client_action_id': 'stable-1',
+              'mission_id': 'coc1_m1',
+              'phase_id': 'coc1_m1_p1',
+              'action_type': 'object_inspected',
+              'target': 'motherboard',
+              'value': {'input_method': 'tap'},
+              'client_occurred_at': '2026-08-22T02:00:00.000Z',
+              'created_at': '2026-08-22T02:00:01.000Z',
+            },
+          ];
         },
       );
 
-      expect(
-        await service.acknowledgedClientActionIds(),
-        const {'stable-1', 'stable-2'},
-      );
+      final records = await service.readAcknowledgedActions();
+      expect(records.single.serverRecordId, '4');
+      expect(records.single.serverOrder, 1);
+      expect(records.single.action, _action());
+      expect(records.single.recordedAt,
+          DateTime.parse('2026-08-22T02:00:01.000Z'));
       expect(queriedLearner, 'learner-1');
       expect(queriedMission, 'coc1_m1');
     });
@@ -67,12 +81,12 @@ void main() {
         missionId: 'coc1_m1',
         currentUserId: () => null,
         upsertAction: (_) async => writes++,
-        readAcknowledgedIds: (_, __) async => const <String>{},
+        readActions: (_, __) async => const [],
       );
 
       await expectLater(service.append(_action()), throwsStateError);
       await expectLater(
-        service.acknowledgedClientActionIds(),
+        service.readAcknowledgedActions(),
         throwsStateError,
       );
       expect(writes, 0);
@@ -83,7 +97,7 @@ void main() {
         missionId: 'coc1_m1',
         currentUserId: () => 'learner-1',
         upsertAction: (_) async => throw StateError('offline'),
-        readAcknowledgedIds: (_, __) async => const <String>{},
+        readActions: (_, __) async => const [],
       );
 
       await expectLater(service.append(_action()), throwsStateError);

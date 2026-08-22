@@ -29,123 +29,119 @@ void main() {
   const expectedFamilies = <String, Set<InteractionFamily>>{
     'coc1_m1': {
       InteractionFamily.inspect,
-      InteractionFamily.decide,
+      InteractionFamily.select,
+      InteractionFamily.observe,
       InteractionFamily.testRun,
-      InteractionFamily.review
     },
     'coc1_m2': {
+      InteractionFamily.inspect,
       InteractionFamily.place,
-      InteractionFamily.decide,
+      InteractionFamily.sequence,
       InteractionFamily.testRun,
-      InteractionFamily.review
     },
     'coc1_m3': {
-      InteractionFamily.configure,
-      InteractionFamily.decide,
+      InteractionFamily.sequence,
+      InteractionFamily.connect,
       InteractionFamily.testRun,
-      InteractionFamily.review
+      InteractionFamily.interpret,
     },
     'coc1_m4': {
+      InteractionFamily.inspect,
+      InteractionFamily.tool,
       InteractionFamily.connect,
-      InteractionFamily.decide,
       InteractionFamily.testRun,
-      InteractionFamily.review
     },
     'coc1_m5': {
       InteractionFamily.troubleshoot,
       InteractionFamily.decide,
       InteractionFamily.testRun,
-      InteractionFamily.review
     },
     'coc2_m1': {
+      InteractionFamily.tool,
+      InteractionFamily.sequence,
       InteractionFamily.connect,
-      InteractionFamily.decide,
       InteractionFamily.testRun,
-      InteractionFamily.review
     },
     'coc2_m2': {
+      InteractionFamily.configure,
+      InteractionFamily.sequence,
       InteractionFamily.connect,
-      InteractionFamily.decide,
       InteractionFamily.testRun,
-      InteractionFamily.review
     },
     'coc2_m3': {
+      InteractionFamily.select,
       InteractionFamily.connect,
       InteractionFamily.decide,
       InteractionFamily.testRun,
-      InteractionFamily.review
     },
     'coc2_m4': {
       InteractionFamily.configure,
-      InteractionFamily.decide,
       InteractionFamily.testRun,
-      InteractionFamily.review
+      InteractionFamily.interpret,
     },
     'coc2_m5': {
       InteractionFamily.troubleshoot,
       InteractionFamily.decide,
       InteractionFamily.testRun,
-      InteractionFamily.review
     },
     'coc3_m1': {
       InteractionFamily.inspect,
       InteractionFamily.decide,
+      InteractionFamily.sequence,
       InteractionFamily.testRun,
-      InteractionFamily.review
     },
     'coc3_m2': {
       InteractionFamily.configure,
+      InteractionFamily.sequence,
       InteractionFamily.decide,
       InteractionFamily.testRun,
-      InteractionFamily.review
     },
     'coc3_m3': {
+      InteractionFamily.configure,
       InteractionFamily.troubleshoot,
       InteractionFamily.decide,
       InteractionFamily.testRun,
-      InteractionFamily.review
     },
     'coc3_m4': {
+      InteractionFamily.inspect,
       InteractionFamily.configure,
-      InteractionFamily.decide,
       InteractionFamily.testRun,
-      InteractionFamily.review
+      InteractionFamily.interpret,
     },
     'coc3_m5': {
       InteractionFamily.troubleshoot,
       InteractionFamily.decide,
       InteractionFamily.testRun,
-      InteractionFamily.review
     },
     'coc4_m1': {
       InteractionFamily.inspect,
+      InteractionFamily.observe,
       InteractionFamily.decide,
       InteractionFamily.testRun,
-      InteractionFamily.review
     },
     'coc4_m2': {
       InteractionFamily.troubleshoot,
+      InteractionFamily.interpret,
       InteractionFamily.decide,
       InteractionFamily.testRun,
-      InteractionFamily.review
     },
     'coc4_m3': {
+      InteractionFamily.inspect,
       InteractionFamily.troubleshoot,
-      InteractionFamily.decide,
+      InteractionFamily.interpret,
       InteractionFamily.testRun,
-      InteractionFamily.review
     },
     'coc4_m4': {
       InteractionFamily.place,
-      InteractionFamily.decide,
+      InteractionFamily.configure,
+      InteractionFamily.sequence,
       InteractionFamily.testRun,
-      InteractionFamily.review
     },
     'coc4_m5': {
       InteractionFamily.troubleshoot,
       InteractionFamily.decide,
       InteractionFamily.testRun,
-      InteractionFamily.review
+      InteractionFamily.observe,
     },
   };
   const expectedFlows = <String, List<String>>{
@@ -174,8 +170,7 @@ void main() {
       'inspect_peripherals',
       'choose_tool',
       'connect_devices',
-      'run_device_test',
-      'interpret_results',
+      'run_device_test_and_interpret',
       'review_evidence'
     ],
     'coc1_m5': [
@@ -333,11 +328,17 @@ void main() {
           reason: definition.id);
       expect(definition.interactionFamilies, expectedFamilies[definition.id],
           reason: definition.id);
+      expect(definition.interactionFamilies.length, inInclusiveRange(2, 4),
+          reason: definition.id);
       expect(definition.hasTechnicalDecision, isTrue, reason: definition.id);
       expect(definition.hasVerification, isTrue, reason: definition.id);
       expect(
           definition.phases.last.primaryInteraction, InteractionFamily.review,
           reason: definition.id);
+      for (final phase in definition.phases) {
+        expect(phase.primaryInteraction, phase.resolvedInteraction,
+            reason: '${definition.id}/${phase.id}');
+      }
       expect(
         definition.phases
             .expand((phase) =>
@@ -497,7 +498,7 @@ void main() {
         reason: retestPhase.id,
       );
       expect(
-        retestPhase.presentation['actionType'],
+        retestPhase.presentation['evidenceActionType'],
         'retest_requested',
         reason: retestPhase.id,
       );
@@ -560,6 +561,24 @@ void main() {
           final factId = action['reveals_fact_id'];
           final fact = facts[factId]?.toString() ?? '';
           expect(_isConcreteDiagnosticFact(fact), isTrue, reason: phase.id);
+        }
+      }
+    }
+  });
+
+  test('every connection endpoint resolves to a catalog scene object', () {
+    for (final definition in MissionSimulationDefinitions.all) {
+      final sceneIds =
+          definition.scene.objects.map((object) => object.id).toSet();
+      for (final phase in definition.phases.where(
+        (phase) => phase.resolvedInteraction == InteractionFamily.connect,
+      )) {
+        for (final key in const ['sources', 'destinations']) {
+          final ids = (phase.presentation[key] as List? ?? const [])
+              .whereType<Map>()
+              .map((item) => item['id'])
+              .whereType<String>();
+          expect(sceneIds, containsAll(ids), reason: '${phase.id} $key');
         }
       }
     }

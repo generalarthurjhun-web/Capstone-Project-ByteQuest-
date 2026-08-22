@@ -4,31 +4,7 @@ import 'mission_runtime_models.dart';
 /// phase's required interaction; it never decides correctness or competency.
 abstract final class MissionPhaseCompletionPolicy {
   static InteractionFamily interactionFor(MissionPhaseDefinition phase) {
-    final component = phase.presentation['component'];
-    if (component is! String) return phase.primaryInteraction;
-    return switch (component) {
-      'tap_inspect' => InteractionFamily.inspect,
-      'multi_select' => InteractionFamily.select,
-      'tool_selection' => InteractionFamily.tool,
-      'connection' => InteractionFamily.connect,
-      'configuration' ||
-      'configuration_decision' ||
-      'service_controls' =>
-        InteractionFamily.configure,
-      'sequencing' || 'sequencing_and_placement' => InteractionFamily.sequence,
-      'matching' => InteractionFamily.match,
-      'controlled_placement' => InteractionFamily.place,
-      'troubleshooting' => InteractionFamily.troubleshoot,
-      'test_run' ||
-      'link_test' ||
-      'test_with_interpretation' =>
-        InteractionFamily.testRun,
-      'observation' => InteractionFamily.observe,
-      'scenario_decision' => InteractionFamily.decide,
-      'result_interpretation' => InteractionFamily.interpret,
-      'evidence_review' => InteractionFamily.review,
-      _ => phase.primaryInteraction,
-    };
+    return phase.resolvedInteraction;
   }
 
   static bool canAdvance(
@@ -111,9 +87,17 @@ abstract final class MissionPhaseCompletionPolicy {
         (emittedActionType == 'diagnostic_action' ||
                 emittedActionType == 'retest_requested') &&
             _troubleshootingComplete(phase, state),
-      InteractionFamily.testRun => emittedActionType == 'test_completed' &&
-          target != null &&
-          state.testStatusFor(target) == MissionTestStatus.completed,
+      InteractionFamily.testRun =>
+        phase.presentation['requires_interpretation'] == true
+            ? emittedActionType == 'result_interpreted' &&
+                state.testStatusFor(
+                      phase.presentation['target'] as String? ?? phase.id,
+                    ) ==
+                    MissionTestStatus.completed &&
+                _hasNonEmptyValue(state.interpretations[phase.id])
+            : emittedActionType == 'test_completed' &&
+                target != null &&
+                state.testStatusFor(target) == MissionTestStatus.completed,
       InteractionFamily.observe =>
         emittedActionType == 'observation_recorded' &&
             _hasNonEmptyValue(state.observations[phase.id]),

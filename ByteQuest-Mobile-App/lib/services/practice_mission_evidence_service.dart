@@ -9,7 +9,8 @@ typedef PracticeEvidenceUserId = String? Function();
 typedef PracticeEvidenceUpsert = Future<void> Function(
   Map<String, dynamic> row,
 );
-typedef PracticeEvidenceAcknowledgements = Future<Set<String>> Function(
+typedef PracticeEvidenceActionsReader = Future<List<Map<String, dynamic>>>
+    Function(
   String learnerId,
   String missionId,
 );
@@ -21,22 +22,22 @@ final class PracticeMissionEvidenceService implements MissionEvidenceTransport {
   PracticeMissionEvidenceService({required this.missionId})
       : _currentUserId = (() => SupabaseConfig.client.auth.currentUser?.id),
         _upsertAction = _upsertWithSupabase,
-        _readAcknowledgedIds = _readWithSupabase;
+        _readActions = _readWithSupabase;
 
   @visibleForTesting
   PracticeMissionEvidenceService.forTesting({
     required this.missionId,
     required PracticeEvidenceUserId currentUserId,
     required PracticeEvidenceUpsert upsertAction,
-    required PracticeEvidenceAcknowledgements readAcknowledgedIds,
+    required PracticeEvidenceActionsReader readActions,
   })  : _currentUserId = currentUserId,
         _upsertAction = upsertAction,
-        _readAcknowledgedIds = readAcknowledgedIds;
+        _readActions = readActions;
 
   final String missionId;
   final PracticeEvidenceUserId _currentUserId;
   final PracticeEvidenceUpsert _upsertAction;
-  final PracticeEvidenceAcknowledgements _readAcknowledgedIds;
+  final PracticeEvidenceActionsReader _readActions;
 
   @override
   Future<void> append(MissionEvidenceAction action) async {
@@ -61,12 +62,22 @@ final class PracticeMissionEvidenceService implements MissionEvidenceTransport {
   }
 
   @override
-  Future<Set<String>> acknowledgedClientActionIds() async {
-    return await _readAcknowledgedIds(
+  Future<List<AcknowledgedMissionEvidenceAction>>
+      readAcknowledgedActions() async {
+    final rows = await _readActions(
       _authenticatedLearnerId(),
       missionId,
     );
+    return List.unmodifiable([
+      for (var index = 0; index < rows.length; index++)
+        _recordFromRow(rows[index], index),
+    ]);
   }
+
+  Future<Set<String>> acknowledgedClientActionIds() async =>
+      (await readAcknowledgedActions())
+          .map((record) => record.action.clientActionId)
+          .toSet();
 
   String _authenticatedLearnerId() {
     final learnerId = _currentUserId();
@@ -88,18 +99,46 @@ final class PracticeMissionEvidenceService implements MissionEvidenceTransport {
         );
   }
 
-  static Future<Set<String>> _readWithSupabase(
+  static Future<List<Map<String, dynamic>>> _readWithSupabase(
     String learnerId,
     String missionId,
   ) async {
     final response = await _supabase
         .from('practice_mission_actions')
-        .select('client_action_id')
+        .select(
+          'id,client_action_id,mission_id,phase_id,action_type,target,value,'
+          'client_occurred_at,created_at',
+        )
         .eq('learner_id', learnerId)
-        .eq('mission_id', missionId);
+        .eq('mission_id', missionId)
+        .order('client_occurred_at')
+        .order('id');
     return (response as List)
-        .map((row) => (row as Map)['client_action_id'])
-        .whereType<String>()
-        .toSet();
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  }
+
+  static AcknowledgedMissionEvidenceAction _recordFromRow(
+    Map<String, dynamic> row,
+    int index,
+  ) {
+    final occurredAt = DateTime.parse(row['client_occurred_at'] as String);
+    final recordedAt = row['created_at'] is String
+        ? DateTime.parse(row['created_at'] as String)
+        : occurredAt;
+    return AcknowledgedMissionEvidenceAction(
+      action: MissionEvidenceAction(
+        clientActionId: row['client_action_id'] as String,
+        missionId: row['mission_id'] as String,
+        phaseId: row['phase_id'] as String,
+        actionType: row['action_type'] as String,
+        target: row['target'] as String?,
+        value: Map<String, dynamic>.from(row['value'] as Map? ?? const {}),
+        occurredAt: occurredAt,
+      ),
+      serverRecordId: row['id'].toString(),
+      serverOrder: index + 1,
+      recordedAt: recordedAt,
+    );
   }
 }

@@ -32,7 +32,9 @@ Targets: scenario realism 4, interaction variety 4, technical relevance 4, decis
 ## Outcome
 
 - All 20 catalog definitions meet the documented structural thresholds in reviewed automated evidence; this is catalog coverage, not final/live mission acceptance.
+- Exhaustive automated evidence resolves and renders 116/116 catalog phases, drives every non-review phase through its actual terminal mechanic, and reports 0 catalog `TechnicalUnavailable` states.
 - 20/20 use multiple interaction families; 0 are drag-drop-only.
-- 20/20 include a technical decision and observation/test/verification evidence.
-- Persistence and integrity scores remain provisional: automated contracts cover mode/attempt scoping, de-duplication, fail-closed restore, terminal submission, rejected placement, and protected backend evaluation/release authority, but live mission-level proof is absent.
+- 20/20 expose 2-4 canonical rendered interaction families, include a real technical decision mechanic, and include test verification.
+- Persistence and integrity scores remain provisional: automated contracts now cover full ordered server-action rebuild without a cache, stale merge/de-duplication, offline preservation, mode/attempt scoping, terminal-only evaluator test events, rejected placement, and protected backend evaluation/release authority, but live mission-level proof is absent.
+- Current automated gates: acceptance-focused 100/100, full Flutter 189/189, analyzer exit 0 with informational diagnostics only, debug APK pass, and static migration/RLS/rollback sentinel pass.
 - Final external acceptance is pending authenticated mission execution, Supabase lifecycle rows, mission-level responsive/accessibility review, and reconciliation into `Dro-branch` as documented in `BYTEQUEST_EMULATOR_QA.md` and `BYTEQUEST_SIMULATION_COMPLETION_REPORT.md`.

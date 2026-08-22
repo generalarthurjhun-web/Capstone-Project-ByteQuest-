@@ -45,6 +45,20 @@ Task 12 verification: focused review-fix gate 32/32 passed; full Flutter suite 1
 
 Round 2 verification: focused retry/controller/gateway/service/interaction gate 60/60 passed; full Flutter suite 179/179 passed; targeted four-file analysis reported no issues; full `flutter analyze --no-fatal-infos` exited 0 with the same 212 pre-existing informational diagnostics; debug APK build passed; static active-learner RLS/lifecycle assertions passed.
 
+### Final acceptance-gap closure wave
+
+- The catalog renderer now resolves all 116 phases across the 20 definitions without `TechnicalUnavailable`; the same catalog is driven through phase-terminal policy coverage.
+- Presentation components are the canonical interaction-family source. Definitions reject primary/component divergence, derive their actual non-review family set, enforce 2-4 distinct families, and require a real decision mechanic plus test verification.
+- Missing catalog tools, targets, choices, configuration fields, diagnostics, connection endpoints, and combined test/interpretation mechanics are mission-specific data, not widget feedback defaults.
+- Restore now reads full RLS-scoped acknowledged actions with stable server identity, ordering, and timestamps. It rebuilds from a clean runtime, de-duplicates server-acknowledged pending actions, then deterministically applies remaining local actions. Offline restore preserves an existing local snapshot without replay, while a missing cache and unavailable server fails closed.
+- Assessment action values now retain client action, mission, phase, and canonical runtime-action identity; no score, correctness, competency, result-release, or evaluator authority was added to Flutter.
+- Test starts remain non-terminal `test_started` events. Only `test_completed` maps to a configured `evidenceActionType`; the two-retest regression proves exactly two terminal evaluator actions.
+- Scene connection lookup accepts canonical object IDs as node aliases, and all catalog connection endpoints resolve to scene objects; the actual COC2 M3 `router>switch` painter regression passes.
+
+Final wave verification: acceptance-focused Flutter gate 100/100 passed; full Flutter suite 189/189 passed; `flutter analyze --no-fatal-infos` exited 0 with 213 informational diagnostics and no errors/warnings; debug APK build passed; eight static migration/RLS/rollback-lifecycle sentinels passed. The APK build reports a future Kotlin/Flutter compatibility warning, not a current build failure.
+
+Authenticated emulator execution and live Supabase submit/evaluate/release/realtime and rollback-lifecycle execution remain **unverified** in this wave. No live database change was applied. Integration into `Dro-branch` remains **pending** until the feature-worktree commit is reconciled and the gates are rerun there.
+
 ## Prior checkpoint evidence
 
 The following artifacts are retained as historical automated/app-shell evidence and are not represented as current Task 12 gates or mission-level live acceptance:

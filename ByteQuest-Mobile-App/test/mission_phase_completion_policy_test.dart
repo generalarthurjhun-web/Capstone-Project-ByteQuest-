@@ -227,11 +227,15 @@ _TerminalAction _terminalActionFor(
         },
       ),
     InteractionFamily.configure => _TerminalAction(
-        state: state.copyWith(configurationValues: const {'address': 'value'}),
+        state: state.copyWith(configurationValues: {
+          for (final id in _ids(phase.presentation['fields'])) id: 'recorded',
+        }),
         actionType: 'configuration_applied',
         target: phase.id,
-        value: const {
-          'values': {'address': 'value'},
+        value: {
+          'values': {
+            for (final id in _ids(phase.presentation['fields'])) id: 'recorded',
+          },
         },
       ),
     InteractionFamily.sequence => _TerminalAction(
@@ -285,15 +289,30 @@ _TerminalAction _terminalActionFor(
         target: 'inspect',
         value: const {'reveals_fact_id': 'fact'},
       ),
-    InteractionFamily.testRun => _TerminalAction(
-        state: state.withTestStatus(
-          phase.presentation['target'] as String? ?? phase.id,
-          MissionTestStatus.completed,
-        ),
-        actionType: 'test_completed',
-        target: phase.presentation['target'] as String? ?? phase.id,
-        value: const {'test_status': 'completed'},
-      ),
+    InteractionFamily.testRun =>
+      phase.presentation['requires_interpretation'] == true
+          ? _TerminalAction(
+              state: state
+                  .withTestStatus(
+                phase.presentation['target'] as String? ?? phase.id,
+                MissionTestStatus.completed,
+              )
+                  .copyWith(
+                interpretations: {phase.id: 'Recorded interpretation'},
+              ),
+              actionType: 'result_interpreted',
+              target: phase.id,
+              value: const {'interpretation': 'Recorded interpretation'},
+            )
+          : _TerminalAction(
+              state: state.withTestStatus(
+                phase.presentation['target'] as String? ?? phase.id,
+                MissionTestStatus.completed,
+              ),
+              actionType: 'test_completed',
+              target: phase.presentation['target'] as String? ?? phase.id,
+              value: const {'test_status': 'completed'},
+            ),
     InteractionFamily.observe => _TerminalAction(
         state: state.copyWith(observations: {phase.id: 'Observed value'}),
         actionType: 'observation_recorded',
@@ -301,9 +320,17 @@ _TerminalAction _terminalActionFor(
         value: const {'observation': 'Observed value'},
       ),
     InteractionFamily.decide => _TerminalAction(
-        state: state.copyWith(selectedBranchActionIds: const {'isolate'}),
+        state: state.copyWith(selectedBranchActionIds: {
+          _ids(
+            phase.presentation['choices'],
+            fallback: const ['isolate'],
+          ).first,
+        }),
         actionType: 'scenario_decision',
-        target: 'isolate',
+        target: _ids(
+          phase.presentation['choices'],
+          fallback: const ['isolate'],
+        ).first,
       ),
     InteractionFamily.interpret => _TerminalAction(
         state: state.copyWith(interpretations: {phase.id: 'Interpretation'}),

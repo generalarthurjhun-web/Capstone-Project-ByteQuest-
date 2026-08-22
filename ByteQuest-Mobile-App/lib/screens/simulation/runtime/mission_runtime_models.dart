@@ -25,6 +25,75 @@ enum MissionRuntimeMode { practice, assessment }
 
 enum MissionTestStatus { idle, running, completed }
 
+/// Canonical mapping from learner-visible presentation components to the
+/// interaction family they actually render. Catalog validation, phase
+/// completion, and Flutter rendering all consume this mapping so definition
+/// metadata cannot drift from runtime behavior.
+abstract final class MissionPhasePresentation {
+  static InteractionFamily resolve(MissionPhaseDefinition phase) {
+    final component = phase.presentation['component'];
+    if (component == null) return phase.primaryInteraction;
+    if (component is! String) {
+      throw FormatException(
+        'Phase ${phase.id} has a non-string presentation component.',
+      );
+    }
+    final family = familyForComponent(component);
+    if (family == null) {
+      throw FormatException(
+        'Phase ${phase.id} uses unknown presentation component $component.',
+      );
+    }
+    return family;
+  }
+
+  static InteractionFamily? familyForComponent(String component) =>
+      switch (component) {
+        'tap_inspect' => InteractionFamily.inspect,
+        'multi_select' => InteractionFamily.select,
+        'tool_selection' => InteractionFamily.tool,
+        'connection' => InteractionFamily.connect,
+        'configuration' ||
+        'configuration_decision' ||
+        'service_controls' =>
+          InteractionFamily.configure,
+        'sequencing' ||
+        'sequencing_and_placement' =>
+          InteractionFamily.sequence,
+        'matching' => InteractionFamily.match,
+        'controlled_placement' => InteractionFamily.place,
+        'troubleshooting' => InteractionFamily.troubleshoot,
+        'test_run' ||
+        'link_test' ||
+        'test_with_interpretation' =>
+          InteractionFamily.testRun,
+        'observation' => InteractionFamily.observe,
+        'scenario_decision' => InteractionFamily.decide,
+        'result_interpretation' => InteractionFamily.interpret,
+        'evidence_review' => InteractionFamily.review,
+        _ => null,
+      };
+
+  static bool isTechnicalDecision(InteractionFamily family) => switch (family) {
+        InteractionFamily.select ||
+        InteractionFamily.tool ||
+        InteractionFamily.configure ||
+        InteractionFamily.match ||
+        InteractionFamily.place ||
+        InteractionFamily.troubleshoot ||
+        InteractionFamily.decide ||
+        InteractionFamily.interpret =>
+          true,
+        InteractionFamily.inspect ||
+        InteractionFamily.connect ||
+        InteractionFamily.sequence ||
+        InteractionFamily.testRun ||
+        InteractionFamily.observe ||
+        InteractionFamily.review =>
+          false,
+      };
+}
+
 final class SceneObjectDefinition {
   SceneObjectDefinition({
     required this.id,
@@ -197,6 +266,9 @@ final class MissionPhaseDefinition {
   final List<String> feedbackIds;
   final Map<String, dynamic> presentation;
 
+  InteractionFamily get resolvedInteraction =>
+      MissionPhasePresentation.resolve(this);
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'title': title,
@@ -248,7 +320,11 @@ final class MissionSimulationDefinition {
     Map<String, String> feedbackCatalog = const {},
     Map<String, dynamic> reviewMetadata = const {},
   })  : phases = List.unmodifiable(phases),
-        interactionFamilies = Set.unmodifiable(interactionFamilies),
+        interactionFamilies = Set.unmodifiable(
+          phases
+              .map(MissionPhasePresentation.resolve)
+              .where((family) => family != InteractionFamily.review),
+        ),
         feedbackCatalog =
             Map.unmodifiable(Map<String, String>.from(feedbackCatalog)),
         reviewMetadata = _immutableJsonMap(reviewMetadata) {
@@ -260,6 +336,17 @@ final class MissionSimulationDefinition {
         this.phases.length) {
       throw ArgumentError.value(phases, 'phases', 'must have unique IDs');
     }
+    for (final phase in this.phases) {
+      final resolved = phase.resolvedInteraction;
+      if (resolved != phase.primaryInteraction) {
+        throw ArgumentError.value(
+          phase.primaryInteraction,
+          'phases',
+          '${phase.id} declares ${phase.primaryInteraction.name} but renders '
+              '${resolved.name}',
+        );
+      }
+    }
     if (this.interactionFamilies.length < 2 ||
         this.interactionFamilies.length > 4) {
       throw ArgumentError.value(
@@ -268,23 +355,26 @@ final class MissionSimulationDefinition {
         'must contain 2–4 distinct families',
       );
     }
-    final phaseFamilies = this
-        .phases
-        .expand((phase) =>
-            [phase.primaryInteraction, ...phase.supportingInteractions])
+    final declaredFamilies = interactionFamilies
+        .where((family) => family != InteractionFamily.review)
         .toSet();
-    if (!_deepEquals(this.interactionFamilies, phaseFamilies)) {
+    if (!_deepEquals(this.interactionFamilies, declaredFamilies)) {
       throw ArgumentError.value(
         interactionFamilies,
         'interactionFamilies',
-        'must exactly match the interactions declared by phases',
+        'must exactly match the interactions rendered by phases',
       );
     }
-    if (!phaseFamilies.contains(InteractionFamily.decide)) {
+    if (!this
+        .interactionFamilies
+        .any(MissionPhasePresentation.isTechnicalDecision)) {
       throw ArgumentError.value(
-          phases, 'phases', 'must include a technical decision');
+        phases,
+        'phases',
+        'must include a rendered technical decision interaction',
+      );
     }
-    if (!phaseFamilies.contains(InteractionFamily.testRun)) {
+    if (!this.interactionFamilies.contains(InteractionFamily.testRun)) {
       throw ArgumentError.value(phases, 'phases', 'must include verification');
     }
   }
@@ -320,8 +410,9 @@ final class MissionSimulationDefinition {
   final Map<String, String> feedbackCatalog;
   final Map<String, dynamic> reviewMetadata;
 
-  bool get hasTechnicalDecision =>
-      interactionFamilies.contains(InteractionFamily.decide);
+  bool get hasTechnicalDecision => interactionFamilies.any(
+        MissionPhasePresentation.isTechnicalDecision,
+      );
 
   bool get hasVerification =>
       interactionFamilies.contains(InteractionFamily.testRun);

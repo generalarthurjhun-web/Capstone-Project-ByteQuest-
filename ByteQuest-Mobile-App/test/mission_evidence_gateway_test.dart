@@ -84,8 +84,16 @@ final class _FakeEvidenceTransport implements MissionEvidenceTransport {
   final List<String> appendedIds = [];
 
   @override
-  Future<Set<String>> acknowledgedClientActionIds() async =>
-      Set<String>.from(existingIds);
+  Future<List<AcknowledgedMissionEvidenceAction>>
+      readAcknowledgedActions() async => [
+            for (final (index, id) in existingIds.indexed)
+              AcknowledgedMissionEvidenceAction(
+                action: _action(id),
+                serverRecordId: 'server-$id',
+                serverOrder: index + 1,
+                recordedAt: DateTime.utc(2026),
+              ),
+          ];
 
   @override
   Future<void> append(MissionEvidenceAction action) async {

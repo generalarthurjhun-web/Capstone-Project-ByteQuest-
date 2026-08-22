@@ -27,13 +27,37 @@ final List<MissionSimulationDefinition> _coc3Definitions = [
           'Record the hardware, software, and infrastructure requirements.',
           InteractionFamily.inspect,
           'identify_requirements',
-          presentation: const {'component': 'multi_select'}),
+          presentation: const {
+            'component': 'scenario_decision',
+            'choices': [
+              {
+                'id': 'record_server_requirements',
+                'label':
+                    'Record power, network, storage, and installation-media requirements',
+              },
+              {
+                'id': 'escalate_missing_requirements',
+                'label':
+                    'Escalate incomplete infrastructure requirements before installation',
+              },
+            ],
+          }),
       _phase(
           'Decide server role',
           'Choose the server role that fits the stated service request.',
           InteractionFamily.decide,
           'decide_server_role',
-          presentation: const {'component': 'scenario_decision'}),
+          presentation: const {
+            'component': 'scenario_decision',
+            'choices': [
+              {'id': 'file_service', 'label': 'File and access service'},
+              {
+                'id': 'network_service',
+                'label': 'Network infrastructure service'
+              },
+              {'id': 'application_service', 'label': 'Application service'},
+            ],
+          }),
       _phase(
           'Check readiness',
           'Run the network and workspace readiness checks.',
@@ -71,7 +95,23 @@ final List<MissionSimulationDefinition> _coc3Definitions = [
           'Record server-role and base-configuration decisions.',
           InteractionFamily.decide,
           'decide_roles_and_config',
-          presentation: const {'component': 'configuration_decision'}),
+          presentation: const {
+            'component': 'configuration_decision',
+            'fields': [
+              {
+                'id': 'server_role',
+                'label': 'Server role',
+                'type': 'dropdown',
+                'options': [
+                  {'id': 'file_service', 'label': 'File service'},
+                  {'id': 'directory_service', 'label': 'Directory service'},
+                  {'id': 'network_service', 'label': 'Network service'},
+                ],
+              },
+              {'id': 'host_name', 'label': 'Server host name'},
+              {'id': 'management_address', 'label': 'Management address'},
+            ],
+          }),
       _phase('Simulate installation', 'Run the recorded installation sequence.',
           InteractionFamily.configure, 'simulate_install',
           presentation: const {'component': 'sequencing'}),
@@ -80,7 +120,20 @@ final List<MissionSimulationDefinition> _coc3Definitions = [
           'Restart the simulated server and observe its state transition.',
           InteractionFamily.configure,
           'simulate_restart',
-          presentation: const {'action_type': 'server_restart_requested'}),
+          presentation: const {
+            'component': 'scenario_decision',
+            'action_type': 'server_restart_requested',
+            'choices': [
+              {
+                'id': 'restart_after_configuration',
+                'label': 'Restart after saving the recorded configuration',
+              },
+              {
+                'id': 'defer_restart',
+                'label': 'Defer restart and review pending configuration',
+              },
+            ],
+          }),
       _phase('Verify services', 'Run service-readiness checks after restart.',
           InteractionFamily.testRun, 'verify_services'),
       _phase(
@@ -109,7 +162,30 @@ final List<MissionSimulationDefinition> _coc3Definitions = [
           'Create identity records and assign resource permissions.',
           InteractionFamily.troubleshoot,
           'configure_accounts_groups_permissions',
-          presentation: const {'component': 'configuration'}),
+          presentation: const {
+            'component': 'configuration',
+            'fields': [
+              {'id': 'account_name', 'label': 'Account name'},
+              {
+                'id': 'group_assignment',
+                'label': 'Group assignment',
+                'type': 'dropdown',
+                'options': [
+                  {'id': 'learners', 'label': 'Learners'},
+                  {'id': 'support', 'label': 'Support'},
+                ],
+              },
+              {
+                'id': 'resource_permission',
+                'label': 'Resource permission',
+                'type': 'dropdown',
+                'options': [
+                  {'id': 'read', 'label': 'Read'},
+                  {'id': 'modify', 'label': 'Modify'},
+                ],
+              },
+            ],
+          }),
       _phase(
           'Inspect and test access',
           'Inspect effective access, then run the client access test.',
@@ -165,7 +241,7 @@ final List<MissionSimulationDefinition> _coc3Definitions = [
         InteractionFamily.testRun,
         'retest_client_access',
         presentation: const {
-          'actionType': 'retest_requested',
+          'evidenceActionType': 'retest_requested',
           'target': 'retest_client_access',
         },
       ),
@@ -194,19 +270,54 @@ final List<MissionSimulationDefinition> _coc3Definitions = [
           'Inspect service',
           'Inspect installed service state and configuration surfaces.',
           InteractionFamily.configure,
-          'inspect_service'),
+          'inspect_service',
+          presentation: const {'component': 'tap_inspect'}),
       _phase(
           'Configure service',
           'Record service values and operating settings.',
           InteractionFamily.configure,
           'configure_service',
-          presentation: const {'component': 'configuration'}),
+          presentation: const {
+            'component': 'configuration',
+            'fields': [
+              {'id': 'service_name', 'label': 'Service name'},
+              {'id': 'listen_port', 'label': 'Listening port'},
+              {
+                'id': 'startup_mode',
+                'label': 'Startup mode',
+                'type': 'dropdown',
+                'options': [
+                  {'id': 'automatic', 'label': 'Automatic'},
+                  {'id': 'manual', 'label': 'Manual'},
+                ],
+              },
+            ],
+          }),
       _phase(
           'Start, stop, and inspect status',
           'Record service controls and the resulting status.',
           InteractionFamily.configure,
           'start_stop_status',
-          presentation: const {'component': 'service_controls'}),
+          presentation: const {
+            'component': 'service_controls',
+            'fields': [
+              {
+                'id': 'service_control',
+                'label': 'Service control',
+                'type': 'dropdown',
+                'options': [
+                  {'id': 'start', 'label': 'Start service'},
+                  {'id': 'stop', 'label': 'Stop service'},
+                  {'id': 'restart', 'label': 'Restart service'},
+                ],
+              },
+              {
+                'id': 'status_inspected',
+                'label': 'Resulting status inspected',
+                'type': 'toggle',
+              },
+            ],
+          }),
       _phase(
           'Test client access',
           'Run the client request against the configured service.',
@@ -245,12 +356,48 @@ final List<MissionSimulationDefinition> _coc3Definitions = [
           'Inspect client and server',
           'Inspect visible client and server state.',
           InteractionFamily.troubleshoot,
-          'inspect_client_and_server'),
+          'inspect_client_and_server',
+          presentation: _progressiveDiagnostics(
+            symptom:
+                'A client has lost access to a previously available server resource.',
+            actions: const [
+              (
+                'inspect_client_message',
+                'Inspect client message',
+                'client_message_fact',
+                'The client reports Access denied while the server name resolves to 192.168.30.10.'
+              ),
+              (
+                'inspect_server_console',
+                'Inspect server console',
+                'server_console_fact',
+                'The server console reports the file service Running with no active storage warning.'
+              ),
+            ],
+          )),
       _phase(
           'Inspect service and configuration',
           'Inspect service, connectivity, and permission surfaces.',
           InteractionFamily.troubleshoot,
-          'inspect_service_and_config'),
+          'inspect_service_and_config',
+          presentation: _progressiveDiagnostics(
+            symptom:
+                'Determine whether the interruption is caused by the service, network path, or access scope.',
+            actions: const [
+              (
+                'inspect_listener_state',
+                'Inspect listener state',
+                'listener_state_fact',
+                'The service monitor lists TCP port 445 as Listening on the server address.'
+              ),
+              (
+                'inspect_permission_summary',
+                'Inspect permission summary',
+                'permission_summary_fact',
+                'The share permission summary grants Change to Support and Read to Learners.'
+              ),
+            ],
+          )),
       _phase(
         'Troubleshoot connectivity and permissions',
         'Reveal one client-server fact for each diagnostic action.',
@@ -300,7 +447,7 @@ final List<MissionSimulationDefinition> _coc3Definitions = [
         InteractionFamily.testRun,
         'retest_recovery',
         presentation: const {
-          'actionType': 'retest_requested',
+          'evidenceActionType': 'retest_requested',
           'target': 'retest_service_access',
         },
       ),

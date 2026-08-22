@@ -69,10 +69,16 @@ void main() {
       activeActions: () async => [
         {
           'sequence_number': 1,
+          'id': 'record-1',
           'action_type': action.actionType,
           'target': action.target,
-          'value': {'client_action_id': action.clientActionId},
+          'value': {
+            'client_action_id': action.clientActionId,
+            'mission_id': action.missionId,
+            'phase_id': action.phaseId,
+          },
           'client_occurred_at': action.occurredAt.toIso8601String(),
+          'recorded_at': action.occurredAt.toIso8601String(),
         },
       ],
       rpc: (function, params) async {

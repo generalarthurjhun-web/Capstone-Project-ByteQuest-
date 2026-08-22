@@ -2,6 +2,15 @@
 
 This tracked index links every timestamped failure entry in the append-only [implementation failure ledger](BYTEQUEST_IMPLEMENTATION_FAILURES.md). Each entry retains the operation, location, observed result, root cause, primary solution, alternatives, and status.
 
+57. [2026-08-22 13:54:55 — Final catalog render RED](BYTEQUEST_IMPLEMENTATION_FAILURES.md#2026-08-22-135455-0800--final-catalog-render-red)
+58. [2026-08-22 13:54:55 — Canonical interaction-family RED](BYTEQUEST_IMPLEMENTATION_FAILURES.md#2026-08-22-135455-0800--canonical-interaction-family-red)
+59. [2026-08-22 13:54:55 — Full-action restore RED](BYTEQUEST_IMPLEMENTATION_FAILURES.md#2026-08-22-135455-0800--full-action-restore-red)
+60. [2026-08-22 13:54:55 — Restore implementation compile and validation RED](BYTEQUEST_IMPLEMENTATION_FAILURES.md#2026-08-22-135455-0800--restore-implementation-compile-and-validation-red)
+61. [2026-08-22 13:54:55 — TestRun terminal-action RED](BYTEQUEST_IMPLEMENTATION_FAILURES.md#2026-08-22-135455-0800--testrun-terminal-action-red)
+62. [2026-08-22 13:54:55 — Catalog connection scene RED](BYTEQUEST_IMPLEMENTATION_FAILURES.md#2026-08-22-135455-0800--catalog-connection-scene-red)
+63. [2026-08-22 13:54:55 — Composite interpretation and restore-fixture RED](BYTEQUEST_IMPLEMENTATION_FAILURES.md#2026-08-22-135455-0800--composite-interpretation-and-restore-fixture-red)
+64. [2026-08-22 13:54:55 — Static SQL assertion wording mismatch](BYTEQUEST_IMPLEMENTATION_FAILURES.md#2026-08-22-135455-0800--static-sql-assertion-wording-mismatch)
+
 1. [2026-08-20 20:31:08 — Simulation framework discovery path](BYTEQUEST_IMPLEMENTATION_FAILURES.md#2026-08-20-203108-0800--simulation-framework-discovery-path)
 2. [2026-08-20 21:19:53 — SDD workspace helper access](BYTEQUEST_IMPLEMENTATION_FAILURES.md#2026-08-20-211953-0800--sdd-workspace-helper-access)
 3. [2026-08-20 21:22:17 — Flutter SDK-cache access](BYTEQUEST_IMPLEMENTATION_FAILURES.md#2026-08-20-212217-0800--flutter-sdk-cache-access)

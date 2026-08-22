@@ -39,6 +39,68 @@ void main() {
     );
   });
 
+  test('definition rejects declared and rendered interaction divergence', () {
+    final divergent = MissionPhaseDefinition(
+      id: 'choose-components',
+      title: 'Choose components',
+      instruction: 'Select the required components.',
+      primaryInteraction: InteractionFamily.decide,
+      presentation: const {
+        'component': 'multi_select',
+        'options': [
+          {'id': 'memory', 'label': 'Memory module'},
+        ],
+      },
+    );
+
+    expect(
+      () => _definition(
+        phases: [
+          divergent,
+          _phase(id: 'verify', primaryInteraction: InteractionFamily.testRun),
+          _phase(id: 'review', primaryInteraction: InteractionFamily.review),
+        ],
+        interactionFamilies: const {
+          InteractionFamily.decide,
+          InteractionFamily.testRun,
+          InteractionFamily.review,
+        },
+      ),
+      throwsArgumentError,
+    );
+  });
+
+  test('rendered selection is a real technical decision family', () {
+    final definition = _definition(
+      phases: [
+        MissionPhaseDefinition(
+          id: 'select',
+          title: 'Select components',
+          instruction: 'Choose the components required for service.',
+          primaryInteraction: InteractionFamily.select,
+          presentation: const {
+            'component': 'multi_select',
+            'options': [
+              {'id': 'memory', 'label': 'Memory module'},
+            ],
+          },
+        ),
+        _phase(id: 'verify', primaryInteraction: InteractionFamily.testRun),
+        _phase(id: 'review', primaryInteraction: InteractionFamily.review),
+      ],
+      interactionFamilies: const {
+        InteractionFamily.select,
+        InteractionFamily.testRun,
+      },
+    );
+
+    expect(definition.interactionFamilies, {
+      InteractionFamily.select,
+      InteractionFamily.testRun,
+    });
+    expect(definition.hasTechnicalDecision, isTrue);
+  });
+
   test('definition rejects interaction family counts outside two to four', () {
     expect(
       () => _definition(

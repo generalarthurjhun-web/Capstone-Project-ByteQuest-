@@ -488,14 +488,18 @@ Rect _mappedRect(
     object.width * viewport.width,
     object.height * viewport.height,
   );
-  final width = logicalRect.width.clamp(
-    math.min(minimumTapExtent, viewport.width),
-    viewport.width,
-  ).toDouble();
-  final height = logicalRect.height.clamp(
-    math.min(minimumTapExtent, viewport.height),
-    viewport.height,
-  ).toDouble();
+  final width = logicalRect.width
+      .clamp(
+        math.min(minimumTapExtent, viewport.width),
+        viewport.width,
+      )
+      .toDouble();
+  final height = logicalRect.height
+      .clamp(
+        math.min(minimumTapExtent, viewport.height),
+        viewport.height,
+      )
+      .toDouble();
   final left = (logicalRect.center.dx - width / 2)
       .clamp(0.0, (viewport.width - width).clamp(0.0, viewport.width));
   final top = (logicalRect.center.dy - height / 2)
@@ -511,9 +515,11 @@ List<SceneConnectionSegment> _connectionsFor(
 ) {
   final nodes = <String, ({String objectId, Offset center})>{};
   for (final object in objects) {
-    for (final node in object.connectionNodeIds) {
-      nodes[node] =
-          (objectId: object.id, center: mappedObjects[object.id]!.center);
+    final objectNode =
+        (objectId: object.id, center: mappedObjects[object.id]!.center);
+    nodes[object.id] = objectNode;
+    for (final nodeId in object.connectionNodeIds) {
+      nodes[nodeId] = objectNode;
     }
   }
   final segments = <SceneConnectionSegment>[];

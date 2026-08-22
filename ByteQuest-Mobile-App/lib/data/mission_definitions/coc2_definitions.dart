@@ -18,16 +18,72 @@ final List<MissionSimulationDefinition> _coc2Definitions = [
     phases: [
       _phase(
           'Identify materials',
-          'Inspect and identify the available network materials.',
+          'Inspect the available materials and apply the preparation tool to the selected cable target.',
           InteractionFamily.connect,
           'identify_materials',
-          presentation: const {'component': 'tap_inspect'}),
+          presentation: const {
+            'component': 'tool_selection',
+            'targets': [
+              {
+                'id': 'copper_cable',
+                'label': 'Copper network cable',
+                'category': 'copper_cable',
+              },
+              {
+                'id': 'rj45_connector',
+                'label': 'RJ45 connector',
+                'category': 'modular_connector',
+              },
+            ],
+            'tools': [
+              {
+                'id': 'wire_stripper',
+                'label': 'Wire stripper',
+                'category': 'cable_preparation',
+                'compatible_categories': ['copper_cable'],
+              },
+              {
+                'id': 'crimping_tool',
+                'label': 'Crimping tool',
+                'category': 'termination',
+                'compatible_categories': ['modular_connector'],
+              },
+            ],
+          }),
       _phase(
           'Select tools',
           'Select the tools needed for the planned cable work.',
           InteractionFamily.decide,
           'select_tools',
-          presentation: const {'component': 'tool_selection'}),
+          presentation: const {
+            'component': 'tool_selection',
+            'targets': [
+              {
+                'id': 'copper_cable',
+                'label': 'Prepared cable run',
+                'category': 'copper_cable',
+              },
+              {
+                'id': 'lan_cable_tester',
+                'label': 'Completed cable link',
+                'category': 'terminated_link',
+              },
+            ],
+            'tools': [
+              {
+                'id': 'crimping_tool',
+                'label': 'Crimping tool',
+                'category': 'termination',
+                'compatible_categories': ['copper_cable'],
+              },
+              {
+                'id': 'lan_cable_tester',
+                'label': 'LAN cable tester',
+                'category': 'verification',
+                'compatible_categories': ['terminated_link'],
+              },
+            ],
+          }),
       _phase(
           'Sequence preparation',
           'Record the cable-preparation actions chronologically.',
@@ -55,7 +111,10 @@ final List<MissionSimulationDefinition> _coc2Definitions = [
           'Run the cable test and record an interpretation of the indicators.',
           InteractionFamily.testRun,
           'test_and_interpret',
-          presentation: const {'component': 'test_with_interpretation'}),
+          presentation: const {
+            'component': 'test_with_interpretation',
+            'requires_interpretation': true,
+          }),
       _phase(
           'Review evidence',
           'Review material, preparation, connection, and tester evidence.',
@@ -81,11 +140,27 @@ final List<MissionSimulationDefinition> _coc2Definitions = [
     phases: [
       _phase(
         'Inspect topology',
-        'Inspect device ports and prepare personal protective equipment and tools.',
+        'Inspect device ports and record personal protective equipment and tool preparation.',
         InteractionFamily.connect,
         'inspect_topology',
         presentation: const {
-          'component': 'tap_inspect',
+          'component': 'configuration_decision',
+          'fields': [
+            {
+              'id': 'ppe_prepared',
+              'label': 'PPE and ESD protection prepared',
+              'type': 'toggle',
+            },
+            {
+              'id': 'termination_tool',
+              'label': 'Termination tool',
+              'type': 'dropdown',
+              'options': [
+                {'id': 'crimping_tool', 'label': 'Crimping tool'},
+                {'id': 'punch_down_tool', 'label': 'Punch-down tool'},
+              ],
+            },
+          ],
           'evidence_actions': [
             {'action_type': 'ppe_selection_submitted'},
             {'action_type': 'tools_materials_selection_submitted'},
@@ -142,6 +217,22 @@ final List<MissionSimulationDefinition> _coc2Definitions = [
         'configure_devices',
         presentation: const {
           'component': 'configuration',
+          'fields': [
+            {
+              'id': 'workstation_interface',
+              'label': 'Workstation interface mode',
+              'type': 'dropdown',
+              'options': [
+                {'id': 'ethernet_auto', 'label': 'Ethernet auto-negotiate'},
+                {'id': 'ethernet_manual', 'label': 'Ethernet manual'},
+              ],
+            },
+            {
+              'id': 'physical_link_inspected',
+              'label': 'Physical link inspected',
+              'type': 'toggle',
+            },
+          ],
           'evidence_actions': [
             {'action_type': 'inspection_selection_submitted'},
           ],
@@ -219,7 +310,20 @@ final List<MissionSimulationDefinition> _coc2Definitions = [
           'Fix invalid link',
           'Choose and apply a repair for the recorded invalid link.',
           InteractionFamily.decide,
-          'fix_invalid_link'),
+          'fix_invalid_link',
+          presentation: const {
+            'component': 'scenario_decision',
+            'choices': [
+              {
+                'id': 'isolate_invalid_link',
+                'label': 'Isolate the failed link and re-seat both endpoints',
+              },
+              {
+                'id': 'replace_link_segment',
+                'label': 'Replace the measured faulty cable segment',
+              },
+            ],
+          }),
       _phase(
           'Verify topology',
           'Run topology verification after the link repair.',
@@ -243,14 +347,39 @@ final List<MissionSimulationDefinition> _coc2Definitions = [
       'configuration_console': 'Configuration console',
     },
     phases: [
-      _phase('Select device', 'Inspect and select the device to configure.',
-          InteractionFamily.configure, 'select_device'),
+      _phase(
+        'Select device',
+        'Inspect and select the device to configure.',
+        InteractionFamily.configure,
+        'select_device',
+        presentation: const {
+          'component': 'configuration_decision',
+          'fields': [
+            {
+              'id': 'device_context',
+              'label': 'Device context',
+              'type': 'dropdown',
+              'options': [
+                {'id': 'router', 'label': 'Router'},
+                {'id': 'managed_switch', 'label': 'Managed switch'},
+              ],
+            },
+          ],
+        },
+      ),
       _phase(
           'Configure network',
           'Record interface and network configuration values.',
           InteractionFamily.configure,
           'configure_network',
-          presentation: const {'component': 'configuration'}),
+          presentation: const {
+            'component': 'configuration',
+            'fields': [
+              {'id': 'interface_address', 'label': 'Interface address'},
+              {'id': 'subnet_mask', 'label': 'Subnet mask'},
+              {'id': 'default_gateway', 'label': 'Default gateway'},
+            ],
+          }),
       _phase('Test connectivity', 'Run the initial connectivity test.',
           InteractionFamily.testRun, 'test_connectivity'),
       _phase('Interpret result', 'Interpret the displayed connectivity output.',
@@ -260,7 +389,18 @@ final List<MissionSimulationDefinition> _coc2Definitions = [
           'Correct and retest',
           'Record a supported configuration correction and repeat the test.',
           InteractionFamily.configure,
-          'correct_and_retest'),
+          'correct_and_retest',
+          presentation: const {
+            'component': 'configuration',
+            'fields': [
+              {'id': 'corrected_value', 'label': 'Corrected interface value'},
+              {
+                'id': 'correction_applied',
+                'label': 'Correction applied before retest',
+                'type': 'toggle',
+              },
+            ],
+          }),
       _phase(
           'Review evidence',
           'Review device, configuration, test, and correction evidence.',
@@ -286,7 +426,24 @@ final List<MissionSimulationDefinition> _coc2Definitions = [
           'Inspect topology and configuration',
           'Inspect visible topology and recorded interface values.',
           InteractionFamily.troubleshoot,
-          'inspect_topology_and_config'),
+          'inspect_topology_and_config',
+          presentation: _progressiveDiagnostics(
+            symptom: 'The workstation cannot reach the local service host.',
+            actions: const [
+              (
+                'inspect_visible_topology',
+                'Inspect visible topology',
+                'visible_topology_fact',
+                'The workstation and server link indicators are green, while the router uplink indicator is amber.'
+              ),
+              (
+                'inspect_recorded_address',
+                'Inspect recorded interface address',
+                'recorded_address_fact',
+                'The workstation records address 192.168.10.24/24 and gateway 192.168.20.1.'
+              ),
+            ],
+          )),
       _phase('Test connection', 'Run the initial end-to-end connectivity test.',
           InteractionFamily.testRun, 'test_connection'),
       _phase(
@@ -338,7 +495,7 @@ final List<MissionSimulationDefinition> _coc2Definitions = [
         InteractionFamily.testRun,
         'retest_network_path',
         presentation: const {
-          'actionType': 'retest_requested',
+          'evidenceActionType': 'retest_requested',
           'target': 'retest_network_path',
         },
       ),

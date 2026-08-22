@@ -1,3 +1,4 @@
+import 'package:bytequest/data/mission_simulation_definitions.dart';
 import 'package:bytequest/screens/simulation/components/hotspot_widget.dart';
 import 'package:bytequest/screens/simulation/components/scene_connection_painter.dart';
 import 'package:bytequest/screens/simulation/components/simulation_scene.dart';
@@ -128,6 +129,24 @@ void main() {
     expect(_connectionPainter(tester).progress, 1);
     expect(
         SceneConnectionPainter.drawDuration, const Duration(milliseconds: 200));
+  });
+
+  testWidgets('catalog object IDs resolve to connection nodes', (tester) async {
+    final definition = MissionSimulationDefinitions.byId('coc2_m3');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SimulationScene(
+            scene: definition.scene,
+            connectedNodePairs: const {'router>switch'},
+            onObjectSelected: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    expect(_connectionPainter(tester).connections, hasLength(1));
+    expect(_connectionPainter(tester).connections.single.id, 'router>switch');
   });
 }
 

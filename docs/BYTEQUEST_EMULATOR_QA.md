@@ -28,7 +28,7 @@ The APK installed successfully and reached onboarding and learner login without 
 
 ## Twenty-mission matrix
 
-Legend: **Contract pass** means catalog, launcher, interaction, accessibility, persistence, and runtime widget tests passed in the 169-test full suite. **Live unverified** means the installed APK could not enter the authenticated mission because no authorized learner credentials were supplied. It does not mean failure or pass.
+Legend: **Contract pass** means catalog, launcher, interaction, accessibility, persistence, and runtime widget tests passed in the current 189-test full suite. **Live unverified** means the installed APK could not enter the authenticated mission because no authorized learner credentials were supplied. It does not mean failure or pass.
 
 | Mission | Launch/scenario/scene/phases/feedback/evidence/review contract | Live emulator interaction | Pause/resume/submit lifecycle | Overall device status |
 |---|---|---|---|---|
@@ -55,7 +55,8 @@ Legend: **Contract pass** means catalog, launcher, interaction, accessibility, p
 
 ## Automated evidence used for the unverified live rows
 
-- Full Flutter suite: 169/169 passed.
+- Full Flutter suite: 189/189 passed in the final acceptance-gap closure wave.
+- Exhaustive catalog rendering: 116/116 phases rendered without `TechnicalUnavailable`; authenticated mission execution was not rerun.
 - Task 9 UI gate: 84/84 passed across scene, core/advanced interactions, runtime screen, accessibility matrix, and design system.
 - Catalog acceptance proves exactly 20 stable mission definitions, required interaction variety, diagnostic fact progression, correction/retest controls, and review phases.
 - Launcher/runtime tests prove all 20 default IDs resolve to the canonical runtime while protected legacy evaluator routes remain explicit.

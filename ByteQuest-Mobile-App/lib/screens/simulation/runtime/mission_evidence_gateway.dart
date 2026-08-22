@@ -3,7 +3,25 @@ import 'mission_runtime_models.dart';
 abstract interface class MissionEvidenceTransport {
   Future<void> append(MissionEvidenceAction action);
 
-  Future<Set<String>> acknowledgedClientActionIds();
+  Future<List<AcknowledgedMissionEvidenceAction>> readAcknowledgedActions();
+}
+
+/// One server-acknowledged action with stable record identity and ordering.
+///
+/// This transport envelope is intentionally separate from the persisted
+/// runtime JSON contract, which remains schema version 1.
+final class AcknowledgedMissionEvidenceAction {
+  const AcknowledgedMissionEvidenceAction({
+    required this.action,
+    required this.serverRecordId,
+    required this.serverOrder,
+    required this.recordedAt,
+  });
+
+  final MissionEvidenceAction action;
+  final String serverRecordId;
+  final int serverOrder;
+  final DateTime recordedAt;
 }
 
 /// Serializes evidence writes and reconciles locally durable actions against
@@ -19,9 +37,34 @@ final class MissionEvidenceGateway {
     return _enqueue(() => _transport.append(action));
   }
 
+  Future<List<AcknowledgedMissionEvidenceAction>> readAcknowledgedActions() {
+    return _enqueue(() async {
+      final records = await _transport.readAcknowledgedActions();
+      final byRecordId = <String, AcknowledgedMissionEvidenceAction>{};
+      final byActionId = <String>{};
+      for (final record in records.toList()
+        ..sort((left, right) {
+          final order = left.serverOrder.compareTo(right.serverOrder);
+          if (order != 0) return order;
+          final time = left.recordedAt.compareTo(right.recordedAt);
+          if (time != 0) return time;
+          return left.serverRecordId.compareTo(right.serverRecordId);
+        })) {
+        if (byRecordId.containsKey(record.serverRecordId) ||
+            !byActionId.add(record.action.clientActionId)) {
+          continue;
+        }
+        byRecordId[record.serverRecordId] = record;
+      }
+      return List.unmodifiable(byRecordId.values);
+    });
+  }
+
   Future<Set<String>> reconcile(Iterable<MissionEvidenceAction> actions) {
     return _enqueue(() async {
-      final acknowledged = await _transport.acknowledgedClientActionIds();
+      final records = await _transport.readAcknowledgedActions();
+      final acknowledged =
+          records.map((record) => record.action.clientActionId).toSet();
       var iterableIndex = 0;
       final ordered = actions
           .map((action) => _IndexedEvidenceAction(action, iterableIndex++))

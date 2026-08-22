@@ -196,6 +196,67 @@ void main() {
     expect(actionTypes, ['test_completed']);
   });
 
+  testWidgets('combined test phase requires a recorded interpretation',
+      (tester) async {
+    final phase = _phase(
+      InteractionFamily.testRun,
+      id: 'test-and-interpret',
+      presentation: const {
+        'component': 'test_with_interpretation',
+        'requires_interpretation': true,
+      },
+    );
+    final actions = <String>[];
+    final scheduler = _FakeTestRunScheduler();
+    var state = MissionRuntimeState(missionId: 'mission');
+    Widget app() => _app(TestRunInteraction(
+          phase: phase,
+          state: state,
+          scheduler: scheduler,
+          onAction: (type, target, value) async {
+            actions.add(type);
+            if (value['test_status'] case final String status) {
+              state = state.withTestStatus(
+                target!,
+                MissionTestStatus.values.byName(status),
+              );
+            }
+            if (value['interpretation'] case final String interpretation) {
+              state = state.copyWith(
+                interpretations: {phase.id: interpretation},
+              );
+            }
+          },
+        ));
+
+    await tester.pumpWidget(app());
+    expect(
+        find.byKey(ValueKey('test-interpretation-${phase.id}')), findsNothing);
+    await tester.tap(find.widgetWithText(FilledButton, 'Run test'));
+    await tester.pumpWidget(app());
+    scheduler.last.fire();
+    await tester.pump();
+    await tester.pumpWidget(app());
+    expect(find.byKey(ValueKey('test-interpretation-${phase.id}')),
+        findsOneWidget);
+    await tester.enterText(
+      find.byKey(ValueKey('test-interpretation-${phase.id}')),
+      'The displayed indicator confirms end-to-end continuity.',
+    );
+    await tester.pump();
+    await tester.ensureVisible(
+      find.byKey(ValueKey('test-interpretation-record-${phase.id}')),
+    );
+    await tester.tap(
+      find.byKey(ValueKey('test-interpretation-record-${phase.id}')),
+    );
+    await tester.pumpWidget(app());
+
+    expect(actions, ['test_started', 'test_completed', 'result_interpreted']);
+    expect(state.interpretations[phase.id],
+        'The displayed indicator confirms end-to-end continuity.');
+  });
+
   testWidgets('platform disabled animations remove test run motion',
       (tester) async {
     final phase = _phase(InteractionFamily.testRun);
@@ -590,7 +651,7 @@ void main() {
       await tester.pumpWidget(app());
       await tester.tap(button);
       await tester.pumpWidget(app());
-      expect(actions.first['type'], 'retest_requested');
+      expect(actions.first['type'], 'test_started');
       expect(actions.first['target'], item.target);
       scheduler.last.fire();
       await tester.pump();
@@ -600,6 +661,16 @@ void main() {
       expect(
         state.testStatusFor(item.target),
         MissionTestStatus.completed,
+      );
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Run test again'));
+      await tester.pumpWidget(app());
+      scheduler.last.fire();
+      await tester.pump();
+      await tester.pumpWidget(app());
+      expect(
+        actions.map((action) => action['type']),
+        ['test_started', 'test_completed', 'test_started', 'test_completed'],
       );
 
       await tester.pumpWidget(const SizedBox.shrink());

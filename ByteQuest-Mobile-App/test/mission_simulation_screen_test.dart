@@ -236,18 +236,24 @@ void main() {
         occurredAt: DateTime.utc(2026, 8, 22),
       );
       final appendGate = Completer<void>();
-      final transport = _MemoryTransport(appendGate: appendGate);
+      final transport = _MemoryTransport(
+        appendGate: appendGate,
+        readError: StateError('offline'),
+      );
+      final localState = MissionRuntimeState.initial(definition.id).copyWith(
+        currentPhaseId: definition.phases.last.id,
+        completedPhaseIds: definition.phases
+            .take(definition.phases.length - 1)
+            .map((phase) => phase.id)
+            .toSet(),
+        pendingEvidence: [pending],
+      );
+      final store = _MemoryStore()..saved = localState;
       final controller = _controller(
         definition,
+        store: store,
         transport: transport,
-        initialState: MissionRuntimeState.initial(definition.id).copyWith(
-          currentPhaseId: definition.phases.last.id,
-          completedPhaseIds: definition.phases
-              .take(definition.phases.length - 1)
-              .map((phase) => phase.id)
-              .toSet(),
-          pendingEvidence: [pending],
-        ),
+        initialState: localState,
       );
 
       await tester.pumpWidget(_host(definition, controller: controller));
@@ -267,6 +273,7 @@ void main() {
         isNull,
       );
 
+      transport.readError = null;
       await tester.tap(retry);
       await tester.pump();
 
@@ -331,6 +338,51 @@ void main() {
       );
       expect(controller.state.acceptedEvidenceIds, hasLength(1));
     });
+
+    testWidgets('configured test evidence type is emitted only on completion',
+        (tester) async {
+      final definition = MissionSimulationDefinitions.byId('coc2_m5');
+      final phase = definition.phases.singleWhere(
+        (item) => (item.presentation['mechanics'] as List)
+            .contains('retest_network_path'),
+      );
+      final transport = _MemoryTransport();
+      final controller = _controller(
+        definition,
+        transport: transport,
+        initialState: MissionRuntimeState.initial(definition.id).copyWith(
+          currentPhaseId: phase.id,
+        ),
+      );
+
+      await tester.pumpWidget(_host(definition, controller: controller));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Run test'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Run test again'));
+      await tester.pumpAndSettle();
+
+      expect(
+        transport.appendedActions.map((action) => action.actionType),
+        [
+          'test_started',
+          'retest_requested',
+          'test_started',
+          'retest_requested',
+        ],
+      );
+      expect(
+        transport.appendedActions
+            .where((action) => action.actionType == 'retest_requested'),
+        hasLength(2),
+      );
+      expect(
+        transport.appendedActions.map(
+          (action) => action.value['runtime_action_type'],
+        ),
+        ['test_started', 'test_completed', 'test_started', 'test_completed'],
+      );
+    });
   });
 
   group('MissionPhaseInteraction', () {
@@ -350,6 +402,49 @@ void main() {
       InteractionFamily.interpret: ResultInterpretationInteraction,
       InteractionFamily.review: EvidenceReviewPanel,
     };
+
+    testWidgets('renders every catalog phase without technical unavailability',
+        (tester) async {
+      final failures = <String>[];
+      for (final definition in MissionSimulationDefinitions.all) {
+        for (final phase in definition.phases) {
+          await tester.pumpWidget(MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: MissionPhaseInteraction(
+                  phase: phase,
+                  state: MissionRuntimeState.initial(definition.id).copyWith(
+                    currentPhaseId: phase.id,
+                  ),
+                  onAction: (_, __, ___) async {},
+                  onRuntimeTransition: (_) {},
+                  onReturnFromReview: () {},
+                  onConfirmReview: () {},
+                ),
+              ),
+            ),
+          ));
+          await tester.pump();
+
+          final renderedWidgets = expectedWidgets.values
+              .where((type) => find.byType(type).evaluate().isNotEmpty)
+              .toList(growable: false);
+          final exception = tester.takeException();
+          if (find.byType(TechnicalUnavailableState).evaluate().isNotEmpty ||
+              renderedWidgets.length != 1 ||
+              exception != null) {
+            failures.add(
+              '${definition.id}/${phase.id}: '
+              'widgets=$renderedWidgets exception=$exception',
+            );
+          }
+        }
+      }
+      if (failures.isNotEmpty) {
+        debugPrint(failures.join('\n'));
+      }
+      expect(failures, isEmpty);
+    });
 
     for (final entry in expectedWidgets.entries) {
       testWidgets('maps ${entry.key.name} to ${entry.value}', (tester) async {
@@ -703,18 +798,40 @@ final class _MemoryStore implements MissionRuntimeStore {
 }
 
 final class _MemoryTransport implements MissionEvidenceTransport {
-  _MemoryTransport({this.appendGate});
+  _MemoryTransport({this.appendGate, this.readError});
 
   final Completer<void>? appendGate;
+  Object? readError;
   final Set<String> accepted = <String>{};
   final List<String> appendedIds = <String>[];
+  final List<MissionEvidenceAction> appendedActions = <MissionEvidenceAction>[];
 
   @override
-  Future<Set<String>> acknowledgedClientActionIds() async => accepted;
+  Future<List<AcknowledgedMissionEvidenceAction>>
+      readAcknowledgedActions() async {
+    if (readError case final error?) throw error;
+    return [
+      for (final (index, id) in accepted.indexed)
+        AcknowledgedMissionEvidenceAction(
+          action: MissionEvidenceAction(
+            clientActionId: id,
+            missionId: 'coc1_m1',
+            phaseId: 'coc1_m1_p1',
+            actionType: 'object_inspected',
+            value: const {},
+            occurredAt: DateTime.utc(2026),
+          ),
+          serverRecordId: 'server-$id',
+          serverOrder: index + 1,
+          recordedAt: DateTime.utc(2026),
+        ),
+    ];
+  }
 
   @override
   Future<void> append(MissionEvidenceAction action) async {
     appendedIds.add(action.clientActionId);
+    appendedActions.add(action);
     await appendGate?.future;
     accepted.add(action.clientActionId);
   }
