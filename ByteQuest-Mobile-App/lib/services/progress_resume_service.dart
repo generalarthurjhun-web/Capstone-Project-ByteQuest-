@@ -120,8 +120,13 @@ class ProgressResumeService {
       if (snapshot['mode'] != mode.name) return null;
       if (snapshot['assessmentAttemptId'] != assessmentAttemptId) return null;
       return MissionRuntimeState.fromJson(snapshot);
-    } catch (error) {
-      debugPrint('Mission runtime resume load failed: $error');
+    } catch (error, stackTrace) {
+      debugPrint(
+        '[ByteQuest restore] local snapshot load failed: '
+        'missionId=$missionId expectedRuntimeStateVersion='
+        '${MissionRuntimeState.schemaVersion} error=$error',
+      );
+      debugPrintStack(stackTrace: stackTrace);
       return null;
     }
   }

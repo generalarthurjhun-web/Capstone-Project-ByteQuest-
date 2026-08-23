@@ -103,6 +103,42 @@ void main() {
     expect(transport.appendedIds, isEmpty);
   });
 
+  test('restore ignores acknowledged actions from other missions', () async {
+    final definition = MissionSimulationDefinitions.byId('coc2_m5');
+    final unrelated = _actionFor(
+      id: 'coc2-m1-action',
+      missionId: 'coc2_m1',
+      phaseId: 'briefing',
+      actionType: 'phase_completed',
+      target: 'inspect',
+    );
+    final current = _actionFor(
+      id: 'coc2-m5-action',
+      missionId: definition.id,
+      phaseId: definition.phases.first.id,
+      actionType: 'phase_completed',
+      target: definition.phases[1].id,
+    );
+    final controller = _controller(
+      store: _FakeRuntimeStore(),
+      transport: _FakeEvidenceTransport(
+        acknowledgedActions: [
+          _acknowledged(unrelated, order: 1),
+          _acknowledged(current, order: 2),
+        ],
+      ),
+      initialState: MissionRuntimeState.initial(definition.id).copyWith(
+        currentPhaseId: definition.phases.first.id,
+      ),
+      restoreReducer: MissionRuntimeActionReducer(definition),
+    );
+
+    await controller.restore();
+
+    expect(controller.state.currentPhaseId, definition.phases[1].id);
+    expect(controller.state.acceptedEvidenceIds, {current.clientActionId});
+  });
+
   test('restore replaces stale state then de-duplicates pending server action',
       () async {
     final definition = MissionSimulationDefinitions.byId('coc2_m3');

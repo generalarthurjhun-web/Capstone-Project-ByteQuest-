@@ -128,7 +128,9 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
             'Saved progress references a mission phase that is no longer '
             'available.';
       }
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint('[ByteQuest restore] screen failure: $error');
+      debugPrintStack(stackTrace: stackTrace);
       _restoreFailure =
           'Saved progress could not be restored for this mission session.';
     } finally {
@@ -151,7 +153,9 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
       _restoreFailure = null;
       _technicalFeedback = null;
       _submitted = false;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint('[ByteQuest restore] reset failure: $error');
+      debugPrintStack(stackTrace: stackTrace);
       _restoreFailure =
           'Saved progress could not be reset. Retry or return to the mission '
           'list.';

@@ -1,28 +1,66 @@
 import 'package:bytequest/models/mission_model.dart';
 import 'package:bytequest/screens/simulation/mission_launcher.dart';
-import 'package:bytequest/screens/simulation/mission_simulation_screen.dart';
 import 'package:bytequest/screens/simulation/templates/authoritative_mission_assessment_screen.dart';
 import 'package:bytequest/screens/simulation/templates/coc1_m2_screen_enhanced.dart';
 import 'package:bytequest/screens/simulation/templates/coc1_m3_screen_enhanced.dart';
 import 'package:bytequest/screens/simulation/templates/coc2_cable_termination_assessment_screen.dart';
+import 'package:bytequest/screens/simulation/templates/configuration_mission_screen.dart';
+import 'package:bytequest/screens/simulation/templates/drag_drop_mission_screen.dart';
+import 'package:bytequest/screens/simulation/templates/identification_mission_screen.dart';
+import 'package:bytequest/screens/simulation/templates/identification_mission_screen_enhanced.dart';
+import 'package:bytequest/screens/simulation/templates/step_procedure_mission_screen.dart';
+import 'package:bytequest/screens/simulation/templates/troubleshooting_mission_screen.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('MissionLauncher.screenFor', () {
-    test('resolves all twenty catalog IDs through the simulation runtime', () {
-      for (var coc = 1; coc <= 4; coc++) {
-        for (var number = 1; number <= 5; number++) {
-          final id = 'coc${coc}_m$number';
-          final screen = MissionLauncher.screenFor(_mission(id));
+    test('restores the intended practice template for every mission', () {
+      final expected = <String, Type>{
+        'coc1_m1': IdentificationMissionScreenEnhanced,
+        'coc1_m2': COC1M2ScreenEnhanced,
+        'coc1_m3': COC1M3ScreenEnhanced,
+        'coc1_m4': ConfigurationMissionScreen,
+        'coc1_m5': StepProcedureMissionScreen,
+        'coc2_m1': IdentificationMissionScreenEnhanced,
+        'coc2_m2': DragDropMissionScreen,
+        'coc2_m3': StepProcedureMissionScreen,
+        'coc2_m4': DragDropMissionScreen,
+        'coc2_m5': ConfigurationMissionScreen,
+        'coc3_m1': IdentificationMissionScreen,
+        'coc3_m2': StepProcedureMissionScreen,
+        'coc3_m3': ConfigurationMissionScreen,
+        'coc3_m4': ConfigurationMissionScreen,
+        'coc3_m5': TroubleshootingMissionScreen,
+        'coc4_m1': IdentificationMissionScreen,
+        'coc4_m2': StepProcedureMissionScreen,
+        'coc4_m3': TroubleshootingMissionScreen,
+        'coc4_m4': TroubleshootingMissionScreen,
+        'coc4_m5': TroubleshootingMissionScreen,
+      };
 
-          expect(screen, isA<MissionSimulationScreen>(), reason: id);
-          expect(
-            (screen as MissionSimulationScreen).definition.id,
-            id,
-            reason: id,
-          );
-        }
+      for (final entry in expected.entries) {
+        expect(
+          MissionLauncher.screenFor(_mission(entry.key)),
+          isA<dynamic>().having(
+            (screen) => screen.runtimeType,
+            'runtime type',
+            entry.value,
+          ),
+          reason: entry.key,
+        );
       }
+    });
+
+    test('COC1 M1 keeps the image identification contract', () {
+      final screen = MissionLauncher.screenFor(_mission('coc1_m1'))
+          as IdentificationMissionScreenEnhanced;
+
+      expect(screen.questions, isNotEmpty);
+      expect(screen.hardwareItems, isNotEmpty);
+      expect(screen.hardwareItems!.map((item) => item.name),
+          containsAll(<String>['Motherboard', 'SSD']));
+      expect(screen.questions.map((question) => question.correctAnswer),
+          containsAll(<String>['Motherboard', 'SSD']));
     });
 
     test('fails clearly for an unknown mission ID', () {

@@ -140,6 +140,47 @@ Do not weaken authentication, RLS, backend evaluation, or instructor-release con
 - Remaining risks: full manual COC1 M1–M5 and COC2–COC4 M1–M5 traversal was not completed; authenticated Supabase evidence writes/reconciliation, backend evaluation, realtime instructor receipt/release, learner result propagation, and process-death/offline reconnect remain unverified. COC3/COC4 scene visuals remain generic schematic/track artwork. Startup jank and missing Supabase-config fail-closed behavior remain documented QA findings.
 - Next action: provision disposable learner/instructor fixtures, execute the 20-mission manual/runtime/backend acceptance matrix, capture evidence, then rerun QA_REPORT.md before any release decision.
 
+## Phase 10 release validation (2026-08-22)
+
+- Branch: `Dro-branch`. No Phase 10 commit or push was made.
+- Automated gates: `flutter test` passed (191 tests); `flutter analyze --no-fatal-infos` passed with 0 errors and 214 informational findings; `flutter build apk --debug` passed.
+- Emulator validation: entered Learn → Practice. COC1 M1–M5 launch checks were performed (M1/M2/M3/M5 visual captures; M4 launch returned to the catalog before capture). COC2 was only partially traversed. A saved-progress restore failure was reproduced while attempting a COC2 mission: retry/reset screen appeared, and reset allowed the mission to launch (BQ-P10-001). COC3 and COC4 were not reached in this pass.
+- Backend validation: static code mapping confirms practice evidence upsert/reconciliation, authoritative attempt submission/evaluation, instructor release, and learner realtime listeners. A live learner → instructor → release → learner run was not completed because no disposable instructor fixture/authorized assessment account was available.
+- Reliability/visual gaps: process-death resume, offline/reconnect synchronization, duplicate-evidence check, full submission/evaluation/realtime flow, and all-20 manual interaction checks remain unverified. COC3/COC4 visual quality remains an open audit area.
+- Release status: **NO-GO** pending isolation/fix of BQ-P10-001, an authorized backend lifecycle fixture, and complete COC1–COC4 manual traversal.
+- Exact next action: preserve the original restore exception in `MissionRuntimeController.restore()`, classify the failing snapshot/reconciliation condition, then rerun all 20 missions plus process-death/offline and instructor-release acceptance checks in a disposable Supabase test environment.
+
+## Phase 10.1 — BQ-P10-001 restore fix (2026-08-22)
+
+- Current branch: `Dro-branch`; no commit or push made.
+- Root cause: authoritative assessment restore reads the full active-attempt action timeline. `MissionRuntimeController.restore()` replayed actions from other missions through the active mission reducer; COC2 M1 evidence therefore caused the COC2 M5 reducer to throw `FormatException`, which the screen previously hid behind a generic restore message.
+- Fix: filter acknowledged actions by the active mission ID before reducer replay/reconciliation. Added structured restore diagnostics (mission ID, runtime schema version, snapshot timestamp, phase, evidence/pending counts, sync state, exception and stack trace). Local snapshot load and screen restore boundaries now retain stack diagnostics without deleting or resetting data.
+- Regression coverage: added `restore ignores acknowledged actions from other missions`; it failed before the fix with the exact cross-mission `FormatException` and passes after the fix.
+- Validation: `flutter test` passed (192 tests); `flutter analyze --no-fatal-infos` passed with 0 errors and 214 informational findings; `flutter build apk --debug` passed.
+- Remaining risks: live authenticated COC2 M5 exit/reopen validation and full Supabase lifecycle still require a disposable authorized learner/instructor fixture. Existing Phase 10 risks BQ-P10-002 and BQ-QA-001/002/003 remain.
+- Exact next action: install the new APK in an authorized session, create COC2 M5 progress, exit/reopen to verify the runtime snapshot and server reconciliation visually, then rerun the Phase 10 all-mission/backend release gate.
+
+## Phase 10.2 — Live restore and release validation (2026-08-22)
+
+- APK validation: latest debug APK installed and launched on `emulator-5554`.
+- Live restore: COC2 M5 first showed the deployed-backend failure with no local snapshot. After an intentional reset and one diagnostic action, force-stop/relaunch plus reopening COC2 M5 restored the same local phase/evidence without a restore-error screen. Diagnostics identified `PGRST205`: `public.practice_mission_actions` is missing from the Supabase schema cache.
+- Cross-mission isolation: controller regression test passes; local mission keys are isolated. Full live multi-mission proof remains blocked by the missing practice table.
+- New findings: BQ-P10.2-001 (P1, missing deployed practice evidence table) and BQ-P10.2-002 (P2, process death returns to home instead of prior mission route; saved mission state is recoverable by reopening the mission).
+- Manual smoke: COC2 M5 was launched and restored in the emulator. Full interaction traversal for every COC1–COC4 mission was not completed; COC3/COC4 were not reached in this pass.
+- Backend/security: live learner → instructor → release → learner lifecycle was blocked by the missing table and lack of an instructor fixture. Static RLS, authoritative RPC, realtime, and key-exposure review found no new client security issue.
+- Release status: **NO-GO** until the Supabase migration/schema cache is applied and the complete all-20 plus backend lifecycle run is completed.
+- Exact next action: apply/verify `20260822124500_practice_mission_evidence.sql` in the authorized Supabase project, refresh PostgREST schema cache, then rerun practice evidence sync, live multi-mission restore, all 20 mission smoke checks, and instructor release verification.
+
+## Supabase foundation schema repair (2026-08-23)
+
+- Branch: `Dro-branch`.
+- Added `supabase/migrations/20260807000000_initial_schema.sql` only; all existing incremental migrations remain unchanged.
+- Baseline coverage: account/user enums, profiles and Auth trigger, catalog identity tables, legacy simulation/criteria/result/progress tables, gamification/settings/notification/report/log tables, timestamp trigger, compatibility helpers, indexes, and RLS enablement required by later migrations.
+- Dependency audit source: every file in `supabase/migrations` plus `docs/CHECKPOINT_A_COLUMN_INVENTORY.md`; no seed rows or simplified replacements were added.
+- Validation: `supabase db push --linked --include-all --yes` passed all 37 migrations sequentially. `supabase migration list --linked` shows local/remote parity through `20260822124500`. Linked queries confirmed foundation tables, enums, and compatibility functions.
+- Local validation: `supabase db reset --local --no-seed --yes` is blocked because Docker/Podman is not installed (`LegacyLocalDbRunningError`); no local migration execution was possible.
+- Remaining task: install/start Docker Desktop or Podman and rerun local `supabase db reset --local --no-seed --yes` plus `supabase db push --local` to complete local-engine verification.
+
 ## Known non-blocking maintenance
 
 - Analyzer informational notices remain, primarily `prefer_const_constructors`, deprecated `.withOpacity`, and existing async-context notices.
@@ -191,3 +232,80 @@ Do not weaken authentication, RLS, backend evaluation, or instructor-release con
   3. Confirm the motherboard image is visible in the inspection card and scene; inspect logcat for successful asset resolution and absence of error-builder output.
   4. Repeat the same check across all 20 practice missions, including portrait entry, physical rotation, and orientation restoration after exit.
   5. Remove or gate temporary diagnostics if the review approves, rerun analyze/test/build, then request explicit commit approval.
+
+## Supabase cloud/application audit (2026-08-23)
+
+- Branch: `Dro-branch`; audit was read-only. No `db pull`, local reset, commit, or production code change was made.
+- Cloud migration history: local and remote match for all 37 migrations through `20260822124500`.
+- Verified Flutter integration: `.env` URL + publishable key loading, PKCE/token refresh, auth-state listener, profile-trigger provisioning contract, learner-only sign-in checks, mission projection RPC, practice evidence upsert/read path, and authoritative attempt RPC path.
+- Verified linked objects: `practice_mission_actions` exists with expected schema/index; `auth.users` has the profile provisioning trigger; all public base tables have RLS enabled; scoped policies exist for profiles, practice evidence, attempts, progress, results, and releases; mobile-referenced RPCs exist.
+- Security finding: linked ACL metadata still grants `authenticated` UPDATE/DELETE/TRUNCATE (and other table privileges) on `practice_mission_actions`, although the migration intends SELECT/INSERT only. RLS prevents ordinary row mutation, but this violates least privilege. Recorded as BQ-QA-004 in `QA_REPORT.md`; follow-up revoke migration is recommended and has not been applied.
+- No service-role key or JWT secret was found in committed mobile/dashboard source. Live learner→instructor→release→learner execution remains unverified without disposable authorized fixtures.
+- Exact next action: review/approve a narrowly scoped ACL-hardening migration for `practice_mission_actions`, apply it through the normal cloud migration workflow, then rerun the linked privilege/RLS checks and a live authenticated evidence/lifecycle test.
+
+## BQ-QA-004 remediation (2026-08-23)
+
+- Added `supabase/migrations/20260823100000_restrict_practice_evidence_privileges.sql`; existing migrations and Flutter code were not modified.
+- Applied successfully with `supabase db push --linked --include-all --yes`.
+- Verified linked ACL: `authenticated` retains only SELECT/INSERT on `practice_mission_actions` and sequence USAGE; `anon` has no table/sequence privileges; `service_role` remains functional.
+- Verified RLS policies are unchanged: learner-owned SELECT and INSERT policies remain active and scoped by `is_learner()` plus `auth.uid() = learner_id`.
+- Verified local/remote migration parity through `20260823100000`.
+- BQ-QA-004 status: **Resolved**.
+- Remaining task: run a live authenticated practice evidence append/read test with a valid learner fixture; no commit yet.
+
+## Live authenticated evidence validation (2026-08-23)
+
+- Supplied learner credentials are valid. Supabase Auth returned user `de4c5944-c0e4-4aee-8ef6-0304914e9296`; authenticated profile read confirmed `role=learner` and `status=active`.
+- Practice evidence validation is blocked by a new deployment issue BQ-QA-005: authenticated REST GET/POST/PATCH/DELETE requests for `practice_mission_actions` return HTTP 404 `PGRST205` (“table not found in schema cache”), despite linked PostgreSQL table, ACL, and RLS metadata being correct. Explicit PostgREST reload notifications did not clear it during this run.
+- No evidence row was created, and no update/delete/isolation behavior was bypassed or simulated with an elevated role. Attempt completion/retry/reconnect remains unverified for the same reason.
+- No Flutter or migration changes were made during this validation; no commit created.
+- Exact next action: refresh/restart the deployed PostgREST schema cache via the Supabase project control plane, then repeat the live learner evidence lifecycle and attempt persistence checks.
+
+## BQ-QA-005 PostgREST exposure investigation (2026-08-23)
+
+- Confirmed exactly one lowercase `public.practice_mission_actions` base table in linked PostgreSQL; migration committed and table is persistent. No alternate schema or casing mismatch exists.
+- `public` is exposed: authenticated REST reads of `profiles` and `attempt_actions` return HTTP 200. Only the practice evidence relation is absent from the API schema cache.
+- Added and applied `supabase/migrations/20260823110000_reload_postgrest_schema_cache.sql`, containing only `NOTIFY pgrst, 'reload schema'`; also issued direct `NOTIFY` and `pg_notify` calls. REST continued returning PGRST205 after the refresh attempts.
+- Finding: managed PostgREST cache/service is stale and not consuming database reload notifications. No Flutter, ACL, RLS, or table changes were made for this investigation.
+- Exact next action: restart/invalidate the deployed PostgREST service through the Supabase project control plane/support, then rerun authenticated practice INSERT/read/isolation/update/delete and attempt persistence tests.
+
+## BQ-QA-005 post-restart validation (2026-08-23)
+
+- Restart was reported complete, but a fresh authenticated REST run still returns HTTP 404 `PGRST205` for `practice_mission_actions` INSERT, own SELECT, cross-user SELECT, DELETE, and final read.
+- PATCH returned HTTP 400 `PGRST102` from request parsing, not an RLS authorization response; no row was created for mutation verification.
+- BQ-QA-005 remains **OPEN / RELEASE BLOCKER**. The endpoint must become reachable before learner evidence isolation and append-only behavior can be validated.
+- Exact next action: escalate the managed PostgREST schema-cache issue to Supabase project support/control plane, then repeat the five requested authenticated checks without changing application code.
+
+## BQ-QA-005 deeper metadata comparison (2026-08-23)
+
+- `/rest/v1/` OpenAPI metadata is intentionally unavailable to anon/authenticated clients (`Invalid API key`; service-role-only), but direct comparison proves `profiles` and `attempt_actions` are exposed while `practice_mission_actions` remains PGRST205.
+- PostgreSQL confirms all compared relations are lowercase persistent `public` tables owned by `postgres`; practice evidence has the expected authenticated SELECT/INSERT ACL, comment, columns, and RLS. No schema, casing, owner, privilege, or transaction mismatch was found.
+- Migration history records the practice table and cache-reload migrations as committed. `supabase/config.toml` exposes `public`; cloud `pgrst.*` settings are not query-visible.
+- No safe database migration remains. The `NOTIFY pgrst` migration and service restart were ineffective; BQ-QA-005 is a managed PostgREST cache/platform issue.
+- Exact next action: escalate to Supabase control-plane/support with the PGRST205 evidence, then rerun live learner INSERT/SELECT/isolation/append-only checks after cache repair. No Flutter or migration changes are authorized/needed.
+-
+## BQ-QA-005 live validation rerun (2026-08-23)
+
+- `supabase db push --linked --include-all --yes`: `upToDate=true`; migration history synchronized.
+- Public Data API exposure confirmed: `profiles` HTTP 200 and `attempt_actions` HTTP 200.
+- Authenticated learner evidence probes all returned HTTP 404 `PGRST205`: INSERT, own SELECT, cross-user SELECT, PATCH, DELETE, and final read.
+- No evidence row was created; RLS isolation and append-only enforcement remain untestable because PostgREST cannot resolve the relation.
+- BQ-QA-005 remains **OPEN / RELEASE BLOCKER**. Escalate the managed PostgREST schema-cache issue with the exact response codes above; do not modify Flutter, ACLs, RLS, or migrations.
+
+## Mission routing regression fix (2026-08-23)
+
+- Restored legacy/template practice routing before the shared `MissionSimulationScreen` fallback.
+- COC1 M1 now uses `IdentificationMissionScreenEnhanced` with `MissionContentData.getCOC1M1Questions()` and `getCOC1M1Items()`. The other 19 mission IDs now route to their intended identification, drag/drop, configuration, procedure, or troubleshooting templates; explicit assessment payload routes remain unchanged.
+- Added launcher regression coverage for all 20 mission IDs and a COC1 M1 Motherboard/SSD content contract.
+- Validation: focused launcher tests passed; full `flutter test` passed (193 tests); `flutter analyze --no-fatal-infos` passed with 0 errors and 214 informational findings.
+- Emulator smoke: updated APK launched on `emulator-5554`; Learn → Practice → COC1 M1 displayed the identification grid with hardware images and the “Tap the correct item” prompt. No shared technical workspace/hotspot screen appeared.
+- Note: emulator logs still show existing startup frame skips; unrelated to this routing fix.
+
+## Final release audit after routing restoration (2026-08-23)
+
+- Release decision: **NO-GO**.
+- Automated mission routing/content contract: PASS for all 20 mission IDs; COC1 M1 manual emulator smoke matched the reference identification grid and hardware-image prompt.
+- Full manual completion/retry traversal of all 20 missions was not completed; automated tests cover routing, interactions, accessibility, responsive layouts, and image contracts but do not replace live mission acceptance.
+- `flutter analyze --no-fatal-infos`: PASS, 0 errors, 214 informational findings. `flutter test`: PASS, 193 tests.
+- BQ-QA-005 remains OPEN: authenticated REST practice evidence endpoint returns HTTP 404/PGRST205 while `profiles` and `attempt_actions` return HTTP 200. Evidence creation, sync, retry, reconnect, and result propagation remain blocked.
+- Exact next action: resolve managed PostgREST exposure for `public.practice_mission_actions`, rerun live evidence lifecycle validation, then complete the all-20 manual mission gate before reconsidering GO.
