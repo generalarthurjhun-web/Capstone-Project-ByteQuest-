@@ -1,4 +1,5 @@
 import 'package:bytequest/models/mission_model.dart';
+import 'package:bytequest/screens/simulation/legacy_practice_evidence_scope.dart';
 import 'package:bytequest/screens/simulation/mission_launcher.dart';
 import 'package:bytequest/screens/simulation/templates/authoritative_mission_assessment_screen.dart';
 import 'package:bytequest/screens/simulation/templates/coc1_m2_screen_enhanced.dart';
@@ -39,21 +40,18 @@ void main() {
       };
 
       for (final entry in expected.entries) {
-        expect(
-          MissionLauncher.screenFor(_mission(entry.key)),
-          isA<dynamic>().having(
-            (screen) => screen.runtimeType,
-            'runtime type',
-            entry.value,
-          ),
-          reason: entry.key,
-        );
+        final screen = MissionLauncher.screenFor(_mission(entry.key));
+        expect(screen, isA<LegacyPracticeEvidenceScope>(), reason: entry.key);
+        final scope = screen as LegacyPracticeEvidenceScope;
+        expect(scope.mission.id, entry.key, reason: entry.key);
+        expect(scope.child.runtimeType, entry.value, reason: entry.key);
       }
     });
 
     test('COC1 M1 keeps the image identification contract', () {
-      final screen = MissionLauncher.screenFor(_mission('coc1_m1'))
-          as IdentificationMissionScreenEnhanced;
+      final scope = MissionLauncher.screenFor(_mission('coc1_m1'))
+          as LegacyPracticeEvidenceScope;
+      final screen = scope.child as IdentificationMissionScreenEnhanced;
 
       expect(screen.questions, isNotEmpty);
       expect(screen.hardwareItems, isNotEmpty);

@@ -8,6 +8,7 @@ import '../../../models/mission_model.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/progress_resume_service.dart';
 import '../../../services/authoritative_assessment_service.dart';
+import '../legacy_practice_evidence_scope.dart';
 import '../result_screen.dart';
 
 /// Template 2: Drag and Drop Mission Screen
@@ -139,7 +140,9 @@ class _DragDropMissionScreenState extends State<DragDropMissionScreen> {
       _componentValidation.clear();
       _selectedComponentId = null;
     });
-    unawaited(AuthoritativeAssessmentService.instance.safeRecordAction(
+    unawaited(LegacyPracticeEvidenceScope.record(
+      context,
+      phaseId: 'placement_$zoneId',
       actionType: 'component_placed',
       target: zoneId,
       value: {
@@ -158,7 +161,9 @@ class _DragDropMissionScreenState extends State<DragDropMissionScreen> {
       _showValidation = false;
       _componentValidation.clear();
     });
-    unawaited(AuthoritativeAssessmentService.instance.safeRecordAction(
+    unawaited(LegacyPracticeEvidenceScope.record(
+      context,
+      phaseId: 'placement_$zoneId',
       actionType: 'component_removed',
       target: zoneId,
       value: {
@@ -195,7 +200,9 @@ class _DragDropMissionScreenState extends State<DragDropMissionScreen> {
         }
       }
     });
-    unawaited(AuthoritativeAssessmentService.instance.safeRecordAction(
+    unawaited(LegacyPracticeEvidenceScope.record(
+      context,
+      phaseId: 'placement_review',
       actionType: 'placement_validation_requested',
       target: widget.mission.id,
       value: {

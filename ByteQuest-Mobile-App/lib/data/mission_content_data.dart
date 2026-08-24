@@ -639,9 +639,12 @@ class MissionContentData {
       'detectedHardware': {
         'question': 'Verify all hardware is detected',
         'items': ['CPU', 'RAM', 'Storage', 'Network Card'],
+        'correctAnswer': 'CPU, RAM, Storage, Network Card',
         'points': 20,
       },
       'osInstallation': {
+        'question':
+            'Configure BIOS settings correctly and follow the proper sequence for operating system installation.',
         'steps': [
           'Select language and keyboard',
           'Accept license agreement',
@@ -651,6 +654,8 @@ class MissionContentData {
           'Set up user account',
           'Complete setup',
         ],
+        'correctAnswer':
+            'Select language and keyboard, Accept license agreement, Choose installation type, Select partition/drive, Begin installation, Set up user account, Complete setup',
         'points': 40,
       },
     };

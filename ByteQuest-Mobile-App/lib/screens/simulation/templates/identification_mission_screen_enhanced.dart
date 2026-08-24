@@ -12,6 +12,7 @@ import '../../../data/mission_scenarios_data.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/progress_resume_service.dart';
 import '../../../services/authoritative_assessment_service.dart';
+import '../legacy_practice_evidence_scope.dart';
 import '../result_screen.dart';
 
 /// Enhanced Identification Mission Screen (Mission 1)
@@ -163,7 +164,9 @@ class _IdentificationMissionScreenEnhancedState
 
     final question = widget.questions[_currentQuestionIndex];
     final isCorrect = answer == question.correctAnswer;
-    unawaited(AuthoritativeAssessmentService.instance.safeRecordAction(
+    unawaited(LegacyPracticeEvidenceScope.record(
+      context,
+      phaseId: 'question_${question.id}',
       actionType: 'answer_submitted',
       target: question.id,
       value: {'selected_answer': answer, 'local_mission_id': widget.mission.id},

@@ -8,7 +8,54 @@ import '../../../models/mission_model.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/progress_resume_service.dart';
 import '../../../services/authoritative_assessment_service.dart';
+import '../legacy_practice_evidence_scope.dart';
 import '../result_screen.dart';
+
+class ConfigurationValidationResult {
+  const ConfigurationValidationResult({
+    required this.correctFields,
+    required this.fieldValidation,
+    required this.mistakes,
+  });
+
+  final int correctFields;
+  final Map<String, bool> fieldValidation;
+  final List<String> mistakes;
+}
+
+ConfigurationValidationResult evaluateConfigurationFields(
+  Map<String, dynamic> configData,
+  Map<String, String> submittedValues,
+) {
+  var correctFields = 0;
+  final fieldValidation = <String, bool>{};
+  final mistakes = <String>[];
+
+  configData.forEach((key, value) {
+    if (value is! Map) return;
+    final userInput = submittedValues[key]?.trim() ?? '';
+    final correctAnswer = value['correctAnswer'] as String?;
+    final validation = value['validation'] as String?;
+    final isCorrect = validation != null
+        ? RegExp(validation).hasMatch(userInput)
+        : correctAnswer != null &&
+            userInput.toLowerCase() == correctAnswer.toLowerCase();
+
+    fieldValidation[key] = isCorrect;
+    if (isCorrect) {
+      correctFields++;
+    } else {
+      final question = value['question'] as String? ?? key;
+      mistakes.add('$question: Incorrect value "$userInput"');
+    }
+  });
+
+  return ConfigurationValidationResult(
+    correctFields: correctFields,
+    fieldValidation: fieldValidation,
+    mistakes: mistakes,
+  );
+}
 
 /// Template 3: Configuration Form Mission Screen
 /// Used for: COC1-M4, COC2-M5, COC3-M3, COC3-M4
@@ -149,7 +196,9 @@ class _ConfigurationMissionScreenState
       for (final entry in _selectedValues.entries)
         if (entry.value != null) entry.key: entry.value!,
     };
-    unawaited(AuthoritativeAssessmentService.instance.safeRecordAction(
+    unawaited(LegacyPracticeEvidenceScope.record(
+      context,
+      phaseId: 'configuration',
       actionType: 'configuration_submitted',
       target: widget.mission.id,
       value: {
@@ -163,36 +212,15 @@ class _ConfigurationMissionScreenState
       return;
     }
 
+    final validationResult =
+        evaluateConfigurationFields(widget.configData, submittedValues);
     setState(() {
       _showValidation = true;
-      _correctFields = 0;
-      _mistakes.clear();
-      _fieldValidation.clear();
-
-      widget.configData.forEach((key, value) {
-        if (value is Map) {
-          final userInput = _controllers[key]?.text.trim() ?? '';
-          final correctAnswer = value['correctAnswer'] as String?;
-          final validation = value['validation'] as String?;
-
-          bool isCorrect = false;
-          if (validation != null) {
-            final regex = RegExp(validation);
-            isCorrect = regex.hasMatch(userInput);
-          } else if (correctAnswer != null) {
-            isCorrect = userInput.toLowerCase() == correctAnswer.toLowerCase();
-          }
-
-          _fieldValidation[key] = isCorrect;
-
-          if (isCorrect) {
-            _correctFields++;
-          } else {
-            final question = value['question'] as String? ?? key;
-            _mistakes.add('$question: Incorrect value "$userInput"');
-          }
-        }
-      });
+      _correctFields = validationResult.correctFields;
+      _mistakes = List<String>.from(validationResult.mistakes);
+      _fieldValidation
+        ..clear()
+        ..addAll(validationResult.fieldValidation);
     });
     _saveProgressState();
 

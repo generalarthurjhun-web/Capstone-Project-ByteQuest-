@@ -9,6 +9,7 @@ import '../../../data/mission_content_data.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/progress_resume_service.dart';
 import '../../../services/authoritative_assessment_service.dart';
+import '../legacy_practice_evidence_scope.dart';
 import '../result_screen.dart';
 
 /// COC1 Mission 3: Connect Power and Data Cables - Enhanced UI
@@ -280,7 +281,9 @@ class _COC1M3ScreenEnhancedState extends State<COC1M3ScreenEnhanced> {
     if (connection == null) return;
 
     final cable = _cables.firstWhere((c) => c.id == cableId);
-    unawaited(AuthoritativeAssessmentService.instance.safeRecordAction(
+    unawaited(LegacyPracticeEvidenceScope.record(
+      context,
+      phaseId: 'connection_$cableId',
       actionType: 'cable_connection_attempted',
       target: portId,
       value: {
@@ -457,8 +460,11 @@ class _COC1M3ScreenEnhancedState extends State<COC1M3ScreenEnhanced> {
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
+    final screenSize = MediaQuery.of(context).size;
+    final screenHeight = screenSize.height;
     final isShortScreen = screenHeight < 680;
+    final isCompactLandscape =
+        screenSize.width > screenHeight && screenHeight <= 400;
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundOffWhite,
@@ -488,45 +494,52 @@ class _COC1M3ScreenEnhancedState extends State<COC1M3ScreenEnhanced> {
                   ),
 
                   // Step Progress Card
-                  StepProgressCard(
-                    currentStep: 3,
-                    totalSteps: 5,
-                    xpReward: _assessmentMode ? 0 : widget.mission.xpReward,
-                    modeLabel: _assessmentMode ? 'Assessment' : 'Practice',
-                    progress: _connectedCount / _connections.length,
-                    margin:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  ),
+                  if (!isCompactLandscape)
+                    StepProgressCard(
+                      currentStep: 3,
+                      totalSteps: 5,
+                      xpReward: _assessmentMode ? 0 : widget.mission.xpReward,
+                      modeLabel: _assessmentMode ? 'Assessment' : 'Practice',
+                      progress: _connectedCount / _connections.length,
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                    ),
 
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Left side: Progress checklist and Tip Card (Flex 4)
-                          Expanded(
-                            flex: 4,
-                            child: Column(
+                      child: isCompactLandscape
+                          ? _buildWorkspaceCard()
+                          : Row(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
+                                // Left side: Progress checklist and Tip Card (Flex 4)
                                 Expanded(
-                                  child: _buildChecklistCard(isShortScreen),
+                                  flex: 4,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      Expanded(
+                                        child:
+                                            _buildChecklistCard(isShortScreen),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      _buildTipCard(isShortScreen),
+                                    ],
+                                  ),
                                 ),
-                                const SizedBox(height: 8),
-                                _buildTipCard(isShortScreen),
+                                const SizedBox(width: 12),
+
+                                // Right side: workspace system unit motherboard (Flex 6)
+                                Expanded(
+                                  flex: 6,
+                                  child: _buildWorkspaceCard(),
+                                ),
                               ],
                             ),
-                          ),
-                          const SizedBox(width: 12),
-
-                          // Right side: workspace system unit motherboard (Flex 6)
-                          Expanded(
-                            flex: 6,
-                            child: _buildWorkspaceCard(),
-                          ),
-                        ],
-                      ),
                     ),
                   ),
                   const SizedBox(height: 8),

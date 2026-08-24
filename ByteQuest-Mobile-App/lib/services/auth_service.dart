@@ -3,6 +3,38 @@ import '../core/config/supabase_config.dart';
 import '../models/profile_model.dart';
 import 'profile_service.dart';
 
+Future<void> verifySignUpProfileProvisioning({
+  required AuthResponse response,
+  required Future<ProfileModel?> Function(String userId) getProfile,
+  required Future<void> Function(
+    String userId,
+    Map<String, dynamic> updates,
+  ) updateProfile,
+  required Future<void> Function() signOut,
+  String? learnerId,
+  String? school,
+  String? courseSection,
+}) async {
+  if (response.session == null) return;
+
+  await Future.delayed(const Duration(milliseconds: 500));
+  final existingProfile = await getProfile(response.user!.id);
+
+  if (existingProfile == null) {
+    await signOut();
+    throw Exception(
+      'Account provisioning is incomplete. Contact an Administrator.',
+    );
+  }
+  if (learnerId != null || school != null || courseSection != null) {
+    await updateProfile(response.user!.id, {
+      if (learnerId != null) 'learner_id': learnerId,
+      if (school != null) 'school': school,
+      if (courseSection != null) 'course_section': courseSection,
+    });
+  }
+}
+
 /// Authentication Service
 /// Handles user authentication with Supabase Auth
 class AuthService {
@@ -49,27 +81,15 @@ class AuthService {
         throw Exception('Sign up failed: No user returned');
       }
 
-      // Wait a moment for the database trigger to create the profile
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      // Check if profile was created by trigger
-      final existingProfile =
-          await _profileService.getProfileByUserId(response.user!.id);
-
-      if (existingProfile == null) {
-        await _supabase.auth.signOut();
-        throw Exception(
-            'Account provisioning is incomplete. Contact an Administrator.');
-      } else {
-        // Profile was created by trigger, update additional fields if provided
-        if (learnerId != null || school != null || courseSection != null) {
-          await _profileService.updateProfile(response.user!.id, {
-            if (learnerId != null) 'learner_id': learnerId,
-            if (school != null) 'school': school,
-            if (courseSection != null) 'course_section': courseSection,
-          });
-        }
-      }
+      await verifySignUpProfileProvisioning(
+        response: response,
+        getProfile: _profileService.getProfileByUserId,
+        updateProfile: _profileService.updateProfile,
+        signOut: _supabase.auth.signOut,
+        learnerId: learnerId,
+        school: school,
+        courseSection: courseSection,
+      );
 
       return response;
     } on AuthException catch (e) {

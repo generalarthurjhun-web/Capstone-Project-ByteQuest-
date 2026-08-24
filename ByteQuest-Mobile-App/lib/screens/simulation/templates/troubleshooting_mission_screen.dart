@@ -8,6 +8,7 @@ import '../../../models/mission_model.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/progress_resume_service.dart';
 import '../../../services/authoritative_assessment_service.dart';
+import '../legacy_practice_evidence_scope.dart';
 import '../result_screen.dart';
 
 /// Template 5: Troubleshooting Mission Screen
@@ -120,7 +121,9 @@ class _TroubleshootingMissionScreenState
 
     final scenario = widget.scenarios[_currentScenarioIndex];
     final isCorrect = _selectedCause == scenario['correctCause'];
-    unawaited(AuthoritativeAssessmentService.instance.safeRecordAction(
+    unawaited(LegacyPracticeEvidenceScope.record(
+      context,
+      phaseId: 'scenario_${_currentScenarioIndex + 1}',
       actionType: 'diagnosis_submitted',
       target: 'scenario_${_currentScenarioIndex + 1}',
       value: {

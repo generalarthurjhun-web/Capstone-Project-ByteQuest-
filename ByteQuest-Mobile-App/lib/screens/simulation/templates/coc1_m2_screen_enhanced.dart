@@ -9,6 +9,7 @@ import '../../../models/mission_model.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/progress_resume_service.dart';
 import '../../../services/authoritative_assessment_service.dart';
+import '../legacy_practice_evidence_scope.dart';
 import '../result_screen.dart';
 
 /// COC1 Mission 2: Install Internal Components - Enhanced UI
@@ -63,6 +64,10 @@ class _COC1M2ScreenEnhancedState extends State<COC1M2ScreenEnhanced> {
     'cooling_fan',
     'psu',
   ];
+
+  int get _displayedStep => _installationSequence.isEmpty
+      ? 0
+      : (_currentStep + 1).clamp(1, _installationSequence.length);
 
   @override
   void initState() {
@@ -218,7 +223,7 @@ class _COC1M2ScreenEnhancedState extends State<COC1M2ScreenEnhanced> {
       userId: userId,
       missionId: widget.mission.id,
       cocId: widget.mission.cocId,
-      currentStep: _currentStep + 1,
+      currentStep: _displayedStep,
       totalSteps: _installationSequence.length,
       stateData: stateData,
     );
@@ -295,7 +300,9 @@ class _COC1M2ScreenEnhancedState extends State<COC1M2ScreenEnhanced> {
     String targetZone, {
     String interactionMethod = 'drag',
   }) {
-    unawaited(AuthoritativeAssessmentService.instance.safeRecordAction(
+    unawaited(LegacyPracticeEvidenceScope.record(
+      context,
+      phaseId: 'placement_$targetZone',
       actionType: 'component_drop_attempted',
       target: targetZone,
       value: {
@@ -492,7 +499,7 @@ class _COC1M2ScreenEnhancedState extends State<COC1M2ScreenEnhanced> {
                     // Step Progress Card
                     if (!isCompactHeight) ...[
                       StepProgressCard(
-                        currentStep: _currentStep + 1,
+                        currentStep: _displayedStep,
                         totalSteps: _installationSequence.length,
                         xpReward: _assessmentMode ? 0 : widget.mission.xpReward,
                         modeLabel: _assessmentMode ? 'Assessment' : 'Practice',

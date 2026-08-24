@@ -8,8 +8,46 @@ import '../../../core/widgets/simulation_fullscreen_button.dart';
 import '../../../models/mission_model.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/progress_resume_service.dart';
-import '../../../services/authoritative_assessment_service.dart';
+import '../legacy_practice_evidence_scope.dart';
 import '../result_screen.dart';
+
+class StepProcedureProgress {
+  const StepProcedureProgress({
+    required this.timeSpent,
+    required this.correctSteps,
+    required this.mistakes,
+    required this.completedSteps,
+    required this.completionOrder,
+  });
+
+  factory StepProcedureProgress.fromStateData(Map<String, dynamic> data) {
+    final completedSteps =
+        List<String>.from(data['completedSteps'] as List? ?? const []);
+    return StepProcedureProgress(
+      timeSpent: data['timeSpent'] as int? ?? 0,
+      correctSteps: data['correctSteps'] as int? ?? 0,
+      mistakes: List<String>.from(data['mistakes'] as List? ?? const []),
+      completedSteps: completedSteps,
+      completionOrder: List<String>.from(
+        data['completionOrder'] as List? ?? completedSteps,
+      ),
+    );
+  }
+
+  final int timeSpent;
+  final int correctSteps;
+  final List<String> mistakes;
+  final List<String> completedSteps;
+  final List<String> completionOrder;
+
+  Map<String, dynamic> toStateData() => {
+        'timeSpent': timeSpent,
+        'correctSteps': correctSteps,
+        'mistakes': List<String>.from(mistakes),
+        'completedSteps': List<String>.from(completedSteps),
+        'completionOrder': List<String>.from(completionOrder),
+      };
+}
 
 /// Template 4: Step-Based Procedure Mission Screen
 /// Used for: COC1-M5, COC2-M3, COC3-M2, COC4-M2
@@ -56,16 +94,15 @@ class _StepProcedureMissionScreenState
     );
 
     if (state != null && state['stateData'] != null) {
-      final data = state['stateData'] as Map<String, dynamic>;
+      final progress = StepProcedureProgress.fromStateData(
+        Map<String, dynamic>.from(state['stateData'] as Map),
+      );
       setState(() {
-        _timeSpent = data['timeSpent'] ?? 0;
-        _correctSteps = data['correctSteps'] ?? 0;
-        _mistakes = List<String>.from(data['mistakes'] ?? []);
-
-        final completed = data['completedSteps'] as List<dynamic>?;
-        if (completed != null) {
-          _completedSteps.addAll(completed.cast<String>());
-        }
+        _timeSpent = progress.timeSpent;
+        _correctSteps = progress.correctSteps;
+        _mistakes = List<String>.from(progress.mistakes);
+        _completedSteps.addAll(progress.completedSteps);
+        _completionOrder.addAll(progress.completionOrder);
       });
       debugPrint('Loaded state for step procedure.');
     }
@@ -75,12 +112,13 @@ class _StepProcedureMissionScreenState
     final userId = AuthService().currentUserId;
     if (userId == null) return;
 
-    final stateData = {
-      'timeSpent': _timeSpent,
-      'correctSteps': _correctSteps,
-      'mistakes': _mistakes,
-      'completedSteps': _completedSteps.toList(),
-    };
+    final stateData = StepProcedureProgress(
+      timeSpent: _timeSpent,
+      correctSteps: _correctSteps,
+      mistakes: _mistakes,
+      completedSteps: _completedSteps.toList(),
+      completionOrder: _completionOrder,
+    ).toStateData();
 
     await ProgressResumeService.saveState(
       userId: userId,
@@ -119,7 +157,9 @@ class _StepProcedureMissionScreenState
         _completionOrder.add(stepId);
       }
     });
-    unawaited(AuthoritativeAssessmentService.instance.safeRecordAction(
+    unawaited(LegacyPracticeEvidenceScope.record(
+      context,
+      phaseId: 'procedure_$stepId',
       actionType: _completedSteps.contains(stepId)
           ? 'procedure_step_selected'
           : 'procedure_step_deselected',
@@ -174,7 +214,9 @@ class _StepProcedureMissionScreenState
     });
 
     _saveProgressState();
-    unawaited(AuthoritativeAssessmentService.instance.safeRecordAction(
+    unawaited(LegacyPracticeEvidenceScope.record(
+      context,
+      phaseId: 'procedure_review',
       actionType: 'procedure_validation_requested',
       target: widget.mission.id,
       value: {

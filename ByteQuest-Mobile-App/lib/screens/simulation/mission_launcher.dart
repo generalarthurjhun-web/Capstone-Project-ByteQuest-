@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/mission_simulation_definitions.dart';
 import '../../data/mission_content_data.dart';
 import '../../models/mission_model.dart';
+import 'legacy_practice_evidence_scope.dart';
 import 'mission_simulation_screen.dart';
 import 'templates/authoritative_mission_assessment_screen.dart';
 import 'templates/coc1_m2_screen_enhanced.dart';
@@ -41,102 +42,156 @@ abstract final class MissionLauncher {
     // to use their dedicated assessment screens.
     switch (mission.id) {
       case 'coc1_m1':
-        return IdentificationMissionScreenEnhanced(
-          mission: mission,
-          questions: MissionContentData.getCOC1M1Questions(),
-          hardwareItems: MissionContentData.getCOC1M1Items(),
+        return _practice(
+          mission,
+          IdentificationMissionScreenEnhanced(
+            mission: mission,
+            questions: MissionContentData.getCOC1M1Questions(),
+            hardwareItems: MissionContentData.getCOC1M1Items(),
+          ),
         );
       case 'coc2_m1':
-        return IdentificationMissionScreenEnhanced(
-          mission: mission,
-          questions: MissionContentData.getCOC2M1Questions(),
-          hardwareItems: MissionContentData.getCOC2M1Items(),
+        return _practice(
+          mission,
+          IdentificationMissionScreenEnhanced(
+            mission: mission,
+            questions: MissionContentData.getCOC2M1Questions(),
+            hardwareItems: MissionContentData.getCOC2M1Items(),
+          ),
         );
       case 'coc3_m1':
-        return IdentificationMissionScreen(
-          mission: mission,
-          questions: MissionContentData.getCOC3M1Questions(),
+        return _practice(
+          mission,
+          IdentificationMissionScreen(
+            mission: mission,
+            questions: MissionContentData.getCOC3M1Questions(),
+          ),
         );
       case 'coc4_m1':
-        return IdentificationMissionScreen(
-          mission: mission,
-          questions: _coc4M1Questions(),
+        return _practice(
+          mission,
+          IdentificationMissionScreen(
+            mission: mission,
+            questions: _coc4M1Questions(),
+          ),
         );
       case 'coc1_m2':
-        return COC1M2ScreenEnhanced(mission: mission);
+        return _practice(mission, COC1M2ScreenEnhanced(mission: mission));
       case 'coc1_m3':
-        return COC1M3ScreenEnhanced(mission: mission);
+        return _practice(mission, COC1M3ScreenEnhanced(mission: mission));
       case 'coc2_m2':
-        return DragDropMissionScreen(
-          mission: mission,
-          components: _coc2M2Components(),
-          dropZones: _coc2M2DropZones(),
+        return _practice(
+          mission,
+          DragDropMissionScreen(
+            mission: mission,
+            components: _coc2M2Components(),
+            dropZones: _coc2M2DropZones(),
+          ),
         );
       case 'coc2_m4':
-        return DragDropMissionScreen(
-          mission: mission,
-          components: MissionContentData.getCOC2M4Components(),
-          dropZones: _coc2M4DropZones(),
+        return _practice(
+          mission,
+          DragDropMissionScreen(
+            mission: mission,
+            components: MissionContentData.getCOC2M4Components(),
+            dropZones: _coc2M4DropZones(),
+          ),
         );
       case 'coc1_m4':
-        return ConfigurationMissionScreen(
-          mission: mission,
-          configData: MissionContentData.getCOC1M4ConfigData(),
+        return _practice(
+          mission,
+          ConfigurationMissionScreen(
+            mission: mission,
+            configData: MissionContentData.getCOC1M4ConfigData(),
+          ),
         );
       case 'coc2_m5':
-        return ConfigurationMissionScreen(
-          mission: mission,
-          configData: MissionContentData.getCOC2M5ConfigData(),
+        return _practice(
+          mission,
+          ConfigurationMissionScreen(
+            mission: mission,
+            configData: MissionContentData.getCOC2M5ConfigData(),
+          ),
         );
       case 'coc3_m3':
-        return ConfigurationMissionScreen(
-          mission: mission,
-          configData: _coc3M3ConfigData(),
+        return _practice(
+          mission,
+          ConfigurationMissionScreen(
+            mission: mission,
+            configData: _coc3M3ConfigData(),
+          ),
         );
       case 'coc3_m4':
-        return ConfigurationMissionScreen(
-          mission: mission,
-          configData: _coc3M4ConfigData(),
+        return _practice(
+          mission,
+          ConfigurationMissionScreen(
+            mission: mission,
+            configData: _coc3M4ConfigData(),
+          ),
         );
       case 'coc1_m5':
-        return StepProcedureMissionScreen(
-          mission: mission,
-          steps: MissionContentData.getCOC1M5Steps(),
+        return _practice(
+          mission,
+          StepProcedureMissionScreen(
+            mission: mission,
+            steps: MissionContentData.getCOC1M5Steps(),
+          ),
         );
       case 'coc2_m3':
-        return StepProcedureMissionScreen(
-          mission: mission,
-          steps: MissionContentData.getCOC2M3Steps(),
+        return _practice(
+          mission,
+          StepProcedureMissionScreen(
+            mission: mission,
+            steps: MissionContentData.getCOC2M3Steps(),
+          ),
         );
       case 'coc3_m2':
-        return StepProcedureMissionScreen(
-          mission: mission,
-          steps: MissionContentData.getCOC3M2Steps(),
+        return _practice(
+          mission,
+          StepProcedureMissionScreen(
+            mission: mission,
+            steps: MissionContentData.getCOC3M2Steps(),
+          ),
         );
       case 'coc4_m2':
-        return StepProcedureMissionScreen(
-          mission: mission,
-          steps: MissionContentData.getCOC4M2Steps(),
+        return _practice(
+          mission,
+          StepProcedureMissionScreen(
+            mission: mission,
+            steps: MissionContentData.getCOC4M2Steps(),
+          ),
         );
       case 'coc3_m5':
-        return TroubleshootingMissionScreen(
-          mission: mission,
-          scenarios: _coc3M5Scenarios(),
+        return _practice(
+          mission,
+          TroubleshootingMissionScreen(
+            mission: mission,
+            scenarios: _coc3M5Scenarios(),
+          ),
         );
       case 'coc4_m3':
-        return TroubleshootingMissionScreen(
-          mission: mission,
-          scenarios: _coc4M3Scenarios(),
+        return _practice(
+          mission,
+          TroubleshootingMissionScreen(
+            mission: mission,
+            scenarios: _coc4M3Scenarios(),
+          ),
         );
       case 'coc4_m4':
-        return TroubleshootingMissionScreen(
-          mission: mission,
-          scenarios: _coc4M4Scenarios(),
+        return _practice(
+          mission,
+          TroubleshootingMissionScreen(
+            mission: mission,
+            scenarios: _coc4M4Scenarios(),
+          ),
         );
       case 'coc4_m5':
-        return TroubleshootingMissionScreen(
-          mission: mission,
-          scenarios: _coc4M5Scenarios(),
+        return _practice(
+          mission,
+          TroubleshootingMissionScreen(
+            mission: mission,
+            scenarios: _coc4M5Scenarios(),
+          ),
         );
     }
 
@@ -158,6 +213,9 @@ abstract final class MissionLauncher {
       MaterialPageRoute<void>(builder: (_) => screen),
     );
   }
+
+  static Widget _practice(Mission mission, Widget child) =>
+      LegacyPracticeEvidenceScope(mission: mission, child: child);
 
   static List<MissionQuestion> _coc4M1Questions() {
     final scenarios = MissionContentData.getCOC4M1Scenarios();
