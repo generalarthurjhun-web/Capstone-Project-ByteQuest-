@@ -10,6 +10,8 @@ import '../../../services/auth_service.dart';
 import '../../../services/progress_resume_service.dart';
 import '../../../services/authoritative_assessment_service.dart';
 import '../legacy_practice_evidence_scope.dart';
+import '../components/practice_mission_chrome.dart';
+import '../components/stable_mission_feedback_overlay.dart';
 import '../result_screen.dart';
 
 /// COC1 Mission 3: Connect Power and Data Cables - Enhanced UI
@@ -41,6 +43,12 @@ class _COC1M3ScreenEnhancedState extends State<COC1M3ScreenEnhanced> {
   FeedbackType? _feedbackType;
   String? _selectedCableId;
   bool _isSaving = false;
+
+  bool get _hasProgress =>
+      _connections.values.any((connection) => connection.isConnected) ||
+      _selectedCableId != null ||
+      _incorrectAttempts > 0 ||
+      _mistakes.isNotEmpty;
 
   // Cable lists
   final List<CableData> _cables = [];
@@ -429,35 +437,6 @@ class _COC1M3ScreenEnhancedState extends State<COC1M3ScreenEnhanced> {
     );
   }
 
-  void _showExitDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Exit Mission?'),
-        content: const Text(
-          'Your progress will be saved. You can resume from this step when you return.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: AppTheme.errorRed,
-            ),
-            child: const Text('Exit'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
@@ -466,106 +445,113 @@ class _COC1M3ScreenEnhancedState extends State<COC1M3ScreenEnhanced> {
     final isCompactLandscape =
         screenSize.width > screenHeight && screenHeight <= 400;
 
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundOffWhite,
-      body: SafeArea(
-        child: _isSaving
-            ? const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text(
-                      'Saving your results...',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    )
-                  ],
-                ),
-              )
-            : Column(
-                children: [
-                  // Enhanced Header
-                  MissionHeader(
-                    missionNumber: 3,
-                    title: widget.mission.title,
-                    subtitle: '',
-                    onBackPressed: _showExitDialog,
+    return PracticeMissionExitGuard(
+      mission: widget.mission,
+      hasProgress: () => _hasProgress,
+      builder: (context, requestExit) => Scaffold(
+        backgroundColor: AppTheme.backgroundOffWhite,
+        body: SafeArea(
+          child: _isSaving
+              ? const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text(
+                        'Saving your results...',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      )
+                    ],
                   ),
-
-                  // Step Progress Card
-                  if (!isCompactLandscape)
-                    StepProgressCard(
-                      currentStep: 3,
-                      totalSteps: 5,
-                      xpReward: _assessmentMode ? 0 : widget.mission.xpReward,
-                      modeLabel: _assessmentMode ? 'Assessment' : 'Practice',
-                      progress: _connectedCount / _connections.length,
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
+                )
+              : StableMissionFeedbackOverlay(
+                  top: 88,
+                  feedback: _feedbackMessage != null && _feedbackType != null
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: FeedbackCard(
+                            type: _feedbackType!,
+                            message: _feedbackMessage!,
+                            subtitle: _feedbackSubtitle,
+                            showRobot: true,
+                            dismissible: true,
+                            onDismiss: _dismissFeedback,
+                          ),
+                        )
+                      : null,
+                  child: Column(
+                    children: [
+                      // Enhanced Header
+                      MissionHeader(
+                        mission: widget.mission,
+                        subtitle: '',
+                        onBackPressed: requestExit,
                       ),
-                    ),
 
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: isCompactLandscape
-                          ? _buildWorkspaceCard()
-                          : Row(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                // Left side: Progress checklist and Tip Card (Flex 4)
-                                Expanded(
-                                  flex: 4,
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      Expanded(
-                                        child:
-                                            _buildChecklistCard(isShortScreen),
+                      // Step Progress Card
+                      if (!isCompactLandscape)
+                        StepProgressCard(
+                          currentStep: 3,
+                          totalSteps: 5,
+                          xpReward:
+                              _assessmentMode ? 0 : widget.mission.xpReward,
+                          modeLabel:
+                              _assessmentMode ? 'Assessment' : 'Practice',
+                          progress: _connectedCount / _connections.length,
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                        ),
+
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: isCompactLandscape
+                              ? _buildWorkspaceCard()
+                              : Row(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    // Left side: Progress checklist and Tip Card (Flex 4)
+                                    Expanded(
+                                      flex: 4,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          Expanded(
+                                            child: _buildChecklistCard(
+                                                isShortScreen),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          _buildTipCard(isShortScreen),
+                                        ],
                                       ),
-                                      const SizedBox(height: 8),
-                                      _buildTipCard(isShortScreen),
-                                    ],
-                                  ),
+                                    ),
+                                    const SizedBox(width: 12),
+
+                                    // Right side: workspace system unit motherboard (Flex 6)
+                                    Expanded(
+                                      flex: 6,
+                                      child: _buildWorkspaceCard(),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 12),
-
-                                // Right side: workspace system unit motherboard (Flex 6)
-                                Expanded(
-                                  flex: 6,
-                                  child: _buildWorkspaceCard(),
-                                ),
-                              ],
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Cable Selection Cards Drawer
-                  _buildCableSelectionSection(isShortScreen),
-
-                  // Feedback Card overlay (above bottom action button)
-                  if (_feedbackMessage != null && _feedbackType != null) ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: FeedbackCard(
-                        type: _feedbackType!,
-                        message: _feedbackMessage!,
-                        subtitle: _feedbackSubtitle,
-                        showRobot: true,
-                        dismissible: true,
-                        onDismiss: _dismissFeedback,
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
 
-                  // Bottom Action Button
-                  _buildBottomButton(),
-                ],
-              ),
+                      // Cable Selection Cards Drawer
+                      _buildCableSelectionSection(isShortScreen),
+
+                      // Bottom Action Button
+                      _buildBottomButton(),
+                    ],
+                  ),
+                ),
+        ),
       ),
     );
   }

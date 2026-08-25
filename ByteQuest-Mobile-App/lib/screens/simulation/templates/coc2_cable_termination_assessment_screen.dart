@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/simulation_fullscreen_button.dart';
 import '../../../models/mission_model.dart';
 import '../../../services/authoritative_assessment_service.dart';
 import '../result_screen.dart';
+import '../components/practice_mission_chrome.dart';
 import 'coc2_cable_assessment_contract.dart';
 
 class Coc2CableTerminationAssessmentScreen extends StatefulWidget {
@@ -382,9 +382,17 @@ class _Coc2CableTerminationAssessmentScreenState
             tooltip: 'Assessment exit information',
             icon: const Icon(Icons.close_rounded),
           ),
-          title: const Text('Cable termination assessment'),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Cable termination assessment'),
+              Text(
+                practiceMissionIdentifier(widget.mission),
+                style: AppTheme.caption.copyWith(color: AppTheme.textMedium),
+              ),
+            ],
+          ),
           actions: [
-            const SimulationFullscreenButton(),
             Padding(
               padding: const EdgeInsets.only(right: 16),
               child: Center(

@@ -3,12 +3,13 @@ import 'dart:async';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/soft_card.dart';
 import '../../../core/widgets/app_button.dart';
-import '../../../core/widgets/simulation_fullscreen_button.dart';
 import '../../../models/mission_model.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/progress_resume_service.dart';
 import '../../../services/authoritative_assessment_service.dart';
 import '../legacy_practice_evidence_scope.dart';
+import '../components/practice_mission_chrome.dart';
+import '../components/stable_mission_feedback_overlay.dart';
 import '../result_screen.dart';
 
 /// Template 2: Drag and Drop Mission Screen
@@ -38,6 +39,17 @@ class _DragDropMissionScreenState extends State<DragDropMissionScreen> {
   int _correctPlacements = 0;
   List<String> _mistakes = [];
   String? _selectedComponentId;
+
+  bool get _hasProgress =>
+      _placedComponents.values.any((value) => value != null) ||
+      _selectedComponentId != null ||
+      _showValidation ||
+      _mistakes.isNotEmpty;
+
+  bool get _isEightPinLayout =>
+      widget.dropZones.length == 8 &&
+      widget.components.length == 8 &&
+      widget.dropZones.every((zone) => zone.id.startsWith('pin_'));
 
   @override
   void initState() {
@@ -261,514 +273,697 @@ class _DragDropMissionScreenState extends State<DragDropMissionScreen> {
     final allPlaced = widget.components.every((c) => _isComponentPlaced(c.id));
     final assessmentMode =
         AuthoritativeAssessmentService.instance.isAssessmentMode;
+    final compactHeight = MediaQuery.sizeOf(context).height < 480;
 
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundOffWhite,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: AppTheme.textDark),
-          onPressed: () => _showExitDialog(),
-        ),
-        title: Text(
-          widget.mission.title,
-          style: AppTheme.headlineSmall.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          const SimulationFullscreenButton(),
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: Text(
-                _formatTime(_timeSpent),
-                style: AppTheme.labelMedium.copyWith(
-                  color: AppTheme.textMedium,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+    return PracticeMissionExitGuard(
+      mission: widget.mission,
+      hasProgress: () => _hasProgress,
+      builder: (context, requestExit) => Scaffold(
+        backgroundColor: AppTheme.backgroundOffWhite,
+        appBar: PracticeMissionAppBar(
+          mission: widget.mission,
+          onBackPressed: requestExit,
+          trailing: Text(
+            _formatTime(_timeSpent),
+            style: AppTheme.labelMedium.copyWith(
+              color: AppTheme.textMedium,
+              fontWeight: FontWeight.w600,
             ),
           ),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Instruction Card
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              color: AppTheme.primaryBlue.withValues(alpha: 0.05),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    color: AppTheme.primaryBlue,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      assessmentMode
-                          ? 'Assessment mode: drag an item, or select it and then choose a neutral placement area. Destinations never reveal the answer.'
-                          : 'Practice mode: drag an item, or select it and then choose a labeled position.',
-                      style: AppTheme.bodySmall.copyWith(
-                        color: AppTheme.primaryBlue,
-                        fontWeight: FontWeight.w500,
+        ),
+        body: StableMissionFeedbackOverlay(
+          top: null,
+          bottom: 84,
+          feedback:
+              _showValidation && _correctPlacements < widget.dropZones.length
+                  ? Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentOrange.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppTheme.accentOrange.withValues(alpha: 0.25),
+                        ),
                       ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Progress Info
-                    SoftCard(
-                      padding: const EdgeInsets.all(16),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Components',
-                                style: AppTheme.labelSmall.copyWith(
-                                  color: AppTheme.textMedium,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${widget.components.where((c) => _isComponentPlaced(c.id)).length}/${widget.components.length} Placed',
-                                style: AppTheme.labelLarge.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
+                          Icon(
+                            Icons.info_outline,
+                            color: AppTheme.accentOrange,
+                            size: 20,
                           ),
-                          if (_showValidation) ...[
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _correctPlacements ==
-                                        widget.dropZones.length
-                                    ? AppTheme.accentGreen
-                                        .withValues(alpha: 0.1)
-                                    : AppTheme.accentOrange
-                                        .withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    _correctPlacements ==
-                                            widget.dropZones.length
-                                        ? Icons.check_circle
-                                        : Icons.warning,
-                                    size: 16,
-                                    color: _correctPlacements ==
-                                            widget.dropZones.length
-                                        ? AppTheme.accentGreen
-                                        : AppTheme.accentOrange,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '$_correctPlacements/${widget.dropZones.length} Correct',
-                                    style: AppTheme.labelSmall.copyWith(
-                                      color: _correctPlacements ==
-                                              widget.dropZones.length
-                                          ? AppTheme.accentGreen
-                                          : AppTheme.accentOrange,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Some components are incorrectly placed. Review and try again.',
+                              style: AppTheme.bodySmall.copyWith(
+                                color: AppTheme.accentOrange,
                               ),
                             ),
-                          ],
+                          ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Available Components
-                    Text(
-                      'Available Components',
-                      style: AppTheme.headlineSmall.copyWith(
-                        fontWeight: FontWeight.bold,
+                    )
+                  : null,
+          child: SafeArea(
+            child: Column(
+              children: [
+                // Instruction Card
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  color: AppTheme.primaryBlue.withValues(alpha: 0.05),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: AppTheme.primaryBlue,
+                        size: 20,
                       ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: widget.components.map((component) {
-                        final isPlaced = _isComponentPlaced(component.id);
-                        final isSelected = _selectedComponentId == component.id;
-
-                        return Semantics(
-                          button: true,
-                          enabled: !isPlaced,
-                          selected: isSelected,
-                          label: isPlaced
-                              ? '${component.name}, already placed'
-                              : '${component.name}${isSelected ? ", selected" : ""}',
-                          hint: isPlaced
-                              ? 'Remove it from its placement area to move it.'
-                              : 'Double tap to select, then activate a placement area. You can also drag it.',
-                          child: Draggable<String>(
-                            data: component.id,
-                            dragAnchorStrategy: pointerDragAnchorStrategy,
-                            feedback: Material(
-                              elevation: 8,
-                              borderRadius: BorderRadius.circular(12),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
-                                decoration: BoxDecoration(
-                                  gradient: AppTheme.primaryGradient,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  component.name,
-                                  style: AppTheme.labelMedium.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            childWhenDragging: Opacity(
-                              opacity: 0.3,
-                              child: _buildComponentChip(
-                                component,
-                                isPlaced,
-                                isSelected: false,
-                              ),
-                            ),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(12),
-                              onTap: isPlaced
-                                  ? null
-                                  : () => setState(() {
-                                        _selectedComponentId =
-                                            isSelected ? null : component.id;
-                                      }),
-                              child: _buildComponentChip(
-                                component,
-                                isPlaced,
-                                isSelected: isSelected,
-                              ),
-                            ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          assessmentMode
+                              ? 'Assessment mode: drag an item, or select it and then choose a neutral placement area. Destinations never reveal the answer.'
+                              : 'Practice mode: drag an item, or select it and then choose a labeled position.',
+                          style: AppTheme.bodySmall.copyWith(
+                            color: AppTheme.primaryBlue,
+                            fontWeight: FontWeight.w500,
                           ),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Drop Zones
-                    Text(
-                      assessmentMode
-                          ? 'Simulation workspace'
-                          : 'Installation areas',
-                      style: AppTheme.headlineSmall.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    InteractiveViewer(
-                      minScale: 0.9,
-                      maxScale: 2.4,
-                      panEnabled: false,
-                      clipBehavior: Clip.none,
-                      child: Column(
-                        children: widget.dropZones.asMap().entries.map((entry) {
-                          final zoneIndex = entry.key;
-                          final zone = entry.value;
-                          final placedId = _placedComponents[zone.id];
-                          final showFeedback = _showValidation &&
-                              _componentValidation.containsKey(zone.id);
-                          final isCorrect =
-                              _componentValidation[zone.id] ?? false;
-
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Semantics(
-                              button: true,
-                              label: assessmentMode
-                                  ? 'Placement area ${zoneIndex + 1}${placedId == null ? ", empty" : ", contains ${widget.components.firstWhere((component) => component.id == placedId).name}"}'
-                                  : '${zone.name}${placedId == null ? ", empty" : ", contains ${widget.components.firstWhere((component) => component.id == placedId).name}"}',
-                              hint: _selectedComponentId == null
-                                  ? 'Select an available component first, or drag one here.'
-                                  : 'Double tap to place the selected component here.',
-                              child: GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTap: _selectedComponentId == null
-                                    ? null
-                                    : () => _placeComponent(
-                                          zone.id,
-                                          _selectedComponentId!,
-                                          interactionMethod:
-                                              'select_then_place',
-                                        ),
-                                child: DragTarget<String>(
-                                  onWillAcceptWithDetails: (_) => true,
-                                  onAcceptWithDetails: (details) =>
-                                      _placeComponent(zone.id, details.data),
-                                  builder:
-                                      (context, candidateData, rejectedData) {
-                                    final isHovering = candidateData.isNotEmpty;
-
-                                    return Container(
-                                      key: ValueKey('drop-zone-${zone.id}'),
-                                      constraints:
-                                          const BoxConstraints(minHeight: 96),
-                                      padding: const EdgeInsets.all(20),
-                                      decoration: BoxDecoration(
-                                        color: isHovering
-                                            ? AppTheme.primaryBlue
-                                                .withValues(alpha: 0.1)
-                                            : (showFeedback
-                                                ? (isCorrect
-                                                    ? AppTheme.accentGreen
-                                                        .withValues(alpha: 0.05)
-                                                    : AppTheme.errorRed
-                                                        .withValues(
-                                                            alpha: 0.05))
-                                                : (assessmentMode
-                                                    ? Colors.transparent
-                                                    : Colors.white)),
-                                        border: Border.all(
-                                          color: isHovering
-                                              ? AppTheme.primaryBlue
-                                              : (showFeedback
-                                                  ? (isCorrect
-                                                      ? AppTheme.accentGreen
-                                                      : AppTheme.errorRed)
-                                                  : (assessmentMode
-                                                      ? Colors.transparent
-                                                      : AppTheme.textLight
-                                                          .withValues(
-                                                              alpha: 0.2))),
-                                          width: 2,
-                                          strokeAlign:
-                                              BorderSide.strokeAlignInside,
-                                        ),
-                                        borderRadius: BorderRadius.circular(16),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black
-                                                .withValues(alpha: 0.04),
-                                            blurRadius: 12,
-                                            offset: const Offset(0, 4),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Expanded(
-                                                child: Text(
-                                                  assessmentMode &&
-                                                          placedId == null &&
-                                                          !isHovering
-                                                      ? ' '
-                                                      : (assessmentMode
-                                                          ? 'Placement area'
-                                                          : zone.name),
-                                                  style: AppTheme.labelLarge
-                                                      .copyWith(
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                              ),
-                                              if (showFeedback) ...[
-                                                Icon(
-                                                  isCorrect
-                                                      ? Icons.check_circle
-                                                      : Icons.cancel,
-                                                  color: isCorrect
-                                                      ? AppTheme.accentGreen
-                                                      : AppTheme.errorRed,
-                                                  size: 24,
-                                                ),
-                                              ],
-                                            ],
-                                          ),
-                                          const SizedBox(height: 12),
-                                          if (placedId != null) ...[
-                                            Row(
-                                              children: [
-                                                Expanded(
-                                                  child: Container(
-                                                    padding: const EdgeInsets
-                                                        .symmetric(
-                                                      horizontal: 12,
-                                                      vertical: 8,
-                                                    ),
-                                                    decoration: BoxDecoration(
-                                                      gradient: AppTheme
-                                                          .primaryGradient,
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              8),
-                                                    ),
-                                                    child: Text(
-                                                      widget.components
-                                                          .firstWhere((c) =>
-                                                              c.id == placedId)
-                                                          .name,
-                                                      style: AppTheme
-                                                          .labelMedium
-                                                          .copyWith(
-                                                        color: Colors.white,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                IconButton(
-                                                  icon: const Icon(Icons.close,
-                                                      size: 20),
-                                                  onPressed: () =>
-                                                      _removeComponent(zone.id),
-                                                  style: IconButton.styleFrom(
-                                                    backgroundColor: AppTheme
-                                                        .textLight
-                                                        .withValues(alpha: 0.1),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ] else ...[
-                                            Container(
-                                              height: 48,
-                                              alignment: Alignment.center,
-                                              decoration: BoxDecoration(
-                                                color: assessmentMode
-                                                    ? Colors.transparent
-                                                    : AppTheme.textLight
-                                                        .withValues(
-                                                            alpha: 0.05),
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                                border: Border.all(
-                                                  color: assessmentMode
-                                                      ? Colors.transparent
-                                                      : AppTheme.textLight
-                                                          .withValues(
-                                                              alpha: 0.2),
-                                                  style: BorderStyle.solid,
-                                                ),
-                                              ),
-                                              child: Text(
-                                                assessmentMode
-                                                    ? ''
-                                                    : 'Drop component here',
-                                                style:
-                                                    AppTheme.bodySmall.copyWith(
-                                                  color: AppTheme.textLight,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Action Buttons
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, -4),
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                child: Column(
-                  children: [
-                    if (_showValidation &&
-                        _correctPlacements < widget.dropZones.length) ...[
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: AppTheme.accentOrange.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              color: AppTheme.accentOrange,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'Some components are incorrectly placed. Review and try again.',
-                                style: AppTheme.bodySmall.copyWith(
-                                  color: AppTheme.accentOrange,
-                                ),
-                              ),
-                            ),
-                          ],
                         ),
                       ),
                     ],
-                    AppButton.primary(
-                      label: _showValidation &&
-                              _correctPlacements == widget.dropZones.length
-                          ? 'View Results'
-                          : 'Check Placements',
-                      icon: Icons.check,
-                      onPressed: allPlaced ? _validatePlacements : () {},
-                      width: double.infinity,
+                  ),
+                ),
+
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.all(
+                      compactHeight ? 8 : 24,
                     ),
-                  ],
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Progress Info
+                        if (!compactHeight) ...[
+                          SoftCard(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Components',
+                                      style: AppTheme.labelSmall.copyWith(
+                                        color: AppTheme.textMedium,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${widget.components.where((c) => _isComponentPlaced(c.id)).length}/${widget.components.length} Placed',
+                                      style: AppTheme.labelLarge.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (_showValidation) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: _correctPlacements ==
+                                              widget.dropZones.length
+                                          ? AppTheme.accentGreen
+                                              .withValues(alpha: 0.1)
+                                          : AppTheme.accentOrange
+                                              .withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          _correctPlacements ==
+                                                  widget.dropZones.length
+                                              ? Icons.check_circle
+                                              : Icons.warning,
+                                          size: 16,
+                                          color: _correctPlacements ==
+                                                  widget.dropZones.length
+                                              ? AppTheme.accentGreen
+                                              : AppTheme.accentOrange,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '$_correctPlacements/${widget.dropZones.length} Correct',
+                                          style: AppTheme.labelSmall.copyWith(
+                                            color: _correctPlacements ==
+                                                    widget.dropZones.length
+                                                ? AppTheme.accentGreen
+                                                : AppTheme.accentOrange,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+
+                        if (_isEightPinLayout) ...[
+                          _buildEightPinLayout(assessmentMode),
+                        ] else ...[
+                          // Available Components
+                          Text(
+                            'Available Components',
+                            style: AppTheme.headlineSmall.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            children: widget.components.map((component) {
+                              final isPlaced = _isComponentPlaced(component.id);
+                              final isSelected =
+                                  _selectedComponentId == component.id;
+
+                              return Semantics(
+                                button: true,
+                                enabled: !isPlaced,
+                                selected: isSelected,
+                                label: isPlaced
+                                    ? '${component.name}, already placed'
+                                    : '${component.name}${isSelected ? ", selected" : ""}',
+                                hint: isPlaced
+                                    ? 'Remove it from its placement area to move it.'
+                                    : 'Double tap to select, then activate a placement area. You can also drag it.',
+                                child: Draggable<String>(
+                                  data: component.id,
+                                  dragAnchorStrategy: pointerDragAnchorStrategy,
+                                  feedback: Material(
+                                    elevation: 8,
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 12,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        gradient: AppTheme.primaryGradient,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        component.name,
+                                        style: AppTheme.labelMedium.copyWith(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  childWhenDragging: Opacity(
+                                    opacity: 0.3,
+                                    child: _buildComponentChip(
+                                      component,
+                                      isPlaced,
+                                      isSelected: false,
+                                    ),
+                                  ),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(12),
+                                    onTap: isPlaced
+                                        ? null
+                                        : () => setState(() {
+                                              _selectedComponentId = isSelected
+                                                  ? null
+                                                  : component.id;
+                                            }),
+                                    child: _buildComponentChip(
+                                      component,
+                                      isPlaced,
+                                      isSelected: isSelected,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                          const SizedBox(height: 32),
+
+                          // Drop Zones
+                          Text(
+                            assessmentMode
+                                ? 'Simulation workspace'
+                                : 'Installation areas',
+                            style: AppTheme.headlineSmall.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          InteractiveViewer(
+                            minScale: 0.9,
+                            maxScale: 2.4,
+                            panEnabled: false,
+                            clipBehavior: Clip.none,
+                            child: Column(
+                              children:
+                                  widget.dropZones.asMap().entries.map((entry) {
+                                final zoneIndex = entry.key;
+                                final zone = entry.value;
+                                final placedId = _placedComponents[zone.id];
+                                final showFeedback = _showValidation &&
+                                    _componentValidation.containsKey(zone.id);
+                                final isCorrect =
+                                    _componentValidation[zone.id] ?? false;
+
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Semantics(
+                                    button: true,
+                                    label: assessmentMode
+                                        ? 'Placement area ${zoneIndex + 1}${placedId == null ? ", empty" : ", contains ${widget.components.firstWhere((component) => component.id == placedId).name}"}'
+                                        : '${zone.name}${placedId == null ? ", empty" : ", contains ${widget.components.firstWhere((component) => component.id == placedId).name}"}',
+                                    hint: _selectedComponentId == null
+                                        ? 'Select an available component first, or drag one here.'
+                                        : 'Double tap to place the selected component here.',
+                                    child: GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: _selectedComponentId == null
+                                          ? null
+                                          : () => _placeComponent(
+                                                zone.id,
+                                                _selectedComponentId!,
+                                                interactionMethod:
+                                                    'select_then_place',
+                                              ),
+                                      child: DragTarget<String>(
+                                        onWillAcceptWithDetails: (_) => true,
+                                        onAcceptWithDetails: (details) =>
+                                            _placeComponent(
+                                                zone.id, details.data),
+                                        builder: (context, candidateData,
+                                            rejectedData) {
+                                          final isHovering =
+                                              candidateData.isNotEmpty;
+
+                                          return Container(
+                                            key: ValueKey(
+                                                'drop-zone-${zone.id}'),
+                                            constraints: const BoxConstraints(
+                                                minHeight: 96),
+                                            padding: const EdgeInsets.all(20),
+                                            decoration: BoxDecoration(
+                                              color: isHovering
+                                                  ? AppTheme.primaryBlue
+                                                      .withValues(alpha: 0.1)
+                                                  : (showFeedback
+                                                      ? (isCorrect
+                                                          ? AppTheme.accentGreen
+                                                              .withValues(
+                                                                  alpha: 0.05)
+                                                          : AppTheme.errorRed
+                                                              .withValues(
+                                                                  alpha: 0.05))
+                                                      : (assessmentMode
+                                                          ? Colors.transparent
+                                                          : Colors.white)),
+                                              border: Border.all(
+                                                color: isHovering
+                                                    ? AppTheme.primaryBlue
+                                                    : (showFeedback
+                                                        ? (isCorrect
+                                                            ? AppTheme
+                                                                .accentGreen
+                                                            : AppTheme.errorRed)
+                                                        : (assessmentMode
+                                                            ? Colors.transparent
+                                                            : AppTheme.textLight
+                                                                .withValues(
+                                                                    alpha:
+                                                                        0.2))),
+                                                width: 2,
+                                                strokeAlign: BorderSide
+                                                    .strokeAlignInside,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(16),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black
+                                                      .withValues(alpha: 0.04),
+                                                  blurRadius: 12,
+                                                  offset: const Offset(0, 4),
+                                                ),
+                                              ],
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment
+                                                          .spaceBetween,
+                                                  children: [
+                                                    Expanded(
+                                                      child: Text(
+                                                        assessmentMode &&
+                                                                placedId ==
+                                                                    null &&
+                                                                !isHovering
+                                                            ? ' '
+                                                            : (assessmentMode
+                                                                ? 'Placement area'
+                                                                : zone.name),
+                                                        style: AppTheme
+                                                            .labelLarge
+                                                            .copyWith(
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    if (showFeedback) ...[
+                                                      Icon(
+                                                        isCorrect
+                                                            ? Icons.check_circle
+                                                            : Icons.cancel,
+                                                        color: isCorrect
+                                                            ? AppTheme
+                                                                .accentGreen
+                                                            : AppTheme.errorRed,
+                                                        size: 24,
+                                                      ),
+                                                    ],
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 12),
+                                                if (placedId != null) ...[
+                                                  Row(
+                                                    children: [
+                                                      Expanded(
+                                                        child: Container(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                            horizontal: 12,
+                                                            vertical: 8,
+                                                          ),
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            gradient: AppTheme
+                                                                .primaryGradient,
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        8),
+                                                          ),
+                                                          child: Text(
+                                                            widget.components
+                                                                .firstWhere(
+                                                                    (c) =>
+                                                                        c.id ==
+                                                                        placedId)
+                                                                .name,
+                                                            style: AppTheme
+                                                                .labelMedium
+                                                                .copyWith(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      IconButton(
+                                                        icon: const Icon(
+                                                            Icons.close,
+                                                            size: 20),
+                                                        onPressed: () =>
+                                                            _removeComponent(
+                                                                zone.id),
+                                                        style: IconButton
+                                                            .styleFrom(
+                                                          backgroundColor:
+                                                              AppTheme.textLight
+                                                                  .withValues(
+                                                                      alpha:
+                                                                          0.1),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ] else ...[
+                                                  Container(
+                                                    height: 48,
+                                                    alignment: Alignment.center,
+                                                    decoration: BoxDecoration(
+                                                      color: assessmentMode
+                                                          ? Colors.transparent
+                                                          : AppTheme.textLight
+                                                              .withValues(
+                                                                  alpha: 0.05),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              8),
+                                                      border: Border.all(
+                                                        color: assessmentMode
+                                                            ? Colors.transparent
+                                                            : AppTheme.textLight
+                                                                .withValues(
+                                                                    alpha: 0.2),
+                                                        style:
+                                                            BorderStyle.solid,
+                                                      ),
+                                                    ),
+                                                    child: Text(
+                                                      assessmentMode
+                                                          ? ''
+                                                          : 'Drop component here',
+                                                      style: AppTheme.bodySmall
+                                                          .copyWith(
+                                                        color:
+                                                            AppTheme.textLight,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Action Buttons
+                Container(
+                  padding: EdgeInsets.all(compactHeight ? 8 : 24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 12,
+                        offset: const Offset(0, -4),
+                      ),
+                    ],
+                  ),
+                  child: SafeArea(
+                    child: Column(
+                      children: [
+                        AppButton.primary(
+                          label: _showValidation &&
+                                  _correctPlacements == widget.dropZones.length
+                              ? 'View Results'
+                              : 'Check Placements',
+                          icon: Icons.check,
+                          onPressed: allPlaced ? _validatePlacements : () {},
+                          width: double.infinity,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEightPinLayout(bool assessmentMode) => LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 700;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                assessmentMode ? 'Simulation workspace' : 'Pin connections',
+                style: AppTheme.headlineSmall.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
               ),
+              const SizedBox(height: 12),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: wide ? 8 : 4,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                  childAspectRatio: wide ? 1.2 : 1.05,
+                ),
+                itemCount: widget.dropZones.length,
+                itemBuilder: (context, index) =>
+                    _buildCompactPin(widget.dropZones[index], index),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Answer choices',
+                style: AppTheme.headlineSmall.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: wide ? 4 : 2,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: wide ? 2.5 : 2.2,
+                ),
+                itemCount: widget.components.length,
+                itemBuilder: (context, index) {
+                  final component = widget.components[index];
+                  final placed = _isComponentPlaced(component.id);
+                  final selected = _selectedComponentId == component.id;
+                  return Semantics(
+                    button: true,
+                    enabled: !placed,
+                    selected: selected,
+                    label: component.name,
+                    child: Draggable<String>(
+                      data: component.id,
+                      feedback: Material(
+                        child: _buildComponentChip(
+                          component,
+                          placed,
+                          isSelected: selected,
+                        ),
+                      ),
+                      childWhenDragging: Opacity(
+                        opacity: 0.3,
+                        child: _buildComponentChip(
+                          component,
+                          placed,
+                          isSelected: false,
+                        ),
+                      ),
+                      child: InkWell(
+                        onTap: placed
+                            ? null
+                            : () => setState(() => _selectedComponentId =
+                                selected ? null : component.id),
+                        child: _buildComponentChip(
+                          component,
+                          placed,
+                          isSelected: selected,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          );
+        },
+      );
+
+  Widget _buildCompactPin(DropZone zone, int index) {
+    final placedId = _placedComponents[zone.id];
+    final isCorrect = _componentValidation[zone.id] ?? false;
+    return Semantics(
+      button: true,
+      label: '${zone.name}${placedId == null ? ", empty" : ", occupied"}',
+      child: GestureDetector(
+        onTap: _selectedComponentId == null
+            ? null
+            : () => _placeComponent(
+                  zone.id,
+                  _selectedComponentId!,
+                  interactionMethod: 'select_then_place',
+                ),
+        child: DragTarget<String>(
+          onWillAcceptWithDetails: (_) => true,
+          onAcceptWithDetails: (details) =>
+              _placeComponent(zone.id, details.data),
+          builder: (context, candidates, rejected) => Container(
+            key: ValueKey('drop-zone-${zone.id}'),
+            constraints: const BoxConstraints(minHeight: 64, minWidth: 48),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: candidates.isNotEmpty
+                  ? AppTheme.primaryBlue.withValues(alpha: 0.1)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _showValidation
+                    ? (isCorrect ? AppTheme.accentGreen : AppTheme.errorRed)
+                    : AppTheme.borderLight,
+                width: 2,
+              ),
             ),
-          ],
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  zone.name,
+                  style: AppTheme.labelSmall.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (placedId != null)
+                  Text(
+                    widget.components
+                        .firstWhere((item) => item.id == placedId)
+                        .name,
+                    style: AppTheme.captionSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -806,11 +1001,16 @@ class _DragDropMissionScreenState extends State<DragDropMissionScreen> {
             ),
             const SizedBox(width: 6),
           ],
-          Text(
-            component.name,
-            style: AppTheme.labelMedium.copyWith(
-              color: isPlaced ? AppTheme.textLight : Colors.white,
-              fontWeight: FontWeight.w600,
+          Flexible(
+            child: Text(
+              component.name,
+              style: AppTheme.labelMedium.copyWith(
+                color: isPlaced ? AppTheme.textLight : Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
             ),
           ),
         ],
@@ -824,31 +1024,4 @@ class _DragDropMissionScreenState extends State<DragDropMissionScreen> {
     return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 
-  void _showExitDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Exit Mission?'),
-        content: const Text(
-            'Your progress will not be saved. Are you sure you want to exit?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: AppTheme.errorRed,
-            ),
-            child: const Text('Exit'),
-          ),
-        ],
-      ),
-    );
-  }
 }

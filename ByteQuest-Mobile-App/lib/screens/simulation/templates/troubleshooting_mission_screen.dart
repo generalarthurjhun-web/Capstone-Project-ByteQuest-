@@ -3,12 +3,13 @@ import 'dart:async';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/soft_card.dart';
 import '../../../core/widgets/app_button.dart';
-import '../../../core/widgets/simulation_fullscreen_button.dart';
 import '../../../models/mission_model.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/progress_resume_service.dart';
 import '../../../services/authoritative_assessment_service.dart';
 import '../legacy_practice_evidence_scope.dart';
+import '../components/practice_mission_chrome.dart';
+import '../practice_option_order.dart';
 import '../result_screen.dart';
 
 /// Template 5: Troubleshooting Mission Screen
@@ -40,10 +41,27 @@ class _TroubleshootingMissionScreenState
   bool _hasAnswered = false;
   int _timeSpent = 0;
   Timer? _timer;
+  late PracticeOptionOrder _optionOrder;
+
+  bool get _hasProgress =>
+      _currentScenarioIndex > 0 ||
+      _selectedCause != null ||
+      _hasAnswered ||
+      _correctAnswers > 0 ||
+      _mistakes.isNotEmpty;
 
   @override
   void initState() {
     super.initState();
+    _optionOrder = PracticeOptionOrder.create(
+      seed: PracticeOptionOrder.stableSeed(widget.mission.id),
+      sourceOptions: {
+        for (var index = 0; index < widget.scenarios.length; index++)
+          'scenario_$index': List<String>.from(
+            widget.scenarios[index]['causes'] as List,
+          ),
+      },
+    );
     _startTimer();
     _loadProgressState();
   }
@@ -65,6 +83,18 @@ class _TroubleshootingMissionScreenState
         _correctAnswers = data['correctAnswers'] ?? 0;
         _mistakes = List<String>.from(data['mistakes'] ?? []);
         _timeSpent = data['timeSpent'] ?? 0;
+        _selectedCause = data['selectedCause'] as String?;
+        _hasAnswered = data['hasAnswered'] == true && _selectedCause != null;
+        _optionOrder = PracticeOptionOrder.fromJson(
+          data['optionOrder'] as Map<String, dynamic>?,
+          fallbackSeed: PracticeOptionOrder.stableSeed(widget.mission.id),
+          sourceOptions: {
+            for (var index = 0; index < widget.scenarios.length; index++)
+              'scenario_$index': List<String>.from(
+                widget.scenarios[index]['causes'] as List,
+              ),
+          },
+        );
       });
       debugPrint('Loaded state for troubleshooting.');
     }
@@ -80,6 +110,9 @@ class _TroubleshootingMissionScreenState
       'correctAnswers': _correctAnswers,
       'mistakes': _mistakes,
       'timeSpent': _timeSpent,
+      'selectedCause': _selectedCause,
+      'hasAnswered': _hasAnswered,
+      'optionOrder': _optionOrder.toJson(),
     };
 
     await ProgressResumeService.saveState(
@@ -148,11 +181,6 @@ class _TroubleshootingMissionScreenState
     _saveProgressState();
 
     // Auto-advance after 3 seconds
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        _nextScenario();
-      }
-    });
   }
 
   void _nextScenario() {
@@ -249,271 +277,262 @@ class _TroubleshootingMissionScreenState
   Widget build(BuildContext context) {
     final scenario = widget.scenarios[_currentScenarioIndex];
     final progress = (_currentScenarioIndex + 1) / widget.scenarios.length;
-    final causes = scenario['causes'] as List<String>;
+    final sourceCauses = scenario['causes'] as List<String>;
+    final causes = _optionOrder.optionsFor(
+      'scenario_$_currentScenarioIndex',
+      sourceCauses,
+    );
 
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundOffWhite,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: AppTheme.textDark),
-          onPressed: () => _showExitDialog(),
-        ),
-        title: Text(
-          widget.mission.title,
-          style: AppTheme.headlineSmall.copyWith(
-            fontWeight: FontWeight.bold,
+    return PracticeMissionExitGuard(
+      mission: widget.mission,
+      hasProgress: () => _hasProgress,
+      builder: (context, requestExit) => Scaffold(
+        backgroundColor: AppTheme.backgroundOffWhite,
+        appBar: PracticeMissionAppBar(
+          mission: widget.mission,
+          onBackPressed: requestExit,
+          trailing: Text(
+            _formatTime(_timeSpent),
+            style: AppTheme.labelMedium.copyWith(
+              color: AppTheme.textMedium,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
-        actions: [
-          const SimulationFullscreenButton(),
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: Text(
-                _formatTime(_timeSpent),
-                style: AppTheme.labelMedium.copyWith(
-                  color: AppTheme.textMedium,
-                  fontWeight: FontWeight.w600,
-                ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Progress Bar
+              LinearProgressIndicator(
+                value: progress,
+                backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                valueColor:
+                    const AlwaysStoppedAnimation<Color>(AppTheme.primaryBlue),
+                minHeight: 6,
               ),
-            ),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Progress Bar
-            LinearProgressIndicator(
-              value: progress,
-              backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.1),
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(AppTheme.primaryBlue),
-              minHeight: 6,
-            ),
 
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Scenario Header
-                    SoftCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color:
-                                      AppTheme.errorRed.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  'Scenario ${_currentScenarioIndex + 1}/${widget.scenarios.length}',
-                                  style: AppTheme.labelSmall.copyWith(
-                                    color: AppTheme.errorRed,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.stars,
-                                    size: 16,
-                                    color: AppTheme.accentOrange,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${scenario['points'] ?? 10} pts',
-                                    style: AppTheme.labelSmall.copyWith(
-                                      color: AppTheme.accentOrange,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.error_outline,
-                                color: AppTheme.errorRed,
-                                size: 24,
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                'Problem Symptom',
-                                style: AppTheme.labelMedium.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppTheme.errorRed,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            scenario['symptom'] as String,
-                            style: AppTheme.headlineMedium.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Question
-                    Text(
-                      'What is the most likely cause?',
-                      style: AppTheme.headlineSmall.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Possible Causes
-                    ...causes.map((cause) {
-                      final icon = _getCauseIcon(cause);
-                      final iconColor = _getCauseIconColor(cause);
-
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: InkWell(
-                          onTap: () => _selectCause(cause),
-                          borderRadius: BorderRadius.circular(16),
-                          child: Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: _getCauseColor(cause),
-                              border: Border.all(
-                                color: _selectedCause == cause
-                                    ? AppTheme.primaryBlue
-                                    : AppTheme.textLight.withValues(alpha: 0.2),
-                                width: 2,
-                              ),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    cause,
-                                    style: AppTheme.bodyLarge.copyWith(
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                                if (icon != null) ...[
-                                  const SizedBox(width: 12),
-                                  Icon(icon, color: iconColor, size: 24),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-
-                    // Explanation (shown after answering)
-                    if (!_assessmentMode && _hasAnswered) ...[
-                      const SizedBox(height: 24),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Scenario Header
                       SoftCard(
-                        padding: const EdgeInsets.all(16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.errorRed
+                                        .withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    'Scenario ${_currentScenarioIndex + 1}/${widget.scenarios.length}',
+                                    style: AppTheme.labelSmall.copyWith(
+                                      color: AppTheme.errorRed,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.stars,
+                                      size: 16,
+                                      color: AppTheme.accentOrange,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${scenario['points'] ?? 10} pts',
+                                      style: AppTheme.labelSmall.copyWith(
+                                        color: AppTheme.accentOrange,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
                               children: [
                                 Icon(
-                                  Icons.info_outline,
-                                  color:
-                                      _selectedCause == scenario['correctCause']
-                                          ? AppTheme.accentGreen
-                                          : AppTheme.errorRed,
+                                  Icons.error_outline,
+                                  color: AppTheme.errorRed,
                                   size: 24,
                                 ),
                                 const SizedBox(width: 12),
                                 Text(
-                                  _selectedCause == scenario['correctCause']
-                                      ? 'Correct Diagnosis!'
-                                      : 'Incorrect Diagnosis',
+                                  'Problem Symptom',
                                   style: AppTheme.labelMedium.copyWith(
                                     fontWeight: FontWeight.w600,
-                                    color: _selectedCause ==
-                                            scenario['correctCause']
-                                        ? AppTheme.accentGreen
-                                        : AppTheme.errorRed,
+                                    color: AppTheme.errorRed,
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 8),
                             Text(
-                              'Correct Cause: ${scenario['correctCause']}',
-                              style: AppTheme.bodyMedium.copyWith(
-                                fontWeight: FontWeight.w600,
+                              scenario['symptom'] as String,
+                              style: AppTheme.headlineMedium.copyWith(
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            if (scenario['explanation'] != null) ...[
-                              const SizedBox(height: 8),
-                              Text(
-                                scenario['explanation'] as String,
-                                style: AppTheme.bodyMedium.copyWith(
-                                  color: AppTheme.textMedium,
-                                ),
-                              ),
-                            ],
                           ],
                         ),
                       ),
+                      const SizedBox(height: 24),
+
+                      // Question
+                      Text(
+                        'What is the most likely cause?',
+                        style: AppTheme.headlineSmall.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Possible Causes
+                      ...causes.map((cause) {
+                        final icon = _getCauseIcon(cause);
+                        final iconColor = _getCauseIconColor(cause);
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: InkWell(
+                            onTap: () => _selectCause(cause),
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: _getCauseColor(cause),
+                                border: Border.all(
+                                  color: _selectedCause == cause
+                                      ? AppTheme.primaryBlue
+                                      : AppTheme.textLight
+                                          .withValues(alpha: 0.2),
+                                  width: 2,
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      cause,
+                                      style: AppTheme.bodyLarge.copyWith(
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                  if (icon != null) ...[
+                                    const SizedBox(width: 12),
+                                    Icon(icon, color: iconColor, size: 24),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+
+                      // Explanation (shown after answering)
+                      if (!_assessmentMode && _hasAnswered) ...[
+                        const SizedBox(height: 24),
+                        SoftCard(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.info_outline,
+                                    color: _selectedCause ==
+                                            scenario['correctCause']
+                                        ? AppTheme.accentGreen
+                                        : AppTheme.errorRed,
+                                    size: 24,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    _selectedCause == scenario['correctCause']
+                                        ? 'Correct Diagnosis!'
+                                        : 'Incorrect Diagnosis',
+                                    style: AppTheme.labelMedium.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: _selectedCause ==
+                                              scenario['correctCause']
+                                          ? AppTheme.accentGreen
+                                          : AppTheme.errorRed,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Correct Cause: ${scenario['correctCause']}',
+                                style: AppTheme.bodyMedium.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              if (scenario['explanation'] != null) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  scenario['explanation'] as String,
+                                  style: AppTheme.bodyMedium.copyWith(
+                                    color: AppTheme.textMedium,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
+                  ),
+                ),
+              ),
+
+              // Submit/Next Button
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 12,
+                      offset: const Offset(0, -4),
+                    ),
                   ],
                 ),
-              ),
-            ),
-
-            // Submit/Next Button
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, -4),
+                child: SafeArea(
+                  child: AppButton.primary(
+                    label: _hasAnswered
+                        ? (_currentScenarioIndex < widget.scenarios.length - 1
+                            ? 'Next Scenario'
+                            : 'View Results')
+                        : 'Submit Diagnosis',
+                    icon: _hasAnswered ? Icons.arrow_forward : Icons.check,
+                    onPressed: _selectedCause == null
+                        ? () {}
+                        : (_hasAnswered ? _nextScenario : _submitDiagnosis),
+                    width: double.infinity,
                   ),
-                ],
-              ),
-              child: SafeArea(
-                child: AppButton.primary(
-                  label: _hasAnswered
-                      ? (_currentScenarioIndex < widget.scenarios.length - 1
-                          ? 'Next Scenario'
-                          : 'View Results')
-                      : 'Submit Diagnosis',
-                  icon: _hasAnswered ? Icons.arrow_forward : Icons.check,
-                  onPressed: _selectedCause == null
-                      ? () {}
-                      : (_hasAnswered ? _nextScenario : _submitDiagnosis),
-                  width: double.infinity,
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -523,36 +542,5 @@ class _TroubleshootingMissionScreenState
     final minutes = seconds ~/ 60;
     final remainingSeconds = seconds % 60;
     return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
-  }
-
-  void _showExitDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Exit Mission?'),
-        content: const Text(
-            'Your progress will be saved. Are you sure you want to exit?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              await _saveProgressState();
-              if (mounted) {
-                Navigator.pop(context);
-                Navigator.pop(context);
-              }
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: AppTheme.errorRed,
-            ),
-            child: const Text('Exit'),
-          ),
-        ],
-      ),
-    );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/learner_ui.dart';
 import '../../models/learner_quiz_model.dart';
+import '../simulation/practice_option_order.dart';
 import '../../services/learner_quiz_service.dart';
 import 'quiz_result_screen.dart';
 
@@ -23,6 +24,7 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
   bool _saving = false;
   bool _submitting = false;
   String? _error;
+  late final PracticeOptionOrder _optionOrder;
 
   LearnerQuizQuestion get _question => widget.attempt.questions[_index];
   String? get _answer => _answers[_question.id];
@@ -35,6 +37,15 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
         if (question.savedAnswer?.isNotEmpty ?? false)
           question.id: question.savedAnswer!,
     };
+    _optionOrder = PracticeOptionOrder.create(
+      seed: PracticeOptionOrder.stableSeed(widget.attempt.attemptId),
+      sourceOptions: {
+        for (final question in widget.attempt.questions)
+          question.id: question.type == 'true_false'
+              ? const ['True', 'False']
+              : question.options,
+      },
+    );
     _syncTextAnswer();
   }
 
@@ -197,9 +208,10 @@ class _QuizTakingScreenState extends State<QuizTakingScreen> {
       );
     }
 
-    final options = _question.type == 'true_false'
+    final sourceOptions = _question.type == 'true_false'
         ? const ['True', 'False']
         : _question.options;
+    final options = _optionOrder.optionsFor(_question.id, sourceOptions);
     if (options.isEmpty) {
       return const LearnerStateView(
         icon: Icons.warning_amber_rounded,

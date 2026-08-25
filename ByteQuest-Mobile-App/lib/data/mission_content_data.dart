@@ -16,6 +16,14 @@ class HardwareItem {
 /// Mission Content Data
 /// Contains questions, components, steps, and scenarios for all missions
 class MissionContentData {
+  static const exitMissionTitle = 'Exit Mission?';
+  static const exitMissionMessage =
+      'Exit will discard this mission progress. Force-close and app interruption recovery are unaffected.';
+  static const cancelExitLabel = 'Cancel';
+  static const confirmExitLabel = 'Exit';
+  static const discardProgressFailedMessage =
+      'Mission progress could not be reset. Please try again.';
+  static const continueLabel = 'Continue';
   static const retryPendingEvidenceLabel = 'Retry pending evidence';
   static const retryingPendingEvidenceLabel = 'Retrying evidence…';
   static const retryingPendingEvidenceFeedback =

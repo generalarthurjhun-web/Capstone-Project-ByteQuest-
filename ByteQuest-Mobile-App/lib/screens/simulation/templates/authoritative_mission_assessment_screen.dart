@@ -458,8 +458,7 @@ class _AuthoritativeMissionAssessmentScreenState
         body: Column(
           children: [
             MissionHeader(
-              missionNumber: widget.mission.missionNumber,
-              title: widget.mission.title,
+              mission: widget.mission,
               subtitle: 'Assessment · ${_contract!.unitCode}',
               onBackPressed: _showExitNotice,
             ),

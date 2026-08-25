@@ -10,6 +10,8 @@ import '../../../services/auth_service.dart';
 import '../../../services/progress_resume_service.dart';
 import '../../../services/authoritative_assessment_service.dart';
 import '../legacy_practice_evidence_scope.dart';
+import '../components/practice_mission_chrome.dart';
+import '../components/stable_mission_feedback_overlay.dart';
 import '../result_screen.dart';
 
 /// COC1 Mission 2: Install Internal Components - Enhanced UI
@@ -68,6 +70,13 @@ class _COC1M2ScreenEnhancedState extends State<COC1M2ScreenEnhanced> {
   int get _displayedStep => _installationSequence.isEmpty
       ? 0
       : (_currentStep + 1).clamp(1, _installationSequence.length);
+  bool get _hasProgress =>
+      _currentStep > 0 ||
+      _incorrectAttempts > 0 ||
+      _selectedComponentId != null ||
+      _tasks.values.any(
+        (task) => task.isCompleted || (task.attempts ?? 0) > 0,
+      );
 
   @override
   void initState() {
@@ -476,81 +485,86 @@ class _COC1M2ScreenEnhancedState extends State<COC1M2ScreenEnhanced> {
         ? null
         : _tasks[_installationSequence[_currentStep]];
 
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundOffWhite,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header
-            MissionHeader(
-              missionNumber: 2,
-              title: 'Install Internal Components',
-              subtitle: '',
-              onBackPressed: () => Navigator.pop(context),
-            ),
+    return PracticeMissionExitGuard(
+      mission: widget.mission,
+      hasProgress: () => _hasProgress,
+      builder: (context, requestExit) => Scaffold(
+        backgroundColor: AppTheme.backgroundOffWhite,
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Header
+              MissionHeader(
+                mission: widget.mission,
+                subtitle: '',
+                onBackPressed: requestExit,
+              ),
 
-            // Body Content
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(
-                    left: 16.0, right: 16.0, top: 4.0, bottom: 0.0),
-                child: Column(
-                  children: [
-                    // Step Progress Card
-                    if (!isCompactHeight) ...[
-                      StepProgressCard(
-                        currentStep: _displayedStep,
-                        totalSteps: _installationSequence.length,
-                        xpReward: _assessmentMode ? 0 : widget.mission.xpReward,
-                        modeLabel: _assessmentMode ? 'Assessment' : 'Practice',
-                        progress: _completedTasksCount / _tasks.length,
-                        margin: EdgeInsets.zero,
-                      ),
-                      const SizedBox(height: 4),
-                    ],
+              // Body Content
+              Expanded(
+                child: StableMissionFeedbackOverlay(
+                  feedback: _feedbackMessage != null && _feedbackType != null
+                      ? FeedbackCard(
+                          type: _feedbackType!,
+                          message: _feedbackMessage!,
+                          subtitle: _feedbackSubtitle,
+                          showRobot: true,
+                          dismissible: true,
+                          onDismiss: _dismissFeedback,
+                        )
+                      : null,
+                  child: Padding(
+                    padding: const EdgeInsets.only(
+                        left: 16.0, right: 16.0, top: 4.0, bottom: 0.0),
+                    child: Column(
+                      children: [
+                        // Step Progress Card
+                        if (!isCompactHeight) ...[
+                          StepProgressCard(
+                            currentStep: _displayedStep,
+                            totalSteps: _installationSequence.length,
+                            xpReward:
+                                _assessmentMode ? 0 : widget.mission.xpReward,
+                            modeLabel:
+                                _assessmentMode ? 'Assessment' : 'Practice',
+                            progress: _completedTasksCount / _tasks.length,
+                            margin: EdgeInsets.zero,
+                          ),
+                          const SizedBox(height: 4),
+                        ],
 
-                    // Instruction Card
-                    InstructionCard(
-                      icon: Icons.touch_app,
-                      instruction: currentTask != null
-                          ? (_assessmentMode
-                              ? 'Install the selected component in the correct location.'
-                              : 'Drag the ${currentTask.name} to the ${currentTask.zoneName}.')
-                          : 'All components installed!',
-                      highlightedText:
-                          _assessmentMode ? null : currentTask?.zoneName,
-                      points:
-                          _assessmentMode ? null : (currentTask?.points ?? 15),
+                        // Instruction Card
+                        InstructionCard(
+                          icon: Icons.touch_app,
+                          instruction: currentTask != null
+                              ? (_assessmentMode
+                                  ? 'Install the selected component in the correct location.'
+                                  : 'Drag the ${currentTask.name} to the ${currentTask.zoneName}.')
+                              : 'All components installed!',
+                          highlightedText:
+                              _assessmentMode ? null : currentTask?.zoneName,
+                          points: _assessmentMode
+                              ? null
+                              : (currentTask?.points ?? 15),
+                        ),
+                        const SizedBox(height: 4),
+
+                        // Main workspace columns
+                        Expanded(
+                          child: isTablet
+                              ? _buildTabletLayout()
+                              : _buildMobileLayout(),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 4),
-
-                    // Feedback Card (when shown)
-                    if (_feedbackMessage != null && _feedbackType != null) ...[
-                      FeedbackCard(
-                        type: _feedbackType!,
-                        message: _feedbackMessage!,
-                        subtitle: _feedbackSubtitle,
-                        showRobot: true,
-                        dismissible: true,
-                        onDismiss: _dismissFeedback,
-                      ),
-                      const SizedBox(height: 4),
-                    ],
-
-                    // Main workspace columns
-                    Expanded(
-                      child: isTablet
-                          ? _buildTabletLayout()
-                          : _buildMobileLayout(),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
 
-            // Bottom button
-            _buildBottomButton(),
-          ],
+              // Bottom button
+              _buildBottomButton(),
+            ],
+          ),
         ),
       ),
     );

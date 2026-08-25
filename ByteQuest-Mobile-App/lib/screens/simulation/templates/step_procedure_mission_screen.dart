@@ -4,11 +4,11 @@ import '../../../core/evaluation/sequence_evaluator.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/soft_card.dart';
 import '../../../core/widgets/app_button.dart';
-import '../../../core/widgets/simulation_fullscreen_button.dart';
 import '../../../models/mission_model.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/progress_resume_service.dart';
 import '../legacy_practice_evidence_scope.dart';
+import '../components/practice_mission_chrome.dart';
 import '../result_screen.dart';
 
 class StepProcedureProgress {
@@ -76,6 +76,12 @@ class _StepProcedureMissionScreenState
   Timer? _timer;
   int _correctSteps = 0;
   List<String> _mistakes = [];
+
+  bool get _hasProgress =>
+      _completedSteps.isNotEmpty ||
+      _completionOrder.isNotEmpty ||
+      _showValidation ||
+      _mistakes.isNotEmpty;
 
   @override
   void initState() {
@@ -278,251 +284,238 @@ class _StepProcedureMissionScreenState
     final progress = _completedSteps.length / widget.steps.length;
     final requiredSteps = widget.steps.where((s) => s.isRequired).length;
 
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundOffWhite,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: AppTheme.textDark),
-          onPressed: () => _showExitDialog(),
-        ),
-        title: Text(
-          widget.mission.title,
-          style: AppTheme.headlineSmall.copyWith(
-            fontWeight: FontWeight.bold,
+    return PracticeMissionExitGuard(
+      mission: widget.mission,
+      hasProgress: () => _hasProgress,
+      builder: (context, requestExit) => Scaffold(
+        backgroundColor: AppTheme.backgroundOffWhite,
+        appBar: PracticeMissionAppBar(
+          mission: widget.mission,
+          onBackPressed: requestExit,
+          trailing: Text(
+            _formatTime(_timeSpent),
+            style: AppTheme.labelMedium.copyWith(
+              color: AppTheme.textMedium,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
-        actions: [
-          const SimulationFullscreenButton(),
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: Text(
-                _formatTime(_timeSpent),
-                style: AppTheme.labelMedium.copyWith(
-                  color: AppTheme.textMedium,
-                  fontWeight: FontWeight.w600,
-                ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Progress Bar
+              LinearProgressIndicator(
+                value: progress,
+                backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                valueColor:
+                    const AlwaysStoppedAnimation<Color>(AppTheme.primaryBlue),
+                minHeight: 6,
               ),
-            ),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Progress Bar
-            LinearProgressIndicator(
-              value: progress,
-              backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.1),
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(AppTheme.primaryBlue),
-              minHeight: 6,
-            ),
 
-            // Instruction Card
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              color: AppTheme.primaryBlue.withValues(alpha: 0.05),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.list_alt,
-                    color: AppTheme.primaryBlue,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Complete all steps in the correct order',
-                      style: AppTheme.bodySmall.copyWith(
-                        color: AppTheme.primaryBlue,
-                        fontWeight: FontWeight.w500,
+              // Instruction Card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                color: AppTheme.primaryBlue.withValues(alpha: 0.05),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.list_alt,
+                      color: AppTheme.primaryBlue,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Complete all steps in the correct order',
+                        style: AppTheme.bodySmall.copyWith(
+                          color: AppTheme.primaryBlue,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
 
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Progress Info
-                    SoftCard(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Steps Completed',
-                                style: AppTheme.labelSmall.copyWith(
-                                  color: AppTheme.textMedium,
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Progress Info
+                      SoftCard(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Steps Completed',
+                                  style: AppTheme.labelSmall.copyWith(
+                                    color: AppTheme.textMedium,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${_completedSteps.length}/${widget.steps.length}',
+                                  style: AppTheme.headlineMedium.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (_showValidation) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _correctSteps >= requiredSteps
+                                      ? AppTheme.accentGreen
+                                          .withValues(alpha: 0.1)
+                                      : AppTheme.accentOrange
+                                          .withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      _correctSteps >= requiredSteps
+                                          ? Icons.check_circle
+                                          : Icons.warning,
+                                      size: 16,
+                                      color: _correctSteps >= requiredSteps
+                                          ? AppTheme.accentGreen
+                                          : AppTheme.accentOrange,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '$_correctSteps/$requiredSteps Correct',
+                                      style: AppTheme.labelSmall.copyWith(
+                                        color: _correctSteps >= requiredSteps
+                                            ? AppTheme.accentGreen
+                                            : AppTheme.accentOrange,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${_completedSteps.length}/${widget.steps.length}',
-                                style: AppTheme.headlineMedium.copyWith(
-                                  fontWeight: FontWeight.bold,
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Procedure Steps
+                      Text(
+                        'Procedure Checklist',
+                        style: AppTheme.headlineSmall.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      ...widget.steps.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final step = entry.value;
+                        final isCompleted = _completedSteps.contains(step.id);
+                        final showFeedback = _showValidation &&
+                            _stepValidation.containsKey(step.id);
+                        final isCorrect = _stepValidation[step.id] ?? false;
+                        final isLastStep = index == widget.steps.length - 1;
+
+                        return Column(
+                          children: [
+                            _buildStepCard(
+                                step, isCompleted, showFeedback, isCorrect),
+                            if (!isLastStep) ...[
+                              Padding(
+                                padding: const EdgeInsets.only(left: 24),
+                                child: Container(
+                                  width: 2,
+                                  height: 12,
+                                  color: isCompleted
+                                      ? AppTheme.primaryBlue
+                                          .withValues(alpha: 0.3)
+                                      : AppTheme.textLight
+                                          .withValues(alpha: 0.2),
+                                ),
+                              ),
+                            ],
+                          ],
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Submit Button
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 12,
+                      offset: const Offset(0, -4),
+                    ),
+                  ],
+                ),
+                child: SafeArea(
+                  child: Column(
+                    children: [
+                      if (_showValidation && _correctSteps < requiredSteps) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: AppTheme.accentOrange.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                color: AppTheme.accentOrange,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'Review the procedure and ensure all steps are completed in order.',
+                                  style: AppTheme.bodySmall.copyWith(
+                                    color: AppTheme.accentOrange,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                          if (_showValidation) ...[
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _correctSteps >= requiredSteps
-                                    ? AppTheme.accentGreen
-                                        .withValues(alpha: 0.1)
-                                    : AppTheme.accentOrange
-                                        .withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    _correctSteps >= requiredSteps
-                                        ? Icons.check_circle
-                                        : Icons.warning,
-                                    size: 16,
-                                    color: _correctSteps >= requiredSteps
-                                        ? AppTheme.accentGreen
-                                        : AppTheme.accentOrange,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '$_correctSteps/$requiredSteps Correct',
-                                    style: AppTheme.labelSmall.copyWith(
-                                      color: _correctSteps >= requiredSteps
-                                          ? AppTheme.accentGreen
-                                          : AppTheme.accentOrange,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Procedure Steps
-                    Text(
-                      'Procedure Checklist',
-                      style: AppTheme.headlineSmall.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    ...widget.steps.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final step = entry.value;
-                      final isCompleted = _completedSteps.contains(step.id);
-                      final showFeedback = _showValidation &&
-                          _stepValidation.containsKey(step.id);
-                      final isCorrect = _stepValidation[step.id] ?? false;
-                      final isLastStep = index == widget.steps.length - 1;
-
-                      return Column(
-                        children: [
-                          _buildStepCard(
-                              step, isCompleted, showFeedback, isCorrect),
-                          if (!isLastStep) ...[
-                            Padding(
-                              padding: const EdgeInsets.only(left: 24),
-                              child: Container(
-                                width: 2,
-                                height: 12,
-                                color: isCompleted
-                                    ? AppTheme.primaryBlue
-                                        .withValues(alpha: 0.3)
-                                    : AppTheme.textLight.withValues(alpha: 0.2),
-                              ),
-                            ),
-                          ],
-                        ],
-                      );
-                    }),
-                  ],
-                ),
-              ),
-            ),
-
-            // Submit Button
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, -4),
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                child: Column(
-                  children: [
-                    if (_showValidation && _correctSteps < requiredSteps) ...[
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: AppTheme.accentOrange.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              color: AppTheme.accentOrange,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'Review the procedure and ensure all steps are completed in order.',
-                                style: AppTheme.bodySmall.copyWith(
-                                  color: AppTheme.accentOrange,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                      ],
+                      AppButton.primary(
+                        label: _showValidation && _correctSteps >= requiredSteps
+                            ? 'View Results'
+                            : 'Verify Procedure',
+                        icon: Icons.check,
+                        onPressed: _completedSteps.length >= requiredSteps
+                            ? _validateProcedure
+                            : () {},
+                        width: double.infinity,
                       ),
                     ],
-                    AppButton.primary(
-                      label: _showValidation && _correctSteps >= requiredSteps
-                          ? 'View Results'
-                          : 'Verify Procedure',
-                      icon: Icons.check,
-                      onPressed: _completedSteps.length >= requiredSteps
-                          ? _validateProcedure
-                          : () {},
-                      width: double.infinity,
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -681,34 +674,4 @@ class _StepProcedureMissionScreenState
     return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 
-  void _showExitDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Exit Mission?'),
-        content: const Text(
-            'Your progress will be saved. Are you sure you want to exit?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              await _saveProgressState();
-              if (mounted) {
-                Navigator.pop(context);
-                Navigator.pop(context);
-              }
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: AppTheme.errorRed,
-            ),
-            child: const Text('Exit'),
-          ),
-        ],
-      ),
-    );
-  }
 }

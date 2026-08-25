@@ -76,6 +76,47 @@ void main() {
     expect(reopened.completionOrder, ['step2', 'step1']);
   });
 
+  test('intentional exit clears progress while interruption keeps it',
+      () async {
+    const userId = 'learner-exit-boundary';
+    const missionId = 'coc2_m5';
+
+    Future<void> saveInterruptionSnapshot() => ProgressResumeService.saveState(
+          userId: userId,
+          missionId: missionId,
+          cocId: 'coc2',
+          currentStep: 2,
+          totalSteps: 5,
+          stateData: const {'configured': true},
+        );
+
+    await saveInterruptionSnapshot();
+    expect(
+      await ProgressResumeService.loadState(
+        userId: userId,
+        missionId: missionId,
+      ),
+      isNotNull,
+      reason: 'An interruption must retain the local snapshot.',
+    );
+
+    expect(
+      await ProgressResumeService.clearState(
+        userId: userId,
+        missionId: missionId,
+      ),
+      isTrue,
+    );
+    expect(
+      await ProgressResumeService.loadState(
+        userId: userId,
+        missionId: missionId,
+      ),
+      isNull,
+      reason: 'An intentional exit must discard the local snapshot.',
+    );
+  });
+
   test('COC1 M4 authoritative content can evaluate all three fields', () {
     final config = MissionContentData.getCOC1M4ConfigData();
 

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/mission_header.dart';
-import '../../../core/widgets/step_progress_card.dart';
 import '../../../core/widgets/instruction_card.dart';
 import '../../../core/widgets/progress_indicator_card.dart';
 import '../../../core/widgets/feedback_card.dart';
@@ -13,6 +12,8 @@ import '../../../services/auth_service.dart';
 import '../../../services/progress_resume_service.dart';
 import '../../../services/authoritative_assessment_service.dart';
 import '../legacy_practice_evidence_scope.dart';
+import '../components/practice_mission_chrome.dart';
+import '../practice_option_order.dart';
 import '../result_screen.dart';
 
 /// Enhanced Identification Mission Screen (Mission 1)
@@ -62,10 +63,15 @@ class _IdentificationMissionScreenEnhancedState
   String? _feedbackMessage;
   String? _feedbackSubtitle;
   FeedbackType? _feedbackType;
+  late PracticeOptionOrder _optionOrder;
 
   @override
   void initState() {
     super.initState();
+    _optionOrder = PracticeOptionOrder.create(
+      sourceOptions: _sourceOptions,
+      seed: DateTime.now().microsecondsSinceEpoch & 0x7fffffff,
+    );
     _startTimer();
     _loadProgressState();
   }
@@ -91,6 +97,17 @@ class _IdentificationMissionScreenEnhancedState
   bool get _isCOC1M1 => widget.mission.id == 'coc1_m1';
   bool get _assessmentMode =>
       AuthoritativeAssessmentService.instance.isAssessmentMode;
+  bool get _hasProgress =>
+      _currentQuestionIndex > 0 ||
+      _selectedAnswer != null ||
+      _hasAnswered ||
+      _correctAnswers > 0 ||
+      _mistakes.isNotEmpty ||
+      _hintsUsed > 0;
+  Map<String, List<String>> get _sourceOptions => {
+        for (final question in widget.questions)
+          question.id: List<String>.from(question.options),
+      };
 
   Future<void> _loadProgressState() async {
     final userId = AuthService().currentUserId;
@@ -111,6 +128,11 @@ class _IdentificationMissionScreenEnhancedState
         _hintsRemaining = data['hintsRemaining'] ?? 3;
         _hintsUsed = data['hintsUsed'] ?? 0;
         _timeSpent = data['timeSpent'] ?? 0;
+        _optionOrder = PracticeOptionOrder.fromJson(
+          data['optionOrder'] as Map<String, dynamic>?,
+          sourceOptions: _sourceOptions,
+          fallbackSeed: PracticeOptionOrder.stableSeed(widget.mission.id),
+        );
       });
       debugPrint(
           'Loaded simulation state. Starting at question index: $_currentQuestionIndex');
@@ -129,6 +151,7 @@ class _IdentificationMissionScreenEnhancedState
       'hintsRemaining': _hintsRemaining,
       'hintsUsed': _hintsUsed,
       'timeSpent': _timeSpent,
+      'optionOrder': _optionOrder.toJson(),
     };
 
     await ProgressResumeService.saveState(
@@ -183,7 +206,8 @@ class _IdentificationMissionScreenEnhancedState
         if (!_assessmentMode) {
           _feedbackMessage =
               'Great! You identified the ${question.correctAnswer}.';
-          _feedbackSubtitle = 'Keep it up, ByteQuester!';
+          _feedbackSubtitle =
+              question.explanation ?? 'Keep it up, ByteQuester!';
           _feedbackType = FeedbackType.success;
         }
       } else {
@@ -192,19 +216,14 @@ class _IdentificationMissionScreenEnhancedState
         if (!_assessmentMode) {
           _feedbackMessage =
               'Incorrect. That\'s not the ${question.correctAnswer}.';
-          _feedbackSubtitle = 'Try again next time!';
+          _feedbackSubtitle =
+              question.explanation ?? 'Review the item details and continue.';
           _feedbackType = FeedbackType.error;
         }
       }
     });
 
     _saveProgressState();
-
-    Future.delayed(const Duration(milliseconds: 2500), () {
-      if (mounted) {
-        _nextQuestion();
-      }
-    });
   }
 
   void _showHint() {
@@ -310,191 +329,193 @@ class _IdentificationMissionScreenEnhancedState
       gridColumns = 4;
     }
 
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundOffWhite,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Mission Header
-            MissionHeader(
-              missionNumber: widget.mission.missionNumber,
-              title: widget.mission.title,
-              subtitle: '',
-              onBackPressed: () => _showExitDialog(),
-            ),
+    return PracticeMissionExitGuard(
+      mission: widget.mission,
+      hasProgress: () => _hasProgress,
+      builder: (context, requestExit) => Scaffold(
+        backgroundColor: AppTheme.backgroundOffWhite,
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Mission Header
+              MissionHeader(
+                mission: widget.mission,
+                subtitle: '',
+                onBackPressed: requestExit,
+              ),
 
-            // Step Progress Card
-            StepProgressCard(
-              currentStep: _currentQuestionIndex + 1,
-              totalSteps: widget.questions.length,
-              xpReward: _assessmentMode ? 0 : widget.mission.xpReward,
-              modeLabel: _assessmentMode ? 'Assessment' : 'Practice',
-              progress: (_currentQuestionIndex + 1) / widget.questions.length,
-            ),
+              const SizedBox(height: 12),
+              ProgressIndicatorCard(
+                current: _correctAnswers,
+                total: widget.questions.length,
+                label: 'items identified',
+                icon: Icons.fact_check_outlined,
+              ),
+              const SizedBox(height: 4),
 
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: 180),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 8),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 8),
 
-                    // Instruction Card
-                    InstructionCard(
-                      instruction: _assessmentMode
-                          ? question.question
-                          : 'Tap the correct item: ${question.correctAnswer}',
-                      highlightedText:
-                          _assessmentMode ? null : question.correctAnswer,
-                      icon: Icons.touch_app,
-                    ),
-                    const SizedBox(height: 16),
+                      // Instruction Card
+                      InstructionCard(
+                        instruction: _assessmentMode
+                            ? question.question
+                            : 'Tap the correct item: ${question.correctAnswer}',
+                        highlightedText:
+                            _assessmentMode ? null : question.correctAnswer,
+                        icon: Icons.touch_app,
+                      ),
+                      const SizedBox(height: 16),
 
-                    // Hint Button (COC1-M1 specific)
-                    if (!_assessmentMode && _isCOC1M1 && !_hasAnswered) ...[
-                      Center(
-                        child: Container(
+                      // Hint Button (COC1-M1 specific)
+                      if (!_assessmentMode && _isCOC1M1 && !_hasAnswered) ...[
+                        Center(
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 16),
+                            child: OutlinedButton.icon(
+                              onPressed: _hintsRemaining > 0 ? _showHint : null,
+                              icon: Icon(
+                                Icons.lightbulb_outline,
+                                size: 18,
+                                color: _hintsRemaining > 0
+                                    ? AppTheme.accentOrange
+                                    : AppTheme.textLight,
+                              ),
+                              label: Text(
+                                'Use Hint ($_hintsRemaining remaining)',
+                                style: TextStyle(
+                                  color: _hintsRemaining > 0
+                                      ? AppTheme.accentOrange
+                                      : AppTheme.textLight,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(
+                                  color: _hintsRemaining > 0
+                                      ? AppTheme.accentOrange
+                                      : AppTheme.textLight,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 20, vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // Hint Display
+                      if (!_assessmentMode &&
+                          _showingHint &&
+                          _currentHint != null) ...[
+                        Container(
                           margin: const EdgeInsets.symmetric(horizontal: 16),
-                          child: OutlinedButton.icon(
-                            onPressed: _hintsRemaining > 0 ? _showHint : null,
-                            icon: Icon(
-                              Icons.lightbulb_outline,
-                              size: 18,
-                              color: _hintsRemaining > 0
-                                  ? AppTheme.accentOrange
-                                  : AppTheme.textLight,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppTheme.accentOrange.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color:
+                                  AppTheme.accentOrange.withValues(alpha: 0.3),
                             ),
-                            label: Text(
-                              'Use Hint ($_hintsRemaining remaining)',
-                              style: TextStyle(
-                                color: _hintsRemaining > 0
-                                    ? AppTheme.accentOrange
-                                    : AppTheme.textLight,
-                                fontWeight: FontWeight.w600,
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.lightbulb,
+                                  color: AppTheme.accentOrange,
+                                  size: 20,
+                                ),
                               ),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(
-                                color: _hintsRemaining > 0
-                                    ? AppTheme.accentOrange
-                                    : AppTheme.textLight,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Hint',
+                                      style: AppTheme.labelMedium.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.accentOrange,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _currentHint!,
+                                      style: AppTheme.bodyMedium.copyWith(
+                                        color: AppTheme.textDark,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 20, vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // Hardware Items Grid
+                      if (_isImageBasedMission)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: _buildImageBasedGrid(question, gridColumns),
+                        )
+                      else
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: _buildTextBasedOptions(question),
+                        ),
+                      const SizedBox(height: 16),
+
+                      // Feedback Card
+                      if (!_assessmentMode &&
+                          _feedbackMessage != null &&
+                          _feedbackType != null) ...[
+                        FeedbackCard(
+                          message: _feedbackMessage!,
+                          subtitle: _feedbackSubtitle,
+                          type: _feedbackType!,
+                          showRobot: true,
+                          dismissible: false,
+                        ),
+                      ],
+                      if (_hasAnswered) ...[
+                        const SizedBox(height: 8),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: FilledButton.icon(
+                            onPressed: _nextQuestion,
+                            icon: const Icon(Icons.arrow_forward_rounded),
+                            label: const Text(MissionContentData.continueLabel),
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size.fromHeight(48),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
+                      ],
                     ],
-
-                    // Hint Display
-                    if (!_assessmentMode &&
-                        _showingHint &&
-                        _currentHint != null) ...[
-                      Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 16),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppTheme.accentOrange.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: AppTheme.accentOrange.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.lightbulb,
-                                color: AppTheme.accentOrange,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Hint',
-                                    style: AppTheme.labelMedium.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: AppTheme.accentOrange,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _currentHint!,
-                                    style: AppTheme.bodyMedium.copyWith(
-                                      color: AppTheme.textDark,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // Hardware Items Grid
-                    if (_isImageBasedMission)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: _buildImageBasedGrid(question, gridColumns),
-                      )
-                    else
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: _buildTextBasedOptions(question),
-                      ),
-                    const SizedBox(height: 16),
-
-                    // Progress Indicator Card
-                    ProgressIndicatorCard(
-                      current: _correctAnswers,
-                      total: widget.questions.length,
-                      label: 'items identified',
-                      icon: Icons.checklist,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Feedback Card
-                    if (!_assessmentMode &&
-                        _feedbackMessage != null &&
-                        _feedbackType != null) ...[
-                      FeedbackCard(
-                        message: _feedbackMessage!,
-                        subtitle: _feedbackSubtitle,
-                        type: _feedbackType!,
-                        showRobot: true,
-                        dismissible: true,
-                        onDismiss: () {
-                          setState(() {
-                            _feedbackMessage = null;
-                            _feedbackType = null;
-                            _feedbackSubtitle = null;
-                          });
-                        },
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -507,7 +528,13 @@ class _IdentificationMissionScreenEnhancedState
     } else {
       displayItems = widget.hardwareItems!.where((item) {
         return question.options.contains(item.name);
-      }).toList();
+      }).toList()
+        ..sort((left, right) => _optionOrder
+            .optionsFor(question.id, question.options)
+            .indexOf(left.name)
+            .compareTo(_optionOrder
+                .optionsFor(question.id, question.options)
+                .indexOf(right.name)));
     }
 
     return GridView.builder(
@@ -656,23 +683,10 @@ class _IdentificationMissionScreenEnhancedState
                             item.imagePath,
                             fit: BoxFit.contain,
                             errorBuilder: (context, error, stackTrace) {
-                              return Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.broken_image,
-                                    size: 32,
-                                    color: AppTheme.textLight,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Image\nnot found',
-                                    style: AppTheme.captionSmall.copyWith(
-                                      color: AppTheme.textLight,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
+                              return Icon(
+                                Icons.broken_image,
+                                size: 32,
+                                color: AppTheme.textLight,
                               );
                             },
                           ),
@@ -713,7 +727,8 @@ class _IdentificationMissionScreenEnhancedState
 
   Widget _buildTextBasedOptions(MissionQuestion question) {
     return Column(
-      children: question.options.map((option) {
+      children:
+          _optionOrder.optionsFor(question.id, question.options).map((option) {
         final isSelected = _selectedAnswer == option;
         final isCorrect = option == question.correctAnswer;
         final showFeedback = _hasAnswered && !_assessmentMode;
@@ -787,34 +802,6 @@ class _IdentificationMissionScreenEnhancedState
           ),
         );
       }).toList(),
-    );
-  }
-
-  void _showExitDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Exit Mission?'),
-        content: const Text(
-            'Your progress will not be saved. Are you sure you want to exit?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: AppTheme.errorRed,
-            ),
-            child: const Text('Exit'),
-          ),
-        ],
-      ),
     );
   }
 }

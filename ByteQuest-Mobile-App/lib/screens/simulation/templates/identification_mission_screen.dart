@@ -3,7 +3,6 @@ import 'dart:async';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/soft_card.dart';
 import '../../../core/widgets/app_button.dart';
-import '../../../core/widgets/simulation_fullscreen_button.dart';
 import '../../../models/mission_model.dart';
 import '../../../data/mission_content_data.dart';
 import '../../../data/mission_scenarios_data.dart';
@@ -11,6 +10,8 @@ import '../../../services/auth_service.dart';
 import '../../../services/progress_resume_service.dart';
 import '../../../services/authoritative_assessment_service.dart';
 import '../legacy_practice_evidence_scope.dart';
+import '../components/practice_mission_chrome.dart';
+import '../practice_option_order.dart';
 import '../result_screen.dart';
 
 /// Template 1: Identification Mission Screen
@@ -51,10 +52,25 @@ class _IdentificationMissionScreenState
   bool _showingHint = false;
   String? _currentHint;
   int _hintsUsed = 0;
+  late PracticeOptionOrder _optionOrder;
+
+  bool get _hasProgress =>
+      _currentQuestionIndex > 0 ||
+      _selectedAnswer != null ||
+      _hasAnswered ||
+      _correctAnswers > 0 ||
+      _mistakes.isNotEmpty ||
+      _hintsUsed > 0;
 
   @override
   void initState() {
     super.initState();
+    _optionOrder = PracticeOptionOrder.create(
+      seed: PracticeOptionOrder.stableSeed(widget.mission.id),
+      sourceOptions: {
+        for (final question in widget.questions) question.id: question.options,
+      },
+    );
     _startTimer();
     _loadProgressState();
   }
@@ -78,6 +94,14 @@ class _IdentificationMissionScreenState
         _hintsRemaining = data['hintsRemaining'] ?? 3;
         _hintsUsed = data['hintsUsed'] ?? 0;
         _timeSpent = data['timeSpent'] ?? 0;
+        _optionOrder = PracticeOptionOrder.fromJson(
+          data['optionOrder'] as Map<String, dynamic>?,
+          fallbackSeed: PracticeOptionOrder.stableSeed(widget.mission.id),
+          sourceOptions: {
+            for (final question in widget.questions)
+              question.id: question.options,
+          },
+        );
       });
       debugPrint(
           'Loaded state. Starting at question index: $_currentQuestionIndex');
@@ -96,6 +120,7 @@ class _IdentificationMissionScreenState
       'hintsRemaining': _hintsRemaining,
       'hintsUsed': _hintsUsed,
       'timeSpent': _timeSpent,
+      'optionOrder': _optionOrder.toJson(),
     };
 
     await ProgressResumeService.saveState(
@@ -209,12 +234,6 @@ class _IdentificationMissionScreenState
     });
 
     _saveProgressState();
-
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        _nextQuestion();
-      }
-    });
   }
 
   void _nextQuestion() {
@@ -313,288 +332,229 @@ class _IdentificationMissionScreenState
     final question = widget.questions[_currentQuestionIndex];
     final progress = (_currentQuestionIndex + 1) / widget.questions.length;
 
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundOffWhite,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: AppTheme.textDark),
-          onPressed: () => _showExitDialog(),
-        ),
-        title: Text(
-          widget.mission.title,
-          style: AppTheme.headlineSmall.copyWith(
-            fontWeight: FontWeight.bold,
+    return PracticeMissionExitGuard(
+      mission: widget.mission,
+      hasProgress: () => _hasProgress,
+      builder: (context, requestExit) => Scaffold(
+        backgroundColor: AppTheme.backgroundOffWhite,
+        appBar: PracticeMissionAppBar(
+          mission: widget.mission,
+          onBackPressed: requestExit,
+          trailing: Text(
+            _formatTime(_timeSpent),
+            style: AppTheme.labelMedium.copyWith(
+              color: AppTheme.textMedium,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
-        actions: [
-          const SimulationFullscreenButton(),
-          if (_isCOC1M1) ...[
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Center(
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _hintsRemaining > 0
-                        ? AppTheme.accentOrange.withValues(alpha: 0.1)
-                        : AppTheme.textLight.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: _hintsRemaining > 0
-                          ? AppTheme.accentOrange.withValues(alpha: 0.3)
-                          : AppTheme.textLight.withValues(alpha: 0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+        body: SafeArea(
+          child: Column(
+            children: [
+              LinearProgressIndicator(
+                value: progress,
+                backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                valueColor:
+                    const AlwaysStoppedAnimation<Color>(AppTheme.primaryBlue),
+                minHeight: 6,
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        Icons.lightbulb_outline,
-                        size: 16,
-                        color: _hintsRemaining > 0
-                            ? AppTheme.accentOrange
-                            : AppTheme.textLight,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Hints: $_hintsRemaining',
-                        style: AppTheme.labelSmall.copyWith(
-                          color: _hintsRemaining > 0
-                              ? AppTheme.accentOrange
-                              : AppTheme.textLight,
-                          fontWeight: FontWeight.w600,
+                      SoftCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primaryBlue
+                                        .withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    'Question ${_currentQuestionIndex + 1}/${widget.questions.length}',
+                                    style: AppTheme.labelSmall.copyWith(
+                                      color: AppTheme.primaryBlue,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.stars,
+                                      size: 16,
+                                      color: AppTheme.accentOrange,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${question.points} pts',
+                                      style: AppTheme.labelSmall.copyWith(
+                                        color: AppTheme.accentOrange,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              question.question,
+                              style: AppTheme.headlineMedium.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: Text(
-                '${_formatTime(_timeSpent)}',
-                style: AppTheme.labelMedium.copyWith(
-                  color: AppTheme.textMedium,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            LinearProgressIndicator(
-              value: progress,
-              backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.1),
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(AppTheme.primaryBlue),
-              minHeight: 6,
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SoftCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      const SizedBox(height: 16),
+                      if (!_assessmentMode && _isCOC1M1 && !_hasAnswered) ...[
+                        Center(
+                          child: AppButton.outline(
+                            label: 'Use Hint',
+                            icon: Icons.lightbulb_outline,
+                            onPressed: _hintsRemaining > 0 ? _showHint : () {},
+                            width: 200,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      if (!_assessmentMode &&
+                          _showingHint &&
+                          _currentHint != null) ...[
+                        SoftCard(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
+                                padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.primaryBlue
+                                  color: AppTheme.accentOrange
                                       .withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: Text(
-                                  'Question ${_currentQuestionIndex + 1}/${widget.questions.length}',
-                                  style: AppTheme.labelSmall.copyWith(
-                                    color: AppTheme.primaryBlue,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                child: const Icon(
+                                  Icons.lightbulb,
+                                  color: AppTheme.accentOrange,
+                                  size: 20,
                                 ),
                               ),
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.stars,
-                                    size: 16,
-                                    color: AppTheme.accentOrange,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${question.points} pts',
-                                    style: AppTheme.labelSmall.copyWith(
-                                      color: AppTheme.accentOrange,
-                                      fontWeight: FontWeight.w600,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Hint',
+                                      style: AppTheme.labelMedium.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        color: AppTheme.accentOrange,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _currentHint!,
+                                      style: AppTheme.bodyMedium.copyWith(
+                                        color: AppTheme.textMedium,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 16),
-                          Text(
-                            question.question,
-                            style: AppTheme.headlineMedium.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      if (_isImageBasedMission)
+                        _buildImageBasedOptions()
+                      else
+                        _buildTextBasedOptions(),
+                      if (!_assessmentMode &&
+                          _hasAnswered &&
+                          question.explanation != null) ...[
+                        const SizedBox(height: 24),
+                        SoftCard(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                color: AppTheme.primaryBlue,
+                                size: 24,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Explanation',
+                                      style: AppTheme.labelMedium.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        color: AppTheme.primaryBlue,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      question.explanation!,
+                                      style: AppTheme.bodyMedium.copyWith(
+                                        color: AppTheme.textMedium,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 12,
+                      offset: const Offset(0, -4),
                     ),
-                    const SizedBox(height: 16),
-                    if (!_assessmentMode && _isCOC1M1 && !_hasAnswered) ...[
-                      Center(
-                        child: AppButton.outline(
-                          label: 'Use Hint',
-                          icon: Icons.lightbulb_outline,
-                          onPressed: _hintsRemaining > 0 ? _showHint : () {},
-                          width: 200,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                    if (!_assessmentMode &&
-                        _showingHint &&
-                        _currentHint != null) ...[
-                      SoftCard(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AppTheme.accentOrange
-                                    .withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.lightbulb,
-                                color: AppTheme.accentOrange,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Hint',
-                                    style: AppTheme.labelMedium.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color: AppTheme.accentOrange,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _currentHint!,
-                                    style: AppTheme.bodyMedium.copyWith(
-                                      color: AppTheme.textMedium,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                    if (_isImageBasedMission)
-                      _buildImageBasedOptions()
-                    else
-                      _buildTextBasedOptions(),
-                    if (!_assessmentMode &&
-                        _hasAnswered &&
-                        question.explanation != null) ...[
-                      const SizedBox(height: 24),
-                      SoftCard(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              color: AppTheme.primaryBlue,
-                              size: 24,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Explanation',
-                                    style: AppTheme.labelMedium.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color: AppTheme.primaryBlue,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    question.explanation!,
-                                    style: AppTheme.bodyMedium.copyWith(
-                                      color: AppTheme.textMedium,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
                   ],
                 ),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, -4),
+                child: SafeArea(
+                  child: AppButton.primary(
+                    label: _hasAnswered
+                        ? (_currentQuestionIndex < widget.questions.length - 1
+                            ? 'Next Question'
+                            : 'View Results')
+                        : 'Submit Answer',
+                    icon: _hasAnswered ? Icons.arrow_forward : Icons.check,
+                    onPressed: _selectedAnswer == null
+                        ? () {}
+                        : (_hasAnswered ? _nextQuestion : _submitAnswer),
+                    width: double.infinity,
                   ),
-                ],
-              ),
-              child: SafeArea(
-                child: AppButton.primary(
-                  label: _hasAnswered
-                      ? (_currentQuestionIndex < widget.questions.length - 1
-                          ? 'Next Question'
-                          : 'View Results')
-                      : 'Submit Answer',
-                  icon: _hasAnswered ? Icons.arrow_forward : Icons.check,
-                  onPressed: _selectedAnswer == null
-                      ? () {}
-                      : (_hasAnswered ? _nextQuestion : _submitAnswer),
-                  width: double.infinity,
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -609,7 +569,8 @@ class _IdentificationMissionScreenState
   Widget _buildTextBasedOptions() {
     final question = widget.questions[_currentQuestionIndex];
     return Column(
-      children: question.options.map((option) {
+      children:
+          _optionOrder.optionsFor(question.id, question.options).map((option) {
         final icon = _getAnswerIcon(option);
         final iconColor = _getAnswerIconColor(option);
 
@@ -656,9 +617,11 @@ class _IdentificationMissionScreenState
   Widget _buildImageBasedOptions() {
     final question = widget.questions[_currentQuestionIndex];
 
-    final filteredItems = widget.hardwareItems!.where((item) {
-      return question.options.contains(item.name);
-    }).toList();
+    final orderedNames = _optionOrder.optionsFor(question.id, question.options);
+    final filteredItems = [
+      for (final name in orderedNames)
+        ...widget.hardwareItems!.where((item) => item.name == name),
+    ];
 
     return GridView.builder(
       shrinkWrap: true,
@@ -812,31 +775,4 @@ class _IdentificationMissionScreenState
     );
   }
 
-  void _showExitDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Exit Mission?'),
-        content: const Text(
-            'Your progress will not be saved. Are you sure you want to exit?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: AppTheme.errorRed,
-            ),
-            child: const Text('Exit'),
-          ),
-        ],
-      ),
-    );
-  }
 }

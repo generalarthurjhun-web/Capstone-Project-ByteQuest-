@@ -3,12 +3,12 @@ import 'dart:async';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/soft_card.dart';
 import '../../../core/widgets/app_button.dart';
-import '../../../core/widgets/simulation_fullscreen_button.dart';
 import '../../../models/mission_model.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/progress_resume_service.dart';
 import '../../../services/authoritative_assessment_service.dart';
 import '../legacy_practice_evidence_scope.dart';
+import '../components/practice_mission_chrome.dart';
 import '../result_screen.dart';
 
 class ConfigurationValidationResult {
@@ -86,6 +86,12 @@ class _ConfigurationMissionScreenState
   Timer? _timer;
   int _correctFields = 0;
   List<String> _mistakes = [];
+
+  bool get _hasProgress =>
+      _showValidation ||
+      _mistakes.isNotEmpty ||
+      _selectedValues.values.any((value) => value?.isNotEmpty == true) ||
+      _controllers.values.any((controller) => controller.text.isNotEmpty);
 
   @override
   void initState() {
@@ -271,237 +277,223 @@ class _ConfigurationMissionScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundOffWhite,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: AppTheme.textDark),
-          onPressed: () => _showExitDialog(),
-        ),
-        title: Text(
-          widget.mission.title,
-          style: AppTheme.headlineSmall.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          const SimulationFullscreenButton(),
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: Text(
-                _formatTime(_timeSpent),
-                style: AppTheme.labelMedium.copyWith(
-                  color: AppTheme.textMedium,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+    return PracticeMissionExitGuard(
+      mission: widget.mission,
+      hasProgress: () => _hasProgress,
+      builder: (context, requestExit) => Scaffold(
+        backgroundColor: AppTheme.backgroundOffWhite,
+        appBar: PracticeMissionAppBar(
+          mission: widget.mission,
+          onBackPressed: requestExit,
+          trailing: Text(
+            _formatTime(_timeSpent),
+            style: AppTheme.labelMedium.copyWith(
+              color: AppTheme.textMedium,
+              fontWeight: FontWeight.w600,
             ),
           ),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Instruction Card
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              color: AppTheme.primaryBlue.withValues(alpha: 0.05),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.settings_outlined,
-                    color: AppTheme.primaryBlue,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Configure the settings with correct values',
-                      style: AppTheme.bodySmall.copyWith(
-                        color: AppTheme.primaryBlue,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Instruction Card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                color: AppTheme.primaryBlue.withValues(alpha: 0.05),
+                child: Row(
                   children: [
-                    // Progress Info
-                    if (_showValidation) ...[
-                      SoftCard(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            Icon(
-                              _correctFields == _controllers.length
-                                  ? Icons.check_circle
-                                  : Icons.warning,
-                              color: _correctFields == _controllers.length
-                                  ? AppTheme.accentGreen
-                                  : AppTheme.accentOrange,
-                              size: 24,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _correctFields == _controllers.length
-                                        ? 'All configurations are correct!'
-                                        : 'Some values need correction',
-                                    style: AppTheme.labelMedium.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color:
-                                          _correctFields == _controllers.length
-                                              ? AppTheme.accentGreen
-                                              : AppTheme.accentOrange,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '$_correctFields/${_controllers.length} fields correct',
-                                    style: AppTheme.bodySmall.copyWith(
-                                      color: AppTheme.textMedium,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                    Icon(
+                      Icons.settings_outlined,
+                      color: AppTheme.primaryBlue,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Configure the settings with correct values',
+                        style: AppTheme.bodySmall.copyWith(
+                          color: AppTheme.primaryBlue,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(height: 24),
-                    ],
-
-                    // Configuration Form
-                    Text(
-                      'Configuration Panel',
-                      style: AppTheme.headlineSmall.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
                     ),
-                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
 
-                    ...widget.configData.entries.map((entry) {
-                      final key = entry.key;
-                      final value = entry.value;
-
-                      if (value is Map) {
-                        return _buildConfigField(
-                          key,
-                          value['question'] as String? ?? key,
-                          value['points'] as int? ?? 10,
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    }),
-
-                    const SizedBox(height: 24),
-
-                    // Hints Card
-                    SoftCard(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Progress Info
+                      if (_showValidation) ...[
+                        SoftCard(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
                             children: [
                               Icon(
-                                Icons.lightbulb_outline,
-                                color: AppTheme.accentOrange,
-                                size: 20,
+                                _correctFields == _controllers.length
+                                    ? Icons.check_circle
+                                    : Icons.warning,
+                                color: _correctFields == _controllers.length
+                                    ? AppTheme.accentGreen
+                                    : AppTheme.accentOrange,
+                                size: 24,
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Configuration Hints',
-                                style: AppTheme.labelMedium.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppTheme.accentOrange,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _correctFields == _controllers.length
+                                          ? 'All configurations are correct!'
+                                          : 'Some values need correction',
+                                      style: AppTheme.labelMedium.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        color: _correctFields ==
+                                                _controllers.length
+                                            ? AppTheme.accentGreen
+                                            : AppTheme.accentOrange,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '$_correctFields/${_controllers.length} fields correct',
+                                      style: AppTheme.bodySmall.copyWith(
+                                        color: AppTheme.textMedium,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
-                          ...(_getHintsForMission()),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Submit Button
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, -4),
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                child: Column(
-                  children: [
-                    if (_showValidation &&
-                        _correctFields < _controllers.length) ...[
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: AppTheme.accentOrange.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Row(
+                        const SizedBox(height: 24),
+                      ],
+
+                      // Configuration Form
+                      Text(
+                        'Configuration Panel',
+                        style: AppTheme.headlineSmall.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      ...widget.configData.entries.map((entry) {
+                        final key = entry.key;
+                        final value = entry.value;
+
+                        if (value is Map) {
+                          return _buildConfigField(
+                            key,
+                            value['question'] as String? ?? key,
+                            value['points'] as int? ?? 10,
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      }),
+
+                      const SizedBox(height: 24),
+
+                      // Hints Card
+                      SoftCard(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(
-                              Icons.info_outline,
-                              color: AppTheme.accentOrange,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'Review the highlighted fields and correct the values.',
-                                style: AppTheme.bodySmall.copyWith(
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.lightbulb_outline,
                                   color: AppTheme.accentOrange,
+                                  size: 20,
                                 ),
-                              ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Configuration Hints',
+                                  style: AppTheme.labelMedium.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.accentOrange,
+                                  ),
+                                ),
+                              ],
                             ),
+                            const SizedBox(height: 12),
+                            ...(_getHintsForMission()),
                           ],
                         ),
                       ),
                     ],
-                    AppButton.primary(
-                      label: _showValidation &&
-                              _correctFields == _controllers.length
-                          ? 'View Results'
-                          : 'Test Configuration',
-                      icon: Icons.check,
-                      onPressed: _validateConfiguration,
-                      width: double.infinity,
+                  ),
+                ),
+              ),
+
+              // Submit Button
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 12,
+                      offset: const Offset(0, -4),
                     ),
                   ],
                 ),
+                child: SafeArea(
+                  child: Column(
+                    children: [
+                      if (_showValidation &&
+                          _correctFields < _controllers.length) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: AppTheme.accentOrange.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                color: AppTheme.accentOrange,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'Review the highlighted fields and correct the values.',
+                                  style: AppTheme.bodySmall.copyWith(
+                                    color: AppTheme.accentOrange,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      AppButton.primary(
+                        label: _showValidation &&
+                                _correctFields == _controllers.length
+                            ? 'View Results'
+                            : 'Test Configuration',
+                        icon: Icons.check,
+                        onPressed: _validateConfiguration,
+                        width: double.infinity,
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -684,34 +676,4 @@ class _ConfigurationMissionScreenState
     return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 
-  void _showExitDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Exit Mission?'),
-        content: const Text(
-            'Your progress will be saved. Are you sure you want to exit?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              await _saveProgressState();
-              if (mounted) {
-                Navigator.pop(context);
-                Navigator.pop(context);
-              }
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: AppTheme.errorRed,
-            ),
-            child: const Text('Exit'),
-          ),
-        ],
-      ),
-    );
-  }
 }

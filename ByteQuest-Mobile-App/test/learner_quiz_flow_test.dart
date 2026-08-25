@@ -98,6 +98,35 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('quiz choices shuffle deterministically across restoration',
+      (tester) async {
+    const source = ['Correct', 'Distractor A', 'Distractor B', 'Distractor C'];
+    final attempt = _attemptFor('scenario_based', source);
+
+    Future<List<String>> visibleOrder() async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: QuizTakingScreen(attempt: attempt),
+        ),
+      );
+      await tester.pump();
+      return [...source]..sort((left, right) => tester
+          .getTopLeft(find.text(left))
+          .dy
+          .compareTo(tester.getTopLeft(find.text(right)).dy));
+    }
+
+    final first = await visibleOrder();
+    expect(first, isNot(source));
+    expect(first.toSet(), source.toSet());
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    final restored = await visibleOrder();
+    expect(restored, first);
+    expect(restored, contains('Correct'));
+  });
 }
 
 LearnerQuizAttempt _attemptFor(String type, List<String> options) =>

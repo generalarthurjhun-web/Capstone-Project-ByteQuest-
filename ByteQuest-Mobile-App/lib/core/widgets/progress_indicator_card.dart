@@ -57,15 +57,17 @@ class ProgressIndicatorCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '$current of $total $label',
-                      style: AppTheme.labelMedium.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textDark,
+                    Expanded(
+                      child: Text(
+                        '$current of $total $label',
+                        style: AppTheme.labelMedium.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textDark,
+                        ),
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Text(
                       '$percentage%',
                       style: AppTheme.labelLarge.copyWith(
