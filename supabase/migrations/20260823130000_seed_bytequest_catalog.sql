@@ -5,8 +5,9 @@
 -- twenty missions. Activity/rubric versions, assignments, attempts, results,
 -- and practice evidence are published or created through their own workflows.
 -- Legacy mission lock flags remain enabled because learner access comes from
--- assignments/projections; legacy passing scores and gamification values stay
--- at zero so they cannot compete with authoritative versioned evaluation.
+-- assignments/projections. Passing scores stay at zero so they cannot compete
+-- with authoritative versioned evaluation; existing project-approved
+-- gamification values are preserved during upgrades.
 
 begin;
 
@@ -48,7 +49,7 @@ create temporary table bytequest_catalog_modules (
   total_missions integer not null,
   order_index integer not null,
   status text not null,
-  difficulty text not null,
+  difficulty public.difficulty_level not null,
   xp_reward integer not null
 ) on commit drop;
 
@@ -150,7 +151,7 @@ create temporary table bytequest_catalog_missions (
   title text not null,
   description text not null,
   mission_type text not null,
-  difficulty text not null,
+  difficulty public.difficulty_level not null,
   xp_reward integer not null,
   points_reward integer not null,
   passing_score integer not null,
@@ -188,7 +189,7 @@ values
     'Identify Computer Parts and Tools',
     'Learn to identify essential computer components, peripherals, and tools used in computer assembly and maintenance.',
     'identification',
-    'Easy',
+    'beginner',
     0,
     0,
     0,
@@ -206,7 +207,7 @@ values
     'Install Internal Components',
     'Practice installing motherboard, CPU, RAM, storage devices, and cooling systems into the computer case.',
     'drag_and_drop',
-    'Medium',
+    'intermediate',
     0,
     0,
     0,
@@ -224,7 +225,7 @@ values
     'Connect Power and Data Cables',
     'Learn proper cable management and connect power and data cables to motherboard and components.',
     'drag_and_drop',
-    'Medium',
+    'intermediate',
     0,
     0,
     0,
@@ -242,7 +243,7 @@ values
     'Configure BIOS/UEFI and Install OS',
     'Access BIOS/UEFI settings, configure boot priority, and follow OS installation procedures.',
     'configuration_form',
-    'Hard',
+    'advanced',
     0,
     0,
     0,
@@ -260,7 +261,7 @@ values
     'Install Drivers and Test the System',
     'Install necessary drivers and perform system tests to ensure all components work correctly.',
     'step_procedure',
-    'Medium',
+    'intermediate',
     0,
     0,
     0,
@@ -278,7 +279,7 @@ values
     'Identify Network Devices and Tools',
     'Recognize routers, switches, modems, cables, connectors, and network tools.',
     'identification',
-    'Easy',
+    'beginner',
     0,
     0,
     0,
@@ -296,7 +297,7 @@ values
     'Create Network Cables',
     'Arrange Ethernet cable wires in correct sequence following T568B standard.',
     'drag_and_drop',
-    'Medium',
+    'intermediate',
     0,
     0,
     0,
@@ -314,7 +315,7 @@ values
     'Test Cable Connectivity',
     'Use LAN tester simulation to verify cable connections and identify faults.',
     'step_procedure',
-    'Easy',
+    'beginner',
     0,
     0,
     0,
@@ -332,7 +333,7 @@ values
     'Connect Devices in Local Area Network',
     'Connect computers, switches, routers, and modems to create a functional LAN.',
     'drag_and_drop',
-    'Hard',
+    'advanced',
     0,
     0,
     0,
@@ -350,7 +351,7 @@ values
     'Configure IP Settings and Test Connection',
     'Set up IP address, subnet mask, gateway, and DNS, then test network connectivity.',
     'configuration_form',
-    'Hard',
+    'advanced',
     0,
     0,
     0,
@@ -368,7 +369,7 @@ values
     'Prepare Server Setup Requirements',
     'Identify and select required hardware, software, and documentation for server setup.',
     'identification',
-    'Medium',
+    'intermediate',
     0,
     0,
     0,
@@ -386,7 +387,7 @@ values
     'Install and Configure Server OS',
     'Follow step-by-step installation process for server operating system.',
     'step_procedure',
-    'Hard',
+    'advanced',
     0,
     0,
     0,
@@ -404,7 +405,7 @@ values
     'Configure Server Network Settings',
     'Set up static IP, subnet mask, gateway, and DNS for server network configuration.',
     'configuration_form',
-    'Hard',
+    'advanced',
     0,
     0,
     0,
@@ -422,7 +423,7 @@ values
     'Create Users, Groups, and Permissions',
     'Manage user accounts, groups, shared folders, and access permissions on the server.',
     'configuration_form',
-    'Hard',
+    'advanced',
     0,
     0,
     0,
@@ -440,7 +441,7 @@ values
     'Test Client Access and Document Setup',
     'Verify client connections and complete server setup documentation.',
     'troubleshooting',
-    'Medium',
+    'intermediate',
     0,
     0,
     0,
@@ -458,7 +459,7 @@ values
     'Identify System and Network Problems',
     'Match symptoms to their causes in computer and network troubleshooting scenarios.',
     'identification',
-    'Medium',
+    'intermediate',
     0,
     0,
     0,
@@ -476,7 +477,7 @@ values
     'Perform Preventive Maintenance',
     'Follow proper procedures for cleaning, inspecting, and maintaining computer systems.',
     'step_procedure',
-    'Medium',
+    'intermediate',
     0,
     0,
     0,
@@ -494,7 +495,7 @@ values
     'Diagnose Hardware and Software Faults',
     'Use diagnostic decision trees to identify hardware and software problems.',
     'troubleshooting',
-    'Hard',
+    'advanced',
     0,
     0,
     0,
@@ -512,7 +513,7 @@ values
     'Troubleshoot Network Issues',
     'Follow logical troubleshooting steps to resolve network connectivity problems.',
     'troubleshooting',
-    'Hard',
+    'advanced',
     0,
     0,
     0,
@@ -530,7 +531,7 @@ values
     'Apply Repair Action and Create Report',
     'Select correct repair solutions and document the troubleshooting process.',
     'troubleshooting',
-    'Hard',
+    'advanced',
     0,
     0,
     0,
@@ -615,7 +616,6 @@ begin
       or module.order_index <> seed.order_index
       or module.status::text <> seed.status
       or module.difficulty <> seed.difficulty
-      or module.xp_reward <> seed.xp_reward
   ) then
     raise exception
       'ByteQuest COC module catalog conflicts with the approved four-row manifest.';
@@ -640,8 +640,6 @@ begin
       or mission.description is distinct from seed.description
       or mission.mission_type::text <> seed.mission_type
       or mission.difficulty <> seed.difficulty
-      or mission.xp_reward <> seed.xp_reward
-      or mission.points_reward <> seed.points_reward
       or mission.passing_score <> seed.passing_score
       or mission.estimated_time_minutes <> seed.estimated_time_minutes
       or mission.status::text <> seed.status

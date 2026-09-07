@@ -154,7 +154,7 @@ class SimulationScreen extends StatelessWidget {
                       onPressed: (currentMission.isUnlocked == true)
                           ? () =>
                               MissionLauncher.launch(context, currentMission)
-                          : () {},
+                          : null,
                       width: double.infinity,
                     ),
                   ] else ...[

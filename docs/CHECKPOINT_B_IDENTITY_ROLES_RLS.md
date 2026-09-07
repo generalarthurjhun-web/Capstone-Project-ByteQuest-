@@ -34,7 +34,7 @@ The historical enum label was renamed to `legacy_instructor_admin` instead of be
 
 Primary migration files:
 
-- `20260807085500_add_deactivated_account_status.sql`
+- `20260807085500_initial_schema.sql`
 - `20260807090000_foundation_identity_and_audit.sql`
 - `20260807101000_admin_governance_rpcs.sql`
 - `20260807102000_authoritative_rls.sql`

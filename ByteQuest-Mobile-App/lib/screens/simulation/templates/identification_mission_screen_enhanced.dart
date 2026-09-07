@@ -134,8 +134,6 @@ class _IdentificationMissionScreenEnhancedState
           fallbackSeed: PracticeOptionOrder.stableSeed(widget.mission.id),
         );
       });
-      debugPrint(
-          'Loaded simulation state. Starting at question index: $_currentQuestionIndex');
     }
   }
 

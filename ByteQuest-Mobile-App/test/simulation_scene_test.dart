@@ -44,8 +44,9 @@ void main() {
     }
   });
 
-  testWidgets('reset camera returns InteractiveViewer to identity',
-      (tester) async {
+  testWidgets('fit camera returns InteractiveViewer to identity', (
+    tester,
+  ) async {
     await tester.pumpWidget(_sceneHarness());
     final viewer = find.byType(InteractiveViewer);
 
@@ -55,15 +56,35 @@ void main() {
         tester.widget<InteractiveViewer>(viewer).transformationController!;
     expect(controller.value.isIdentity(), isFalse);
 
-    await tester.tap(find.byTooltip('Reset workspace view'));
+    await tester.tap(find.byTooltip('Fit and reset workspace view'));
     await tester.pump();
     controller =
         tester.widget<InteractiveViewer>(viewer).transformationController!;
     expect(controller.value.isIdentity(), isTrue);
   });
 
-  testWidgets('object list and hotspot invoke the same selection callback',
-      (tester) async {
+  testWidgets('explicit zoom controls scale within workspace bounds', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_sceneHarness());
+    final viewer = find.byType(InteractiveViewer);
+    final controller =
+        tester.widget<InteractiveViewer>(viewer).transformationController!;
+
+    await tester.tap(find.byKey(const ValueKey('simulation-zoom-in')));
+    await tester.pump();
+    expect(controller.value.getMaxScaleOnAxis(), closeTo(1.25, .001));
+
+    await tester.tap(find.byKey(const ValueKey('simulation-zoom-out')));
+    await tester.pump();
+    expect(controller.value.getMaxScaleOnAxis(), closeTo(1, .001));
+
+    expect(find.byKey(const ValueKey('simulation-fit-view')), findsOneWidget);
+  });
+
+  testWidgets('object list and hotspot invoke the same selection callback', (
+    tester,
+  ) async {
     final selected = <String>[];
     await tester.pumpWidget(_sceneHarness(onSelected: selected.add));
 
@@ -77,8 +98,9 @@ void main() {
     expect(selected, ['port-1', 'port-1']);
   });
 
-  testWidgets('compact portrait and landscape scenes do not overflow',
-      (tester) async {
+  testWidgets('compact portrait and landscape scenes do not overflow', (
+    tester,
+  ) async {
     for (final size in [const Size(320, 568), const Size(800, 360)]) {
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1;
@@ -91,47 +113,53 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
   });
 
-  testWidgets('portrait and landscape preserve the 1200 by 720 workspace ratio',
-      (tester) async {
-    for (final size in [const Size(320, 568), const Size(800, 360)]) {
-      tester.view.physicalSize = size;
-      tester.view.devicePixelRatio = 1;
+  testWidgets(
+    'portrait and landscape preserve the 1200 by 720 workspace ratio',
+    (tester) async {
+      for (final size in [const Size(320, 568), const Size(800, 360)]) {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        await tester.pumpWidget(_sceneHarness());
+        await tester.pump();
+
+        final workspace = tester.getRect(
+          find.byKey(const Key('simulation-logical-workspace')),
+        );
+        expect(
+          workspace.width / workspace.height,
+          closeTo(1200 / 720, .001),
+          reason: 'viewport $size rendered $workspace',
+        );
+      }
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+    },
+  );
+
+  testWidgets(
+    'connections draw over 200 ms or immediately for reduced motion',
+    (tester) async {
       await tester.pumpWidget(_sceneHarness());
-      await tester.pump();
+      expect(_connectionPainter(tester).progress, 0);
 
-      final workspace = tester.getRect(
-        find.byKey(const Key('simulation-logical-workspace')),
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(_connectionPainter(tester).progress, inExclusiveRange(0, 1));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(_connectionPainter(tester).progress, 1);
+
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: _sceneHarness(),
+        ),
       );
+      expect(_connectionPainter(tester).progress, 1);
       expect(
-        workspace.width / workspace.height,
-        closeTo(1200 / 720, .001),
-        reason: 'viewport $size rendered $workspace',
+        SceneConnectionPainter.drawDuration,
+        const Duration(milliseconds: 200),
       );
-    }
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-  });
-
-  testWidgets('connections draw over 200 ms or immediately for reduced motion',
-      (tester) async {
-    await tester.pumpWidget(_sceneHarness());
-    expect(_connectionPainter(tester).progress, 0);
-
-    await tester.pump(const Duration(milliseconds: 100));
-    expect(_connectionPainter(tester).progress, inExclusiveRange(0, 1));
-    await tester.pump(const Duration(milliseconds: 100));
-    expect(_connectionPainter(tester).progress, 1);
-
-    await tester.pumpWidget(
-      MediaQuery(
-        data: const MediaQueryData(disableAnimations: true),
-        child: _sceneHarness(),
-      ),
-    );
-    expect(_connectionPainter(tester).progress, 1);
-    expect(
-        SceneConnectionPainter.drawDuration, const Duration(milliseconds: 200));
-  });
+    },
+  );
 
   testWidgets('catalog object IDs resolve to connection nodes', (tester) async {
     final definition = MissionSimulationDefinitions.byId('coc2_m3');
@@ -151,54 +179,65 @@ void main() {
     expect(_connectionPainter(tester).connections.single.id, 'router>switch');
   });
 
-  test('all catalog missions provide a bundled visual asset for their scene',
-      () {
-    for (final definition in MissionSimulationDefinitions.all) {
-      expect(definition.scene.backgroundAsset, isNotNull,
-          reason: definition.id);
-      for (final object in definition.scene.objects) {
-        expect(object.metadata['imageAsset'], isA<String>(),
-            reason: '${definition.id}/${object.id}');
+  test(
+    'all catalog missions provide a bundled visual asset for their scene',
+    () {
+      for (final definition in MissionSimulationDefinitions.all) {
         expect(
-          (object.metadata['imageAsset'] as String).isNotEmpty,
-          isTrue,
-          reason: '${definition.id}/${object.id}',
+          definition.scene.backgroundAsset,
+          isNotNull,
+          reason: definition.id,
         );
+        for (final object in definition.scene.objects) {
+          expect(
+            object.metadata['imageAsset'],
+            isA<String>(),
+            reason: '${definition.id}/${object.id}',
+          );
+          expect(
+            (object.metadata['imageAsset'] as String).isNotEmpty,
+            isTrue,
+            reason: '${definition.id}/${object.id}',
+          );
+        }
       }
-    }
 
-    final inspectPhase =
-        MissionSimulationDefinitions.byId('coc1_m1').phases.first;
-    final motherboard = (inspectPhase.presentation['objects'] as List)
-        .whereType<Map>()
-        .firstWhere((item) => item['id'] == 'motherboard');
-    expect(
-      motherboard['imageAsset'],
-      'assets/COC1/Mission 1/motherboard.png',
-    );
-    final motherboardItem = interactionItems([motherboard]).single;
-    expect(motherboardItem.id, 'motherboard');
-    expect(motherboardItem.label, 'Motherboard');
-    expect(motherboardItem.description, 'Motherboard');
-    expect(
-      motherboardItem.imageAsset,
-      'assets/COC1/Mission 1/motherboard.png',
-    );
-  });
+      final inspectPhase = MissionSimulationDefinitions.byId(
+        'coc1_m1',
+      ).phases.first;
+      final motherboard = (inspectPhase.presentation['objects'] as List)
+          .whereType<Map>()
+          .firstWhere((item) => item['id'] == 'motherboard');
+      expect(
+        motherboard['imageAsset'],
+        'assets/COC1/Mission 1/motherboard.png',
+      );
+      final motherboardItem = interactionItems([motherboard]).single;
+      expect(motherboardItem.id, 'motherboard');
+      expect(motherboardItem.label, 'Motherboard');
+      expect(motherboardItem.description, 'Motherboard');
+      expect(
+        motherboardItem.imageAsset,
+        'assets/COC1/Mission 1/motherboard.png',
+      );
+    },
+  );
 
-  test('all catalog image paths resolve through the Flutter asset bundle',
-      () async {
-    for (final definition in MissionSimulationDefinitions.all) {
-      final paths = <String>{
-        definition.scene.backgroundAsset!,
-        for (final object in definition.scene.objects)
-          object.metadata['imageAsset'] as String,
-      };
-      for (final path in paths) {
-        await rootBundle.load(path);
+  test(
+    'all catalog image paths resolve through the Flutter asset bundle',
+    () async {
+      for (final definition in MissionSimulationDefinitions.all) {
+        final paths = <String>{
+          definition.scene.backgroundAsset!,
+          for (final object in definition.scene.objects)
+            object.metadata['imageAsset'] as String,
+        };
+        for (final path in paths) {
+          await rootBundle.load(path);
+        }
       }
-    }
-  });
+    },
+  );
 }
 
 Widget _sceneHarness({ValueChanged<String>? onSelected}) => MaterialApp(

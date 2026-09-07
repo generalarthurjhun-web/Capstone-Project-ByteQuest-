@@ -83,8 +83,7 @@ class _LegacyPracticeEvidenceScopeState
         );
       }
       _restoreOperation = _restore();
-    } catch (error, stackTrace) {
-      _logFailure('initialize', error, stackTrace);
+    } catch (_) {
       _controller = null;
       _restoreOperation = Future<void>.value();
     }
@@ -112,8 +111,8 @@ class _LegacyPracticeEvidenceScopeState
   Future<void> _restore() async {
     try {
       await _controller!.restore();
-    } catch (error, stackTrace) {
-      _logFailure('restore', error, stackTrace);
+    } catch (_) {
+      // The local snapshot remains available for a later retry.
     }
   }
 
@@ -125,13 +124,7 @@ class _LegacyPracticeEvidenceScopeState
   }) async {
     await _restoreOperation;
     final controller = _controller;
-    if (controller == null) {
-      debugPrint(
-        '[ByteQuest legacy practice evidence] missionId=${widget.mission.id} '
-        'operation=record skipped=no_practice_controller',
-      );
-      return;
-    }
+    if (controller == null) return;
 
     try {
       await controller.dispatch(
@@ -142,8 +135,8 @@ class _LegacyPracticeEvidenceScopeState
         transition: (state) => state.copyWith(currentPhaseId: phaseId),
       );
       await _retryPending();
-    } catch (error, stackTrace) {
-      _logFailure('record', error, stackTrace);
+    } catch (_) {
+      // Pending evidence remains queued in the persisted runtime snapshot.
     }
   }
 
@@ -153,8 +146,8 @@ class _LegacyPracticeEvidenceScopeState
     if (controller == null) return;
     try {
       await controller.flushPending();
-    } catch (error, stackTrace) {
-      _logFailure('retry', error, stackTrace);
+    } catch (_) {
+      // Pending evidence remains queued for the next connectivity event.
     }
   }
 
@@ -164,23 +157,9 @@ class _LegacyPracticeEvidenceScopeState
     if (controller == null) return;
     try {
       await controller.persist();
-    } catch (error, stackTrace) {
-      _logFailure('persist', error, stackTrace);
+    } catch (_) {
+      // The last successfully written snapshot remains intact.
     }
-  }
-
-  void _logFailure(
-    String operation,
-    Object error,
-    StackTrace stackTrace,
-  ) {
-    final controller = _controller;
-    debugPrint(
-      '[ByteQuest legacy practice evidence] missionId=${widget.mission.id} '
-      'operation=$operation pendingActions='
-      '${controller?.state.pendingEvidence.length ?? 0} error=$error',
-    );
-    debugPrintStack(stackTrace: stackTrace);
   }
 
   @override

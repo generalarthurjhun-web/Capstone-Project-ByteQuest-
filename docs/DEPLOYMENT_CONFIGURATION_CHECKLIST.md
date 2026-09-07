@@ -39,16 +39,16 @@ The learner APK must never contain `SUPABASE_SERVICE_ROLE_KEY`,
 ## Release signing
 
 The Android Gradle configuration now fails closed for normal release builds.
-The repository includes `ByteQuest Mobile App/android/key.properties.example`.
+The repository includes `ByteQuest-Mobile-App/android/key.properties.example`.
 
 1. Create a private release keystore in the deployment environment.
-2. Copy the example to `ByteQuest Mobile App/android/key.properties`.
+2. Copy the example to `ByteQuest-Mobile-App/android/key.properties`.
 3. Replace the placeholders with the deployment keystore values.
 4. Keep `key.properties`, `*.jks`, and `*.keystore` untracked.
 5. Build normally:
 
 ```powershell
-cd "ByteQuest Mobile App"
+cd "ByteQuest-Mobile-App"
 flutter build appbundle --release
 ```
 

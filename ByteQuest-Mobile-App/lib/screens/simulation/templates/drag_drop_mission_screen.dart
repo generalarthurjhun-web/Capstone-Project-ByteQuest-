@@ -85,7 +85,6 @@ class _DragDropMissionScreenState extends State<DragDropMissionScreen> {
           });
         }
       });
-      debugPrint('Loaded state for drag & drop.');
     }
   }
 
@@ -802,7 +801,7 @@ class _DragDropMissionScreenState extends State<DragDropMissionScreen> {
                               ? 'View Results'
                               : 'Check Placements',
                           icon: Icons.check,
-                          onPressed: allPlaced ? _validatePlacements : () {},
+                          onPressed: allPlaced ? _validatePlacements : null,
                           width: double.infinity,
                         ),
                       ],
@@ -1023,5 +1022,4 @@ class _DragDropMissionScreenState extends State<DragDropMissionScreen> {
     final remainingSeconds = seconds % 60;
     return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
-
 }

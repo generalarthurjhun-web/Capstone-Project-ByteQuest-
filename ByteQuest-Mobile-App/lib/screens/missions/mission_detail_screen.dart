@@ -413,7 +413,7 @@ class MissionDetailScreen extends StatelessWidget {
                             Navigator.of(context).pop();
                             MissionLauncher.launch(context, mission);
                           }
-                        : () {},
+                        : null,
                     width: double.infinity,
                   ),
                 ),

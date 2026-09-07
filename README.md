@@ -4,7 +4,7 @@ ByteQuest is a complete capstone project: a gamified Computer Systems Servicing 
 
 ## Repository map
 
-- `ByteQuest Mobile App/` — Flutter/Dart learner application, simulations, missions, quizzes, resources, progress, results, and mobile platform projects.
+- `ByteQuest-Mobile-App/` — Flutter/Dart learner application, simulations, missions, quizzes, resources, progress, results, and mobile platform projects.
 - `ByteQuest Web Dashboard/` — Next.js/TypeScript Instructor and Admin dashboard, authentication, RBAC, analytics, reports, and realtime UI integration.
 - `supabase/` — shared PostgreSQL/Auth/Storage/RLS/Realtime backend, ordered migrations, and rollback-only database lifecycle tests.
 - `docs/` — project, audit, architecture, capstone, TESDA provenance, design, and historical documentation.
@@ -19,7 +19,7 @@ The root `package.json` contains only the Node dependencies needed by repository
 Mobile:
 
 ```bash
-cd "ByteQuest Mobile App"
+cd "ByteQuest-Mobile-App"
 flutter pub get
 flutter run
 ```
@@ -44,7 +44,7 @@ pnpm build
 Mobile verification:
 
 ```bash
-cd "ByteQuest Mobile App"
+cd "ByteQuest-Mobile-App"
 flutter pub get
 flutter test
 flutter analyze --no-fatal-infos

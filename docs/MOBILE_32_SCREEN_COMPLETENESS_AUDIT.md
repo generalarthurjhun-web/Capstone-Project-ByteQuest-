@@ -1,7 +1,7 @@
 ﻿# ByteQuest Mobile â€” 32-Screen Learner Completeness Audit
 
 Audit date: 2026-08-12  
-Scope: `ByteQuest Mobile App/lib` and the current Supabase-backed learner workflow.
+Scope: `ByteQuest-Mobile-App/lib` and the current Supabase-backed learner workflow.
 
 ## Status definitions
 
@@ -75,7 +75,7 @@ The complete Material `TextTheme` now maps to these roles. Shared stat, badge, b
 - Added coverage for the centralized typography role scale.
 - `flutter test`: PASS â€” 39 tests, including all four learner quiz item types, answer-key omission, and the new private resource viewer states.
 - `flutter analyze --no-fatal-infos`: PASS â€” exit 0 with 215 informational legacy lint/deprecation notices and no fatal analyzer finding.
-- `flutter build apk --debug`: PASS â€” `ByteQuest Mobile App/build/app/outputs/flutter-apk/app-debug.apk`.
+- `flutter build apk --debug`: PASS â€” `ByteQuest-Mobile-App/build/app/outputs/flutter-apk/app-debug.apk`.
 - The new class-details and attempt-history surfaces use existing Supabase/RLS boundaries and do not add client-authoritative scoring.
 - Class-detail activities resolve against the existing local mission catalog before starting an attempt; Instructor-bypassed activities reuse the practice launcher and never create an authoritative attempt.
 

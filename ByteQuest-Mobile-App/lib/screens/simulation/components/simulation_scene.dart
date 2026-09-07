@@ -57,15 +57,22 @@ class _SimulationSceneState extends State<SimulationScene> {
     super.dispose();
   }
 
-  void _resetView() {
-    _transformationController.value = Matrix4.identity();
-    unawaited(HapticFeedback.selectionClick());
-  }
-
   void _fitView() {
     // The logical workspace is fitted into the viewport before camera
     // transforms are applied, so identity is the fit-to-screen transform.
     _transformationController.value = Matrix4.identity();
+    unawaited(HapticFeedback.selectionClick());
+  }
+
+  void _zoomBy(double factor) {
+    final currentScale = _transformationController.value.getMaxScaleOnAxis();
+    final nextScale = (currentScale * factor).clamp(1.0, 3.0).toDouble();
+    _transformationController.value = Matrix4.diagonal3Values(
+      nextScale,
+      nextScale,
+      1,
+    );
+    unawaited(HapticFeedback.selectionClick());
   }
 
   void _selectObject(String id) {
@@ -110,8 +117,9 @@ class _SimulationSceneState extends State<SimulationScene> {
                 _SceneToolbar(
                   title: resolved.title,
                   onShowObjects: () => _showObjectPicker(resolved),
-                  onReset: _resetView,
                   onFit: _fitView,
+                  onZoomOut: () => _zoomBy(.8),
+                  onZoomIn: () => _zoomBy(1.25),
                 ),
                 if (usesAvailableHeight)
                   Expanded(child: canvas)
@@ -172,14 +180,16 @@ class _SimulationSceneState extends State<SimulationScene> {
 class _SceneToolbar extends StatelessWidget {
   final String title;
   final VoidCallback onShowObjects;
-  final VoidCallback onReset;
   final VoidCallback onFit;
+  final VoidCallback onZoomOut;
+  final VoidCallback onZoomIn;
 
   const _SceneToolbar({
     required this.title,
     required this.onShowObjects,
-    required this.onReset,
     required this.onFit,
+    required this.onZoomOut,
+    required this.onZoomIn,
   });
 
   @override
@@ -212,17 +222,23 @@ class _SceneToolbar extends StatelessWidget {
                   onPressed: onShowObjects,
                   icon: const Icon(Icons.list_alt_outlined, size: 20),
                   label: const Text('Objects'),
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(48, 48),
-                  ),
+                  style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
                 ),
                 IconButton(
-                  tooltip: 'Reset workspace view',
-                  onPressed: onReset,
-                  icon: const Icon(Icons.refresh_rounded),
+                  key: const ValueKey('simulation-zoom-out'),
+                  tooltip: 'Zoom out workspace',
+                  onPressed: onZoomOut,
+                  icon: const Icon(Icons.zoom_out_rounded),
                 ),
                 IconButton(
-                  tooltip: 'Fit workspace to screen',
+                  key: const ValueKey('simulation-zoom-in'),
+                  tooltip: 'Zoom in workspace',
+                  onPressed: onZoomIn,
+                  icon: const Icon(Icons.zoom_in_rounded),
+                ),
+                IconButton(
+                  key: const ValueKey('simulation-fit-view'),
+                  tooltip: 'Fit and reset workspace view',
                   onPressed: onFit,
                   icon: const Icon(Icons.center_focus_strong_outlined),
                 ),
@@ -276,10 +292,7 @@ class _SceneViewport extends StatelessWidget {
   Widget build(BuildContext context) => RepaintBoundary(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final viewport = Size(
-              constraints.maxWidth,
-              constraints.maxHeight,
-            );
+            final viewport = Size(constraints.maxWidth, constraints.maxHeight);
             const logicalWorkspace = SimulationScene.logicalCanvasSize;
             final workspaceScale = math.max(
               .0001,
@@ -336,10 +349,8 @@ class _SceneViewport extends StatelessWidget {
                               key: ValueKey(
                                 'scene-connection-animation-${connectedNodePairs.toList()..sort()}-$reducedMotion',
                               ),
-                              tween: Tween(
-                                begin: reducedMotion ? 1 : 0,
-                                end: 1,
-                              ),
+                              tween:
+                                  Tween(begin: reducedMotion ? 1 : 0, end: 1),
                               duration: reducedMotion
                                   ? Duration.zero
                                   : SceneConnectionPainter.drawDuration,
@@ -410,10 +421,6 @@ class _SceneBackground extends StatelessWidget {
                   assetPath!,
                   fit: BoxFit.contain,
                   errorBuilder: (context, error, stackTrace) {
-                    debugPrint(
-                      '[ByteQuest image] workspace asset failed: '
-                      '$assetPath ($error)',
-                    );
                     return const ColoredBox(
                       color: Color(0xFFFFE5E8),
                       child: Center(child: Icon(Icons.broken_image_outlined)),
@@ -528,21 +535,19 @@ Rect _mappedRect(
     object.height * viewport.height,
   );
   final width = logicalRect.width
-      .clamp(
-        math.min(minimumTapExtent, viewport.width),
-        viewport.width,
-      )
+      .clamp(math.min(minimumTapExtent, viewport.width), viewport.width)
       .toDouble();
   final height = logicalRect.height
-      .clamp(
-        math.min(minimumTapExtent, viewport.height),
-        viewport.height,
-      )
+      .clamp(math.min(minimumTapExtent, viewport.height), viewport.height)
       .toDouble();
-  final left = (logicalRect.center.dx - width / 2)
-      .clamp(0.0, (viewport.width - width).clamp(0.0, viewport.width));
-  final top = (logicalRect.center.dy - height / 2)
-      .clamp(0.0, (viewport.height - height).clamp(0.0, viewport.height));
+  final left = (logicalRect.center.dx - width / 2).clamp(
+    0.0,
+    (viewport.width - width).clamp(0.0, viewport.width),
+  );
+  final top = (logicalRect.center.dy - height / 2).clamp(
+    0.0,
+    (viewport.height - height).clamp(0.0, viewport.height),
+  );
   return Rect.fromLTWH(left, top, width, height);
 }
 
@@ -554,8 +559,10 @@ List<SceneConnectionSegment> _connectionsFor(
 ) {
   final nodes = <String, ({String objectId, Offset center})>{};
   for (final object in objects) {
-    final objectNode =
-        (objectId: object.id, center: mappedObjects[object.id]!.center);
+    final objectNode = (
+      objectId: object.id,
+      center: mappedObjects[object.id]!.center,
+    );
     nodes[object.id] = objectNode;
     for (final nodeId in object.connectionNodeIds) {
       nodes[nodeId] = objectNode;

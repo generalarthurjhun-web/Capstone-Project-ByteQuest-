@@ -242,7 +242,7 @@ Do not expose privileged keys in `NEXT_PUBLIC_*`, Flutter, browser bundles, logs
 
 - `flutter test`: PASS, 39 tests.
 - `flutter analyze --no-fatal-infos`: PASS, exit 0, 215 informational legacy lints/deprecations.
-- `flutter build apk --debug`: PASS, APK built at `ByteQuest Mobile App/build/app/outputs/flutter-apk/app-debug.apk`.
+- `flutter build apk --debug`: PASS, APK built at `ByteQuest-Mobile-App/build/app/outputs/flutter-apk/app-debug.apk`.
 - Normal `flutter build apk --release`: intentionally FAILS closed when no
   release keystore is configured.
 - Explicit smoke-only release with `BYTEQUEST_ALLOW_DEBUG_SIGNING=true`:

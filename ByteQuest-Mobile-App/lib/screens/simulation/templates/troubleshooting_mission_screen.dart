@@ -96,7 +96,6 @@ class _TroubleshootingMissionScreenState
           },
         );
       });
-      debugPrint('Loaded state for troubleshooting.');
     }
   }
 
@@ -525,7 +524,7 @@ class _TroubleshootingMissionScreenState
                         : 'Submit Diagnosis',
                     icon: _hasAnswered ? Icons.arrow_forward : Icons.check,
                     onPressed: _selectedCause == null
-                        ? () {}
+                        ? null
                         : (_hasAnswered ? _nextScenario : _submitDiagnosis),
                     width: double.infinity,
                   ),

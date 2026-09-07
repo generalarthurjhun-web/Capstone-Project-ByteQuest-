@@ -128,7 +128,6 @@ class _ConfigurationMissionScreenState
           });
         }
       });
-      debugPrint('Loaded state for configuration.');
     }
   }
 
@@ -675,5 +674,4 @@ class _ConfigurationMissionScreenState
     final remainingSeconds = seconds % 60;
     return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
-
 }

@@ -1,8 +1,9 @@
--- ByteQuest initial foundation schema.
+-- ByteQuest fresh-database foundation schema.
 --
--- This migration restores the legacy identity/catalog/projection objects that
--- the ordered migrations build on. It intentionally does not seed content,
--- grant client authority, or replace the later authoritative workflow.
+-- This foundation is stored at the oldest migration version already known to
+-- the deployed ByteQuest project. Existing databases therefore do not replay
+-- it, while fresh databases receive the identity/catalog objects required by
+-- the forward-only authoritative migrations.
 
 begin;
 
@@ -10,7 +11,9 @@ create extension if not exists pgcrypto;
 
 do $$
 begin
-  create type public.account_status as enum ('active', 'inactive', 'suspended');
+  create type public.account_status as enum (
+    'active', 'inactive', 'suspended', 'pending'
+  );
 exception when duplicate_object then null;
 end
 $$;
@@ -48,10 +51,23 @@ $$;
 
 do $$
 begin
-  create type public.rating_type as enum ('excellent', 'good', 'average', 'needs_improvement');
+  create type public.rating_type as enum (
+    'excellent', 'very_good', 'good', 'needs_improvement', 'poor'
+  );
 exception when duplicate_object then null;
 end
 $$;
+
+do $$
+begin
+  create type public.difficulty_level as enum (
+    'beginner', 'intermediate', 'advanced'
+  );
+exception when duplicate_object then null;
+end
+$$;
+
+alter type public.account_status add value if not exists 'deactivated';
 
 create schema if not exists private;
 
@@ -99,7 +115,7 @@ create table if not exists public.coc_modules (
   total_missions integer not null default 0 check (total_missions >= 0),
   order_index integer not null default 1 check (order_index > 0),
   status public.mission_status not null default 'draft',
-  difficulty text not null default 'beginner',
+  difficulty public.difficulty_level not null default 'beginner',
   xp_reward integer not null default 0 check (xp_reward >= 0),
   icon_url text,
   color_hex text,
@@ -120,10 +136,10 @@ create table if not exists public.missions (
   skills_assessed text[] not null default '{}',
   challenge_description text,
   mission_type public.mission_type not null default 'identification',
-  difficulty text not null default 'beginner',
+  difficulty public.difficulty_level not null default 'beginner',
   xp_reward integer not null default 0 check (xp_reward >= 0),
   points_reward integer not null default 0 check (points_reward >= 0),
-  passing_score integer not null default 75 check (passing_score between 0 and 100),
+  passing_score integer not null default 0 check (passing_score between 0 and 100),
   time_limit_seconds integer check (time_limit_seconds is null or time_limit_seconds > 0),
   estimated_time_minutes integer not null default 10 check (estimated_time_minutes > 0),
   status public.mission_status not null default 'draft',
@@ -442,14 +458,16 @@ $$;
 create or replace function public.get_rating(p_score integer)
 returns public.rating_type
 language plpgsql
-immutable
+stable
+set search_path = ''
 as $$
 begin
-  if p_score >= 90 then return 'excellent'::public.rating_type;
-  elsif p_score >= 80 then return 'good'::public.rating_type;
-  elsif p_score >= 75 then return 'average'::public.rating_type;
-  else return 'needs_improvement'::public.rating_type;
-  end if;
+  raise exception 'PENDING_TESDA_VALIDATION'
+    using errcode = '22023',
+          detail = format(
+            'No numeric rating bands are active without an approved source and rubric version; input %s was not evaluated.',
+            coalesce(p_score::text, 'NULL')
+          );
 end
 $$;
 

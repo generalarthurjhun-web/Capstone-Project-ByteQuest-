@@ -127,7 +127,7 @@ The final snapshot contains 2,742 preserved audit events. The increase from the 
 
 ## Production fake-data audit
 
-Production code under `src`, `ByteQuest Mobile App/lib`, and `public` was searched for `Math.random`, `MOCK_*`, `DUMMY_*`, known fake learner/test identities, fake XP/results, dummy analytics, placeholder notifications, and sample achievements. No production fake-data signature was found. The remaining uses of `placeholder` are legitimate form input hints or explicit truthful no-placeholder copy, not data fallbacks.
+Production code under `src`, `ByteQuest-Mobile-App/lib`, and `public` was searched for `Math.random`, `MOCK_*`, `DUMMY_*`, known fake learner/test identities, fake XP/results, dummy analytics, placeholder notifications, and sample achievements. No production fake-data signature was found. The remaining uses of `placeholder` are legitimate form input hints or explicit truthful no-placeholder copy, not data fallbacks.
 
 The dashboard data loaders use authoritative queries/RPCs; therefore the clean database produces truthful zero/empty states rather than sample learner values. No source removal was necessary in this pass.
 

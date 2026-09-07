@@ -16,8 +16,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('MissionSimulationScreen', () {
-    testWidgets('does not advance before the active interaction is terminal',
-        (tester) async {
+    testWidgets('does not advance before the active interaction is terminal', (
+      tester,
+    ) async {
       final definition = MissionSimulationDefinitions.byId('coc1_m1');
       final controller = _controller(definition);
 
@@ -43,15 +44,15 @@ void main() {
       expect(controller.state.currentPhaseId, definition.phases[1].id);
     });
 
-    testWidgets('restores before exposing the interactive workspace',
-        (tester) async {
+    testWidgets('restores before exposing the interactive workspace', (
+      tester,
+    ) async {
       final definition = MissionSimulationDefinitions.byId('coc1_m1');
       final store = _MemoryStore()..loadGate = Completer<void>();
 
-      await tester.pumpWidget(_host(
-        definition,
-        controller: _controller(definition, store: store),
-      ));
+      await tester.pumpWidget(
+        _host(definition, controller: _controller(definition, store: store)),
+      );
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
       expect(find.byType(SimulationScene), findsNothing);
@@ -63,18 +64,18 @@ void main() {
       expect(store.saveCount, 0);
     });
 
-    testWidgets('unknown restored phase fails closed and can reset safely',
-        (tester) async {
+    testWidgets('unknown restored phase fails closed and can reset safely', (
+      tester,
+    ) async {
       final definition = MissionSimulationDefinitions.byId('coc1_m1');
       final store = _MemoryStore()
-        ..saved = MissionRuntimeState.initial(definition.id).copyWith(
-          currentPhaseId: 'removed-catalog-phase',
-        );
+        ..saved = MissionRuntimeState.initial(
+          definition.id,
+        ).copyWith(currentPhaseId: 'removed-catalog-phase');
 
-      await tester.pumpWidget(_host(
-        definition,
-        controller: _controller(definition, store: store),
-      ));
+      await tester.pumpWidget(
+        _host(definition, controller: _controller(definition, store: store)),
+      );
       await tester.pumpAndSettle();
 
       expect(find.byType(TechnicalUnavailableState), findsOneWidget);
@@ -89,45 +90,52 @@ void main() {
     });
 
     testWidgets(
-        'keeps the scene visible and controls scrollable at target sizes',
-        (tester) async {
-      final definition = MissionSimulationDefinitions.byId('coc1_m1');
-      for (final size in const [
-        Size(360, 800),
-        Size(800, 360),
-        Size(1280, 800),
-      ]) {
-        tester.view
-          ..physicalSize = size
-          ..devicePixelRatio = 1;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
+      'keeps the scene visible and controls scrollable at target sizes',
+      (tester) async {
+        final definition = MissionSimulationDefinitions.byId('coc1_m1');
+        for (final size in const [
+          Size(360, 800),
+          Size(800, 360),
+          Size(1280, 800),
+        ]) {
+          tester.view
+            ..physicalSize = size
+            ..devicePixelRatio = 1;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
 
-        await tester.pumpWidget(_host(
-          definition,
-          controller: _controller(definition),
-          textScale: 2,
-        ));
-        await tester.pumpAndSettle();
+          await tester.pumpWidget(
+            _host(
+              definition,
+              controller: _controller(definition),
+              textScale: 2,
+            ),
+          );
+          await tester.pumpAndSettle();
 
-        expect(find.byType(SimulationScene), findsOneWidget, reason: '$size');
-        expect(
-          find.byKey(const ValueKey('mission-controls-scroll')),
-          findsOneWidget,
-          reason: '$size',
-        );
-        expect(tester.takeException(), isNull, reason: '$size');
-      }
-    });
+          expect(find.byType(SimulationScene), findsOneWidget, reason: '$size');
+          expect(
+            find.byKey(const ValueKey('simulation-fullscreen-button')),
+            findsOneWidget,
+            reason: '$size',
+          );
+          expect(
+            find.byKey(const ValueKey('mission-controls-scroll')),
+            findsOneWidget,
+            reason: '$size',
+          );
+          expect(tester.takeException(), isNull, reason: '$size');
+        }
+      },
+    );
 
     testWidgets('persists once for a pause lifecycle event', (tester) async {
       final definition = MissionSimulationDefinitions.byId('coc1_m1');
       final store = _MemoryStore();
 
-      await tester.pumpWidget(_host(
-        definition,
-        controller: _controller(definition, store: store),
-      ));
+      await tester.pumpWidget(
+        _host(definition, controller: _controller(definition, store: store)),
+      );
       await tester.pumpAndSettle();
 
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
@@ -136,16 +144,65 @@ void main() {
       expect(store.saveCount, 1);
     });
 
-    testWidgets('does not force landscape and restores orientations on exit',
-        (tester) async {
+    testWidgets('save and exit preserves the runtime snapshot', (tester) async {
+      final definition = MissionSimulationDefinitions.byId('coc1_m1');
+      final store = _MemoryStore();
+
+      await tester.pumpWidget(
+        _routeHost(
+          definition,
+          controller: _controller(definition, store: store),
+        ),
+      );
+      await tester.tap(find.text('Open mission'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Save and exit mission'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(MissionSimulationScreen), findsNothing);
+      expect(store.saved?.missionId, definition.id);
+      expect(store.clearCount, 0);
+    });
+
+    testWidgets('failed save keeps the mission open', (tester) async {
+      final definition = MissionSimulationDefinitions.byId('coc1_m1');
+      final store = _MemoryStore()..saveSucceeds = false;
+
+      await tester.pumpWidget(
+        _routeHost(
+          definition,
+          controller: _controller(definition, store: store),
+        ),
+      );
+      await tester.tap(find.text('Open mission'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Save and exit mission'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(MissionSimulationScreen), findsOneWidget);
+      expect(
+        find.text(
+          'Progress could not be saved. Keep the mission open and retry.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('does not force landscape and restores orientations on exit', (
+      tester,
+    ) async {
       final definition = MissionSimulationDefinitions.byId('coc1_m1');
       final orientation = _FakeOrientationCoordinator();
 
-      await tester.pumpWidget(_host(
-        definition,
-        controller: _controller(definition),
-        orientationCoordinator: orientation,
-      ));
+      await tester.pumpWidget(
+        _host(
+          definition,
+          controller: _controller(definition),
+          orientationCoordinator: orientation,
+        ),
+      );
       await tester.pumpAndSettle();
 
       await tester.pumpWidget(const SizedBox.shrink());
@@ -153,53 +210,60 @@ void main() {
       expect(orientation.restoreRequests, 1);
     });
 
-    testWidgets('reaches review, can return, and submits only on confirmation',
-        (tester) async {
+    testWidgets(
+      'reaches review, can return, and submits only on confirmation',
+      (tester) async {
+        final definition = MissionSimulationDefinitions.byId('coc1_m1');
+        var submissions = 0;
+        final controller = _controller(definition);
+
+        await tester.pumpWidget(
+          _host(
+            definition,
+            controller: controller,
+            onSubmit: () async => submissions++,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await _advanceToReview(tester, definition, controller);
+
+        expect(find.byType(EvidenceReviewPanel), findsOneWidget);
+        expect(submissions, 0);
+
+        final returnButton = find.text('Return to mission');
+        await tester.ensureVisible(returnButton);
+        await tester.tap(returnButton);
+        await tester.pumpAndSettle();
+        expect(find.byType(EvidenceReviewPanel), findsNothing);
+
+        final next = find.byKey(const ValueKey('mission-next'));
+        await tester.ensureVisible(next);
+        await tester.tap(next);
+        await tester.pumpAndSettle();
+        final confirmButton = find.text('Confirm evidence');
+        await tester.ensureVisible(confirmButton);
+        await tester.tap(confirmButton);
+        await tester.pumpAndSettle();
+
+        expect(submissions, 1);
+      },
+    );
+
+    testWidgets('successful submission disables a second confirmation', (
+      tester,
+    ) async {
       final definition = MissionSimulationDefinitions.byId('coc1_m1');
       var submissions = 0;
       final controller = _controller(definition);
 
-      await tester.pumpWidget(_host(
-        definition,
-        controller: controller,
-        onSubmit: () async => submissions++,
-      ));
-      await tester.pumpAndSettle();
-
-      await _advanceToReview(tester, definition, controller);
-
-      expect(find.byType(EvidenceReviewPanel), findsOneWidget);
-      expect(submissions, 0);
-
-      final returnButton = find.text('Return to mission');
-      await tester.ensureVisible(returnButton);
-      await tester.tap(returnButton);
-      await tester.pumpAndSettle();
-      expect(find.byType(EvidenceReviewPanel), findsNothing);
-
-      final next = find.byKey(const ValueKey('mission-next'));
-      await tester.ensureVisible(next);
-      await tester.tap(next);
-      await tester.pumpAndSettle();
-      final confirmButton = find.text('Confirm evidence');
-      await tester.ensureVisible(confirmButton);
-      await tester.tap(confirmButton);
-      await tester.pumpAndSettle();
-
-      expect(submissions, 1);
-    });
-
-    testWidgets('successful submission disables a second confirmation',
-        (tester) async {
-      final definition = MissionSimulationDefinitions.byId('coc1_m1');
-      var submissions = 0;
-      final controller = _controller(definition);
-
-      await tester.pumpWidget(_host(
-        definition,
-        controller: controller,
-        onSubmit: () async => submissions++,
-      ));
+      await tester.pumpWidget(
+        _host(
+          definition,
+          controller: controller,
+          onSubmit: () async => submissions++,
+        ),
+      );
       await tester.pumpAndSettle();
       await _advanceToReview(tester, definition, controller);
 
@@ -209,10 +273,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final confirmButton = tester.widget<FilledButton>(
-        find.ancestor(
-          of: confirmText,
-          matching: find.byType(FilledButton),
-        ),
+        find.ancestor(of: confirmText, matching: find.byType(FilledButton)),
       );
       expect(confirmButton.onPressed, isNull);
 
@@ -221,107 +282,132 @@ void main() {
       expect(submissions, 1);
     });
 
-    testWidgets(
-        'retry synchronizes the same pending evidence and unblocks submission',
-        (tester) async {
+    testWidgets('practice confirmation saves without authoritative scoring', (
+      tester,
+    ) async {
       final definition = MissionSimulationDefinitions.byId('coc1_m1');
-      final pending = MissionEvidenceAction(
-        clientActionId: 'pending-action-1',
-        missionId: definition.id,
-        phaseId: definition.phases[3].id,
-        actionType: 'test_completed',
-        target: definition.phases[3].id,
-        value: const {'test_status': 'completed'},
-        occurredAt: DateTime.utc(2026, 8, 22),
-      );
-      final appendGate = Completer<void>();
-      final transport = _MemoryTransport(
-        appendGate: appendGate,
-        readError: StateError('offline'),
-      );
-      final localState = MissionRuntimeState.initial(definition.id).copyWith(
-        currentPhaseId: definition.phases.last.id,
-        completedPhaseIds: definition.phases
-            .take(definition.phases.length - 1)
-            .map((phase) => phase.id)
-            .toSet(),
-        pendingEvidence: [pending],
-      );
-      final store = _MemoryStore()..saved = localState;
-      final controller = _controller(
-        definition,
-        store: store,
-        transport: transport,
-        initialState: localState,
-      );
+      final controller = _controller(definition);
 
       await tester.pumpWidget(_host(definition, controller: controller));
       await tester.pumpAndSettle();
+      await _advanceToReview(tester, definition, controller);
 
-      final retry = find.widgetWithText(
-        OutlinedButton,
-        'Retry pending evidence',
-      );
-      expect(retry, findsOneWidget);
-      expect(
-        tester
-            .widget<FilledButton>(
-              find.widgetWithText(FilledButton, 'Confirm evidence'),
-            )
-            .onPressed,
-        isNull,
-      );
-
-      transport.readError = null;
-      await tester.tap(retry);
-      await tester.pump();
-
-      expect(
-        tester
-            .widget<OutlinedButton>(
-              find.widgetWithText(OutlinedButton, 'Retrying evidence…'),
-            )
-            .onPressed,
-        isNull,
-      );
-      expect(controller.state.pendingEvidence.single.clientActionId,
-          'pending-action-1');
-
-      appendGate.complete();
+      final confirm = find.text('Confirm evidence');
+      await tester.ensureVisible(confirm);
+      await tester.tap(confirm);
       await tester.pumpAndSettle();
 
-      expect(transport.appendedIds, ['pending-action-1']);
-      expect(controller.state.pendingEvidence, isEmpty);
-      expect(controller.state.acceptedEvidenceIds, {'pending-action-1'});
-      expect(find.text('Pending evidence synchronized.'), findsOneWidget);
-      expect(find.text('Retry pending evidence'), findsNothing);
       expect(
-        tester
-            .widget<FilledButton>(
-              find.widgetWithText(FilledButton, 'Confirm evidence'),
-            )
-            .onPressed,
-        isNotNull,
+        find.text('Practice evidence saved. Official competency is unchanged.'),
+        findsOneWidget,
       );
+      expect(controller.state.mode, MissionRuntimeMode.practice);
+      expect(controller.state.assessmentAttemptId, isNull);
     });
 
-    testWidgets('incompatible placement never renders as installed',
-        (tester) async {
+    testWidgets(
+      'retry synchronizes the same pending evidence and unblocks submission',
+      (tester) async {
+        final definition = MissionSimulationDefinitions.byId('coc1_m1');
+        final pending = MissionEvidenceAction(
+          clientActionId: 'pending-action-1',
+          missionId: definition.id,
+          phaseId: definition.phases[3].id,
+          actionType: 'test_completed',
+          target: definition.phases[3].id,
+          value: const {'test_status': 'completed'},
+          occurredAt: DateTime.utc(2026, 8, 22),
+        );
+        final appendGate = Completer<void>();
+        final transport = _MemoryTransport(
+          appendGate: appendGate,
+          readError: StateError('offline'),
+        );
+        final localState = MissionRuntimeState.initial(definition.id).copyWith(
+          currentPhaseId: definition.phases.last.id,
+          completedPhaseIds: definition.phases
+              .take(definition.phases.length - 1)
+              .map((phase) => phase.id)
+              .toSet(),
+          pendingEvidence: [pending],
+        );
+        final store = _MemoryStore()..saved = localState;
+        final controller = _controller(
+          definition,
+          store: store,
+          transport: transport,
+          initialState: localState,
+        );
+
+        await tester.pumpWidget(_host(definition, controller: controller));
+        await tester.pumpAndSettle();
+
+        final retry = find.widgetWithText(
+          OutlinedButton,
+          'Retry pending evidence',
+        );
+        expect(retry, findsOneWidget);
+        expect(
+          tester
+              .widget<FilledButton>(
+                find.widgetWithText(FilledButton, 'Confirm evidence'),
+              )
+              .onPressed,
+          isNull,
+        );
+
+        transport.readError = null;
+        await tester.tap(retry);
+        await tester.pump();
+
+        expect(
+          tester
+              .widget<OutlinedButton>(
+                find.widgetWithText(OutlinedButton, 'Retrying evidence…'),
+              )
+              .onPressed,
+          isNull,
+        );
+        expect(
+          controller.state.pendingEvidence.single.clientActionId,
+          'pending-action-1',
+        );
+
+        appendGate.complete();
+        await tester.pumpAndSettle();
+
+        expect(transport.appendedIds, ['pending-action-1']);
+        expect(controller.state.pendingEvidence, isEmpty);
+        expect(controller.state.acceptedEvidenceIds, {'pending-action-1'});
+        expect(find.text('Pending evidence synchronized.'), findsOneWidget);
+        expect(find.text('Retry pending evidence'), findsNothing);
+        expect(
+          tester
+              .widget<FilledButton>(
+                find.widgetWithText(FilledButton, 'Confirm evidence'),
+              )
+              .onPressed,
+          isNotNull,
+        );
+      },
+    );
+
+    testWidgets('incompatible placement never renders as installed', (
+      tester,
+    ) async {
       final definition = _incompatiblePlacementDefinition();
       final controller = _controller(definition);
 
-      await tester.pumpWidget(_host(
-        definition,
-        controller: controller,
-      ));
+      await tester.pumpWidget(_host(definition, controller: controller));
       await tester.pumpAndSettle();
 
       final item = find.byKey(const ValueKey('placement-item-memory'));
       await tester.ensureVisible(item);
       await tester.tap(item);
       await tester.pump();
-      final destination =
-          find.byKey(const ValueKey('placement-destination-cpu-socket'));
+      final destination = find.byKey(
+        const ValueKey('placement-destination-cpu-socket'),
+      );
       await tester.ensureVisible(destination);
       await tester.tap(destination);
       await tester.pump();
@@ -338,20 +424,22 @@ void main() {
       expect(controller.state.acceptedEvidenceIds, hasLength(1));
     });
 
-    testWidgets('configured test evidence type is emitted only on completion',
-        (tester) async {
+    testWidgets('configured test evidence type is emitted only on completion', (
+      tester,
+    ) async {
       final definition = MissionSimulationDefinitions.byId('coc2_m5');
       final phase = definition.phases.singleWhere(
-        (item) => (item.presentation['mechanics'] as List)
-            .contains('retest_network_path'),
+        (item) => (item.presentation['mechanics'] as List).contains(
+          'retest_network_path',
+        ),
       );
       final transport = _MemoryTransport();
       final controller = _controller(
         definition,
         transport: transport,
-        initialState: MissionRuntimeState.initial(definition.id).copyWith(
-          currentPhaseId: phase.id,
-        ),
+        initialState: MissionRuntimeState.initial(
+          definition.id,
+        ).copyWith(currentPhaseId: phase.id),
       );
 
       await tester.pumpWidget(_host(definition, controller: controller));
@@ -361,18 +449,16 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Run test again'));
       await tester.pumpAndSettle();
 
+      expect(transport.appendedActions.map((action) => action.actionType), [
+        'test_started',
+        'retest_requested',
+        'test_started',
+        'retest_requested',
+      ]);
       expect(
-        transport.appendedActions.map((action) => action.actionType),
-        [
-          'test_started',
-          'retest_requested',
-          'test_started',
-          'retest_requested',
-        ],
-      );
-      expect(
-        transport.appendedActions
-            .where((action) => action.actionType == 'retest_requested'),
+        transport.appendedActions.where(
+          (action) => action.actionType == 'retest_requested',
+        ),
         hasLength(2),
       );
       expect(
@@ -402,19 +488,65 @@ void main() {
       InteractionFamily.review: EvidenceReviewPanel,
     };
 
-    testWidgets('renders every catalog phase without technical unavailability',
-        (tester) async {
-      final failures = <String>[];
-      for (final definition in MissionSimulationDefinitions.all) {
-        for (final phase in definition.phases) {
-          await tester.pumpWidget(MaterialApp(
+    testWidgets(
+      'renders every catalog phase without technical unavailability',
+      (tester) async {
+        final failures = <String>[];
+        for (final definition in MissionSimulationDefinitions.all) {
+          for (final phase in definition.phases) {
+            await tester.pumpWidget(
+              MaterialApp(
+                home: Scaffold(
+                  body: SingleChildScrollView(
+                    child: MissionPhaseInteraction(
+                      phase: phase,
+                      state: MissionRuntimeState.initial(
+                        definition.id,
+                      ).copyWith(currentPhaseId: phase.id),
+                      onAction: (_, __, ___) async {},
+                      onRuntimeTransition: (_) {},
+                      onReturnFromReview: () {},
+                      onConfirmReview: () {},
+                    ),
+                  ),
+                ),
+              ),
+            );
+            await tester.pump();
+
+            final renderedWidgets = expectedWidgets.values
+                .where((type) => find.byType(type).evaluate().isNotEmpty)
+                .toList(growable: false);
+            final exception = tester.takeException();
+            if (find.byType(TechnicalUnavailableState).evaluate().isNotEmpty ||
+                renderedWidgets.length != 1 ||
+                exception != null) {
+              failures.add(
+                '${definition.id}/${phase.id}: '
+                'widgets=$renderedWidgets exception=$exception',
+              );
+            }
+          }
+        }
+        if (failures.isNotEmpty) {
+          debugPrint(failures.join('\n'));
+        }
+        expect(failures, isEmpty);
+      },
+    );
+
+    for (final entry in expectedWidgets.entries) {
+      testWidgets('maps ${entry.key.name} to ${entry.value}', (tester) async {
+        final phase = _phase(entry.key);
+        await tester.pumpWidget(
+          MaterialApp(
             home: Scaffold(
               body: SingleChildScrollView(
                 child: MissionPhaseInteraction(
                   phase: phase,
-                  state: MissionRuntimeState.initial(definition.id).copyWith(
-                    currentPhaseId: phase.id,
-                  ),
+                  state: MissionRuntimeState.initial(
+                    'test',
+                  ).copyWith(currentPhaseId: phase.id),
                   onAction: (_, __, ___) async {},
                   onRuntimeTransition: (_) {},
                   onReturnFromReview: () {},
@@ -422,78 +554,42 @@ void main() {
                 ),
               ),
             ),
-          ));
-          await tester.pump();
-
-          final renderedWidgets = expectedWidgets.values
-              .where((type) => find.byType(type).evaluate().isNotEmpty)
-              .toList(growable: false);
-          final exception = tester.takeException();
-          if (find.byType(TechnicalUnavailableState).evaluate().isNotEmpty ||
-              renderedWidgets.length != 1 ||
-              exception != null) {
-            failures.add(
-              '${definition.id}/${phase.id}: '
-              'widgets=$renderedWidgets exception=$exception',
-            );
-          }
-        }
-      }
-      if (failures.isNotEmpty) {
-        debugPrint(failures.join('\n'));
-      }
-      expect(failures, isEmpty);
-    });
-
-    for (final entry in expectedWidgets.entries) {
-      testWidgets('maps ${entry.key.name} to ${entry.value}', (tester) async {
-        final phase = _phase(entry.key);
-        await tester.pumpWidget(MaterialApp(
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: MissionPhaseInteraction(
-                phase: phase,
-                state: MissionRuntimeState.initial('test').copyWith(
-                  currentPhaseId: phase.id,
-                ),
-                onAction: (_, __, ___) async {},
-                onRuntimeTransition: (_) {},
-                onReturnFromReview: () {},
-                onConfirmReview: () {},
-              ),
-            ),
           ),
-        ));
+        );
 
         expect(find.byType(entry.value), findsOneWidget);
         expect(tester.takeException(), isNull);
       });
     }
 
-    testWidgets('shows technical unavailable for an unknown component override',
-        (tester) async {
-      final phase = MissionPhaseDefinition(
-        id: 'broken',
-        title: 'Broken phase',
-        instruction: 'Unavailable',
-        primaryInteraction: InteractionFamily.connect,
-        presentation: const {'component': 'not_registered'},
-      );
-      await tester.pumpWidget(MaterialApp(
-        home: MissionPhaseInteraction(
-          phase: phase,
-          state: MissionRuntimeState.initial('test'),
-          onAction: (_, __, ___) async {},
-          onRuntimeTransition: (_) {},
-          onReturnFromReview: () {},
-          onConfirmReview: () {},
-        ),
-      ));
+    testWidgets(
+      'shows technical unavailable for an unknown component override',
+      (tester) async {
+        final phase = MissionPhaseDefinition(
+          id: 'broken',
+          title: 'Broken phase',
+          instruction: 'Unavailable',
+          primaryInteraction: InteractionFamily.connect,
+          presentation: const {'component': 'not_registered'},
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: MissionPhaseInteraction(
+              phase: phase,
+              state: MissionRuntimeState.initial('test'),
+              onAction: (_, __, ___) async {},
+              onRuntimeTransition: (_) {},
+              onReturnFromReview: () {},
+              onConfirmReview: () {},
+            ),
+          ),
+        );
 
-      expect(find.byType(TechnicalUnavailableState), findsOneWidget);
-      expect(find.textContaining('not available'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    });
+        expect(find.byType(TechnicalUnavailableState), findsOneWidget);
+        expect(find.textContaining('not available'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
   });
 }
 
@@ -506,9 +602,9 @@ Widget _host(
 }) {
   return MaterialApp(
     builder: (context, child) => MediaQuery(
-      data: MediaQuery.of(context).copyWith(
-        textScaler: TextScaler.linear(textScale),
-      ),
+      data: MediaQuery.of(
+        context,
+      ).copyWith(textScaler: TextScaler.linear(textScale)),
       child: child!,
     ),
     home: MissionSimulationScreen(
@@ -522,6 +618,30 @@ Widget _host(
   );
 }
 
+Widget _routeHost(
+  MissionSimulationDefinition definition, {
+  required MissionRuntimeController controller,
+}) =>
+    MaterialApp(
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: TextButton(
+            onPressed: () => Navigator.of(context).push<void>(
+              MaterialPageRoute<void>(
+                builder: (_) => MissionSimulationScreen(
+                  mission: _mission(definition.id),
+                  definition: definition,
+                  controller: controller,
+                  orientationCoordinator: _FakeOrientationCoordinator(),
+                ),
+              ),
+            ),
+            child: const Text('Open mission'),
+          ),
+        ),
+      ),
+    );
+
 MissionRuntimeController _controller(
   MissionSimulationDefinition definition, {
   _MemoryStore? store,
@@ -531,9 +651,9 @@ MissionRuntimeController _controller(
   return MissionRuntimeController(
     userId: 'learner-1',
     initialState: initialState ??
-        MissionRuntimeState.initial(definition.id).copyWith(
-          currentPhaseId: definition.phases.first.id,
-        ),
+        MissionRuntimeState.initial(
+          definition.id,
+        ).copyWith(currentPhaseId: definition.phases.first.id),
     store: store ?? _MemoryStore(),
     evidenceGateway: MissionEvidenceGateway(
       transport: transport ?? _MemoryTransport(),
@@ -573,11 +693,7 @@ MissionSimulationDefinition _incompatiblePlacementDefinition() =>
           primaryInteraction: InteractionFamily.place,
           presentation: const {
             'items': [
-              {
-                'id': 'memory',
-                'label': 'Memory module',
-                'category': 'dimm',
-              },
+              {'id': 'memory', 'label': 'Memory module', 'category': 'dimm'},
             ],
             'destinations': [
               {
@@ -686,62 +802,58 @@ MissionPhaseDefinition _phase(InteractionFamily family) {
   final presentation = switch (family) {
     InteractionFamily.inspect => const {
         'objects': [
-          {'id': 'device', 'label': 'Device'}
+          {'id': 'device', 'label': 'Device'},
         ],
       },
     InteractionFamily.select => const {
         'options': [
-          {'id': 'device', 'label': 'Device'}
+          {'id': 'device', 'label': 'Device'},
         ],
       },
     InteractionFamily.tool => const {
         'targets': [
-          {'id': 'device', 'label': 'Device'}
+          {'id': 'device', 'label': 'Device'},
         ],
         'tools': [
-          {'id': 'meter', 'label': 'Meter'}
+          {'id': 'meter', 'label': 'Meter'},
         ],
       },
     InteractionFamily.connect || InteractionFamily.match => const {
         'sources': [
-          {'id': 'source', 'label': 'Source'}
+          {'id': 'source', 'label': 'Source'},
         ],
         'destinations': [
-          {'id': 'destination', 'label': 'Destination'}
+          {'id': 'destination', 'label': 'Destination'},
         ],
       },
     InteractionFamily.configure => const {
         'fields': [
-          {'id': 'address', 'label': 'Address'}
+          {'id': 'address', 'label': 'Address'},
         ],
       },
     InteractionFamily.sequence => const {
         'steps': [
-          {'id': 'step', 'label': 'Step'}
+          {'id': 'step', 'label': 'Step'},
         ],
       },
     InteractionFamily.place => const {
         'items': [
-          {'id': 'part', 'label': 'Part'}
+          {'id': 'part', 'label': 'Part'},
         ],
         'destinations': [
-          {'id': 'slot', 'label': 'Slot'}
+          {'id': 'slot', 'label': 'Slot'},
         ],
       },
     InteractionFamily.troubleshoot => const {
         'diagnostic_actions': [
-          {
-            'id': 'inspect',
-            'label': 'Inspect',
-            'reveals_fact_id': 'fact',
-          }
+          {'id': 'inspect', 'label': 'Inspect', 'reveals_fact_id': 'fact'},
         ],
         'facts': {'fact': 'The link indicator remains dark.'},
         'required_fact_ids': ['fact'],
       },
     InteractionFamily.decide => const {
         'choices': [
-          {'id': 'isolate', 'label': 'Isolate the device'}
+          {'id': 'isolate', 'label': 'Isolate the device'},
         ],
       },
     _ => const <String, dynamic>{},
@@ -761,6 +873,7 @@ final class _MemoryStore implements MissionRuntimeStore {
   Completer<void>? loadGate;
   int saveCount = 0;
   int clearCount = 0;
+  bool saveSucceeds = true;
 
   @override
   Future<bool> clearMissionRuntime({
@@ -791,8 +904,8 @@ final class _MemoryStore implements MissionRuntimeStore {
     required MissionRuntimeState state,
   }) async {
     saveCount++;
-    saved = state;
-    return true;
+    if (saveSucceeds) saved = state;
+    return saveSucceeds;
   }
 }
 

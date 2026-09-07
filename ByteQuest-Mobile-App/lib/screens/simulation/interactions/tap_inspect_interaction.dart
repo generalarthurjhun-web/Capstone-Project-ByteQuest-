@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../components/tool_tray.dart';
 import '../runtime/mission_runtime_models.dart';
@@ -46,30 +45,16 @@ class TapInspectInteraction extends StatelessWidget {
             selected: selectedIds.contains(object.id),
             enabled: enabled,
             icon: Icons.visibility_outlined,
-            onTap: () => unawaited(onAction(
-              'object_inspected',
-              object.id,
-              const {'input_method': 'tap'},
-            )),
+            onTap: () => unawaited(
+              onAction('object_inspected', object.id, const {
+                'input_method': 'tap',
+              }),
+            ),
           ),
           if (object.imageAsset case final String imagePath
               when imagePath.isNotEmpty) ...[
             const SizedBox(height: 6),
-            _InspectionImage(
-              objectName: object.label,
-              description: object.description,
-              assetPath: imagePath,
-            ),
-          ] else ...[
-            Builder(
-              builder: (context) {
-                debugPrint(
-                  '[ByteQuest image] missing imageAsset for '
-                  'object name: ${object.label}',
-                );
-                return const SizedBox.shrink();
-              },
-            ),
+            _InspectionImage(objectName: object.label, assetPath: imagePath),
           ],
           if (selectedIds.contains(object.id) &&
               object.data['inspection'] is String) ...[
@@ -92,38 +77,11 @@ class TapInspectInteraction extends StatelessWidget {
   }
 }
 
-class _InspectionImage extends StatefulWidget {
-  const _InspectionImage({
-    required this.objectName,
-    required this.description,
-    required this.assetPath,
-  });
+class _InspectionImage extends StatelessWidget {
+  const _InspectionImage({required this.objectName, required this.assetPath});
 
   final String objectName;
-  final String description;
   final String assetPath;
-
-  @override
-  State<_InspectionImage> createState() => _InspectionImageState();
-}
-
-class _InspectionImageState extends State<_InspectionImage> {
-  @override
-  void initState() {
-    super.initState();
-    debugPrint(
-      '[ByteQuest image] object name: ${widget.objectName}; '
-      'imageAsset: ${widget.assetPath}; '
-      'description: ${widget.description}',
-    );
-    rootBundle.load(widget.assetPath).then<void>(
-          (_) =>
-              debugPrint('[ByteQuest image] asset exists: ${widget.assetPath}'),
-          onError: (Object error, StackTrace stack) => debugPrint(
-            '[ByteQuest image] asset missing: ${widget.assetPath} ($error)',
-          ),
-        );
-  }
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -133,19 +91,13 @@ class _InspectionImageState extends State<_InspectionImage> {
               ? constraints.maxWidth
               : mediaSize.width;
           const height = 120.0;
-          debugPrint(
-            '[ByteQuest image] layout object name: ${widget.objectName}; '
-            'media: ${mediaSize.width}x${mediaSize.height}; '
-            'parent constraints: $constraints; '
-            'widget size: ${width}x$height',
-          );
           return SizedBox(
             width: width,
             height: height,
             child: Image.asset(
-              widget.assetPath,
+              assetPath,
               fit: BoxFit.contain,
-              semanticLabel: widget.objectName,
+              semanticLabel: objectName,
               errorBuilder: (context, error, stackTrace) => Container(
                 color: Colors.red.shade100,
                 alignment: Alignment.center,

@@ -5,13 +5,16 @@
 create or replace function public.get_rating(p_score integer)
 returns public.rating_type
 language plpgsql
-immutable
+stable
 set search_path = ''
 as $$
 begin
   raise exception 'PENDING_TESDA_VALIDATION'
     using errcode = '22023',
-          detail = 'Legacy numeric rating bands are quarantined until an approved source and rubric version are activated.';
+          detail = format(
+            'Legacy numeric rating bands are quarantined; input %s was not evaluated.',
+            coalesce(p_score::text, 'NULL')
+          );
 end
 $$;
 

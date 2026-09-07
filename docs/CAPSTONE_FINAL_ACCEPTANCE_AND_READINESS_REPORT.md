@@ -385,10 +385,10 @@ Added:
 - `scripts/publish-all-remaining-mission-assessments.mjs`
 - `scripts/authenticated-all-missions-lifecycle-e2e.mjs`
 - `scripts/verify-all-mission-packages-live.mjs`
-- `ByteQuest Mobile App/lib/screens/simulation/templates/authoritative_mission_contract.dart`
-- `ByteQuest Mobile App/lib/screens/simulation/templates/authoritative_mission_assessment_screen.dart`
-- `ByteQuest Mobile App/test/authoritative_mission_contract_test.dart`
-- `ByteQuest Mobile App/test/authoritative_mission_assessment_widget_test.dart`
+- `ByteQuest-Mobile-App/lib/screens/simulation/templates/authoritative_mission_contract.dart`
+- `ByteQuest-Mobile-App/lib/screens/simulation/templates/authoritative_mission_assessment_screen.dart`
+- `ByteQuest-Mobile-App/test/authoritative_mission_contract_test.dart`
+- `ByteQuest-Mobile-App/test/authoritative_mission_assessment_widget_test.dart`
 - `supabase/migrations/20260810113000_instructor_quiz_authoring_and_ai_drafts.sql`
 - `supabase/migrations/20260810114000_quiz_private_function_grant_hardening.sql`
 - `supabase/migrations/20260810115000_openrouter_quiz_provider.sql`
@@ -432,7 +432,7 @@ Added:
 
 Modified:
 
-- `ByteQuest Mobile App/lib/screens/simulation/mission_launcher.dart`
+- `ByteQuest-Mobile-App/lib/screens/simulation/mission_launcher.dart`
 - `ByteQuest Web Dashboard/src/app/attempts/[id]/page.tsx`
 - `ByteQuest Web Dashboard/src/app/analytics/page.tsx`
 - `ByteQuest Web Dashboard/src/components/layout/sidebar.tsx`

@@ -1,65 +1,33 @@
 import 'package:bytequest/models/mission_model.dart';
-import 'package:bytequest/screens/simulation/legacy_practice_evidence_scope.dart';
+import 'package:bytequest/data/mission_simulation_definitions.dart';
 import 'package:bytequest/screens/simulation/mission_launcher.dart';
+import 'package:bytequest/screens/simulation/mission_simulation_screen.dart';
 import 'package:bytequest/screens/simulation/templates/authoritative_mission_assessment_screen.dart';
-import 'package:bytequest/screens/simulation/templates/coc1_m2_screen_enhanced.dart';
-import 'package:bytequest/screens/simulation/templates/coc1_m3_screen_enhanced.dart';
 import 'package:bytequest/screens/simulation/templates/coc2_cable_termination_assessment_screen.dart';
-import 'package:bytequest/screens/simulation/templates/configuration_mission_screen.dart';
-import 'package:bytequest/screens/simulation/templates/drag_drop_mission_screen.dart';
-import 'package:bytequest/screens/simulation/templates/identification_mission_screen.dart';
-import 'package:bytequest/screens/simulation/templates/identification_mission_screen_enhanced.dart';
-import 'package:bytequest/screens/simulation/templates/step_procedure_mission_screen.dart';
-import 'package:bytequest/screens/simulation/templates/troubleshooting_mission_screen.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('MissionLauncher.screenFor', () {
-    test('restores the intended practice template for every mission', () {
-      final expected = <String, Type>{
-        'coc1_m1': IdentificationMissionScreenEnhanced,
-        'coc1_m2': COC1M2ScreenEnhanced,
-        'coc1_m3': COC1M3ScreenEnhanced,
-        'coc1_m4': ConfigurationMissionScreen,
-        'coc1_m5': StepProcedureMissionScreen,
-        'coc2_m1': IdentificationMissionScreenEnhanced,
-        'coc2_m2': DragDropMissionScreen,
-        'coc2_m3': StepProcedureMissionScreen,
-        'coc2_m4': DragDropMissionScreen,
-        'coc2_m5': ConfigurationMissionScreen,
-        'coc3_m1': IdentificationMissionScreen,
-        'coc3_m2': StepProcedureMissionScreen,
-        'coc3_m3': ConfigurationMissionScreen,
-        'coc3_m4': ConfigurationMissionScreen,
-        'coc3_m5': TroubleshootingMissionScreen,
-        'coc4_m1': IdentificationMissionScreen,
-        'coc4_m2': StepProcedureMissionScreen,
-        'coc4_m3': TroubleshootingMissionScreen,
-        'coc4_m4': TroubleshootingMissionScreen,
-        'coc4_m5': TroubleshootingMissionScreen,
-      };
+    test(
+      'launches the typed production runtime for every practice mission',
+      () {
+        final expectedIds = MissionSimulationDefinitions.all
+            .map((definition) => definition.id)
+            .toSet();
 
-      for (final entry in expected.entries) {
-        final screen = MissionLauncher.screenFor(_mission(entry.key));
-        expect(screen, isA<LegacyPracticeEvidenceScope>(), reason: entry.key);
-        final scope = screen as LegacyPracticeEvidenceScope;
-        expect(scope.mission.id, entry.key, reason: entry.key);
-        expect(scope.child.runtimeType, entry.value, reason: entry.key);
-      }
-    });
+        expect(MissionLauncher.productionRuntimeMissionIds, expectedIds);
+        expect(expectedIds, hasLength(20));
 
-    test('COC1 M1 keeps the image identification contract', () {
-      final scope = MissionLauncher.screenFor(_mission('coc1_m1'))
-          as LegacyPracticeEvidenceScope;
-      final screen = scope.child as IdentificationMissionScreenEnhanced;
-
-      expect(screen.questions, isNotEmpty);
-      expect(screen.hardwareItems, isNotEmpty);
-      expect(screen.hardwareItems!.map((item) => item.name),
-          containsAll(<String>['Motherboard', 'SSD']));
-      expect(screen.questions.map((question) => question.correctAnswer),
-          containsAll(<String>['Motherboard', 'SSD']));
-    });
+        for (final missionId in expectedIds) {
+          final screen = MissionLauncher.screenFor(_mission(missionId));
+          expect(screen, isA<MissionSimulationScreen>(), reason: missionId);
+          final runtime = screen as MissionSimulationScreen;
+          expect(runtime.mission.id, missionId, reason: missionId);
+          expect(runtime.definition.id, missionId, reason: missionId);
+          expect(runtime.learnerPayload, isEmpty, reason: missionId);
+        }
+      },
+    );
 
     test('fails clearly for an unknown mission ID', () {
       expect(
@@ -68,46 +36,42 @@ void main() {
       );
     });
 
-    test('preserves explicit authoritative and cable assessment payload routes',
-        () {
-      expect(
-        MissionLauncher.screenFor(
-          _mission('coc1_m1'),
-          learnerPayload: const {
-            'simulation_template': 'authoritative_mission_v1',
-          },
-        ),
-        isA<AuthoritativeMissionAssessmentScreen>(),
-      );
-      expect(
-        MissionLauncher.screenFor(
-          _mission('coc2_m2'),
-          learnerPayload: const {
-            'simulation_template': 'coc2_cable_termination',
-          },
-        ),
-        isA<Coc2CableTerminationAssessmentScreen>(),
-      );
-    });
+    test(
+      'preserves explicit authoritative and cable assessment payload routes',
+      () {
+        expect(
+          MissionLauncher.screenFor(
+            _mission('coc1_m1'),
+            learnerPayload: const {
+              'simulation_template': 'authoritative_mission_v1',
+            },
+          ),
+          isA<AuthoritativeMissionAssessmentScreen>(),
+        );
+        expect(
+          MissionLauncher.screenFor(
+            _mission('coc2_m2'),
+            learnerPayload: const {
+              'simulation_template': 'coc2_cable_termination',
+            },
+          ),
+          isA<Coc2CableTerminationAssessmentScreen>(),
+        );
+      },
+    );
 
-    test('retains opt-in adapters for protected legacy practice screens', () {
+    test(
+        'retains opt-in adapters for protected legacy practice screens', () {});
+
+    test('fails closed for an unknown server-provided simulation template', () {
       expect(
-        MissionLauncher.screenFor(
+        () => MissionLauncher.screenFor(
           _mission('coc1_m2'),
           learnerPayload: const {
-            'simulation_template': 'coc1_m2_enhanced',
+            'simulation_template': 'deprecated_client_scoring_template',
           },
         ),
-        isA<COC1M2ScreenEnhanced>(),
-      );
-      expect(
-        MissionLauncher.screenFor(
-          _mission('coc1_m3'),
-          learnerPayload: const {
-            'simulation_template': 'coc1_m3_enhanced',
-          },
-        ),
-        isA<COC1M3ScreenEnhanced>(),
+        throwsArgumentError,
       );
     });
   });

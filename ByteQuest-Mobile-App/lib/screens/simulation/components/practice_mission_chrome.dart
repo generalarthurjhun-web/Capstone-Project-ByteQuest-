@@ -5,12 +5,12 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/mission_content_data.dart';
 import '../../../models/mission_model.dart';
-import '../../../services/auth_service.dart';
-import '../../../services/progress_resume_service.dart';
 
 String practiceMissionIdentifier(Mission mission) {
-  final idMatch = RegExp(r'^coc(\d+)_m(\d+)$', caseSensitive: false)
-      .firstMatch(mission.id.trim());
+  final idMatch = RegExp(
+    r'^coc(\d+)_m(\d+)$',
+    caseSensitive: false,
+  ).firstMatch(mission.id.trim());
   if (idMatch != null) {
     return 'COC${idMatch.group(1)} M${idMatch.group(2)}';
   }
@@ -88,10 +88,7 @@ class PracticeMissionHeader extends StatelessWidget {
                 ],
               ),
             ),
-            if (trailing != null) ...[
-              const SizedBox(width: 8),
-              trailing!,
-            ],
+            if (trailing != null) ...[const SizedBox(width: 8), trailing!],
           ],
         ),
       ),
@@ -150,17 +147,12 @@ class PracticeMissionAppBar extends StatelessWidget
         ),
         actions: trailing == null
             ? null
-            : [
-                Center(child: trailing!),
-                const SizedBox(width: 16),
-              ],
+            : [Center(child: trailing!), const SizedBox(width: 16)],
       );
 }
 
 typedef PracticeExitBuilder = Widget Function(
-  BuildContext context,
-  VoidCallback requestExit,
-);
+    BuildContext context, VoidCallback requestExit);
 
 /// Gives visible and system back navigation one progress-aware exit contract.
 class PracticeMissionExitGuard extends StatelessWidget {
@@ -169,26 +161,15 @@ class PracticeMissionExitGuard extends StatelessWidget {
     required this.mission,
     required this.hasProgress,
     required this.builder,
-    this.onDiscard,
+    this.onSave,
   });
 
   final Mission mission;
   final bool Function() hasProgress;
   final PracticeExitBuilder builder;
-  final Future<void> Function()? onDiscard;
+  final Future<void> Function()? onSave;
 
-  Future<void> _discard() async {
-    if (onDiscard != null) return onDiscard!();
-    final userId = AuthService().currentUserId;
-    if (userId == null) return;
-    final cleared = await ProgressResumeService.clearState(
-      userId: userId,
-      missionId: mission.id,
-    );
-    if (!cleared) {
-      throw StateError('Legacy mission progress could not be cleared.');
-    }
-  }
+  Future<void> _save() async => onSave?.call();
 
   Future<void> _requestExit(BuildContext context) async {
     if (!hasProgress()) {
@@ -209,7 +190,6 @@ class PracticeMissionExitGuard extends StatelessWidget {
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
             child: const Text(MissionContentData.confirmExitLabel),
           ),
         ],
@@ -218,13 +198,13 @@ class PracticeMissionExitGuard extends StatelessWidget {
     if (exit != true || !context.mounted) return;
 
     try {
-      await _discard();
+      await _save();
       if (context.mounted) Navigator.of(context).pop();
     } catch (_) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(MissionContentData.discardProgressFailedMessage),
+          content: Text(MissionContentData.saveProgressFailedMessage),
         ),
       );
     }
@@ -238,9 +218,7 @@ class PracticeMissionExitGuard extends StatelessWidget {
         },
         child: Builder(
           builder: (guardContext) => builder(
-            guardContext,
-            () => unawaited(_requestExit(guardContext)),
-          ),
+              guardContext, () => unawaited(_requestExit(guardContext))),
         ),
       );
 }

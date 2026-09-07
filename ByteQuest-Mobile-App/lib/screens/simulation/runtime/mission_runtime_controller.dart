@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../services/progress_resume_service.dart';
@@ -81,16 +80,11 @@ final class MissionRuntimeController {
 
   Future<void> restore() {
     return _enqueue(() async {
-      _logRestoreDiagnostics(syncState: 'loading_local_snapshot');
       final local = await _store.loadMissionRuntime(
         userId: _userId,
         missionId: _state.missionId,
         mode: _state.mode,
         assessmentAttemptId: _state.assessmentAttemptId,
-      );
-      _logRestoreDiagnostics(
-        syncState: local == null ? 'local_snapshot_absent' : 'local_snapshot_loaded',
-        snapshot: local,
       );
       if (local != null) {
         _assertSameSession(local, source: 'snapshot');
@@ -105,33 +99,15 @@ final class MissionRuntimeController {
       }
 
       late final List<AcknowledgedMissionEvidenceAction> acknowledged;
-      _logRestoreDiagnostics(
-        syncState: 'reading_acknowledged_server_actions',
-        snapshot: local,
-      );
       try {
-        final serverActions =
-            await _evidenceGateway.readAcknowledgedActions();
+        final serverActions = await _evidenceGateway.readAcknowledgedActions();
         // Assessment transports read the complete active-attempt timeline.
         // Reconcile only this mission; other mission actions must not reach
         // this mission's reducer.
         acknowledged = serverActions
             .where((record) => record.action.missionId == _state.missionId)
             .toList(growable: false);
-        _logRestoreDiagnostics(
-          syncState: 'server_actions_loaded',
-          snapshot: local,
-          acknowledgedCount: acknowledged.length,
-        );
-      } catch (error, stackTrace) {
-        _logRestoreDiagnostics(
-          syncState: local == null
-              ? 'server_actions_failed_without_local_snapshot'
-              : 'server_actions_failed_using_local_snapshot',
-          snapshot: local,
-          error: error,
-          stackTrace: stackTrace,
-        );
+      } catch (_) {
         if (local == null) rethrow;
         _state = local;
         _failedEvidenceIds.clear();
@@ -174,36 +150,7 @@ final class MissionRuntimeController {
         throw StateError('Restored mission progress could not be saved.');
       }
       await _flushPendingNow();
-      _logRestoreDiagnostics(
-        syncState: 'restore_complete',
-        snapshot: _state,
-        acknowledgedCount: acknowledged.length,
-      );
     });
-  }
-
-  void _logRestoreDiagnostics({
-    required String syncState,
-    MissionRuntimeState? snapshot,
-    int? acknowledgedCount,
-    Object? error,
-    StackTrace? stackTrace,
-  }) {
-    final state = snapshot ?? _state;
-    debugPrint(
-      '[ByteQuest restore] missionId=${state.missionId} '
-      'runtimeStateVersion=${state.persistedSchemaVersion} '
-      'snapshotTimestamp=${state.updatedAt.toIso8601String()} '
-      'storedPhase=${state.currentPhaseId ?? '<none>'} '
-      'evidenceCount=${state.acceptedEvidenceIds.length} '
-      'pendingActions=${state.pendingEvidence.length} '
-      'supabaseSyncState=$syncState'
-      '${acknowledgedCount == null ? '' : ' acknowledgedActions=$acknowledgedCount'}',
-    );
-    if (error != null) {
-      debugPrint('[ByteQuest restore] exception=$error');
-      if (stackTrace != null) debugPrintStack(stackTrace: stackTrace);
-    }
   }
 
   Future<void> flushPending() => _enqueue(_flushPendingNow);

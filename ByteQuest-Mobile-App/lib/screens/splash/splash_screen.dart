@@ -68,7 +68,6 @@ class _SplashScreenState extends State<SplashScreen>
         final isActive = await AuthService().isAccountActive();
         if (!mounted) return;
         if (isActive) {
-          debugPrint('Active learner session found: ${currentUser.email}');
           Navigator.of(context).pushReplacementNamed('/dashboard');
         } else {
           await AuthService().signOut();
@@ -77,7 +76,6 @@ class _SplashScreenState extends State<SplashScreen>
         }
       } else {
         // No active session - go to onboarding
-        debugPrint('No active session - showing onboarding');
         Navigator.of(context).pushReplacementNamed('/onboarding');
       }
     } catch (e) {

@@ -39,7 +39,7 @@ The mobile assessment service is a learner submission coordinator; PostgreSQL RP
 - `flutter test`: 9/9 tests passed.
 - `flutter analyze --no-fatal-infos`: 0 errors, 0 warnings; 244 informational lint/deprecation notices remain after the full-screen/resource/disclosure continuation.
 - `flutter build apk --debug`: passed.
-- APK: `ByteQuest Mobile App/build/app/outputs/flutter-apk/app-debug.apk`.
+- APK: `ByteQuest-Mobile-App/build/app/outputs/flutter-apk/app-debug.apk`.
 - Impeccable one-time detector: no findings.
 
 ## Deferred modernization debt

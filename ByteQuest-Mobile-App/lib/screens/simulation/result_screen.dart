@@ -115,14 +115,13 @@ class _ResultScreenState extends State<ResultScreen> {
         _submitted = true;
         _submitting = false;
       });
-    } catch (error) {
+    } catch (_) {
       if (!mounted) return;
       setState(() {
         _submissionError =
             'Evidence was not submitted. Keep this screen open and try again.';
         _submitting = false;
       });
-      debugPrint('Attempt submission failed: $error');
     }
   }
 

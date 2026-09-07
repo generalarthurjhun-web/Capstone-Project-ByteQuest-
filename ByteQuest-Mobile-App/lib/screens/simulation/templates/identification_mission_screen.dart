@@ -103,8 +103,6 @@ class _IdentificationMissionScreenState
           },
         );
       });
-      debugPrint(
-          'Loaded state. Starting at question index: $_currentQuestionIndex');
     }
   }
 
@@ -424,7 +422,7 @@ class _IdentificationMissionScreenState
                           child: AppButton.outline(
                             label: 'Use Hint',
                             icon: Icons.lightbulb_outline,
-                            onPressed: _hintsRemaining > 0 ? _showHint : () {},
+                            onPressed: _hintsRemaining > 0 ? _showHint : null,
                             width: 200,
                           ),
                         ),
@@ -547,7 +545,7 @@ class _IdentificationMissionScreenState
                         : 'Submit Answer',
                     icon: _hasAnswered ? Icons.arrow_forward : Icons.check,
                     onPressed: _selectedAnswer == null
-                        ? () {}
+                        ? null
                         : (_hasAnswered ? _nextQuestion : _submitAnswer),
                     width: double.infinity,
                   ),
@@ -774,5 +772,4 @@ class _IdentificationMissionScreenState
       ),
     );
   }
-
 }

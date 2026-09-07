@@ -367,7 +367,11 @@ async function cleanup() {
       if (archived.error) errors.push(`classes: ${archived.error.message}`);
     }
   }
-  for (const client of clients.values()) await client.auth.signOut();
+  for (const client of clients.values()) {
+    await client.auth.signOut();
+    client.realtime.disconnect();
+  }
+  service.realtime.disconnect();
   const now = new Date().toISOString();
   const userIds = Array.from(users.values());
   if (userIds.length) {

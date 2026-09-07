@@ -385,8 +385,8 @@ class _COC1M3ScreenEnhancedState extends State<COC1M3ScreenEnhanced> {
         userId: userId,
         missionId: widget.mission.id,
       );
-    } catch (e) {
-      debugPrint('Error saving simulation results: $e');
+    } catch (_) {
+      // Completion remains visible; cleanup can be retried safely later.
     } finally {
       if (mounted) {
         setState(() {

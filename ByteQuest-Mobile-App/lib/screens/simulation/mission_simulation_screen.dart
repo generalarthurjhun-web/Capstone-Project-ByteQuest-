@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/simulation_fullscreen_button.dart';
 import '../../data/mission_content_data.dart';
 import '../../models/mission_model.dart';
 import '../../services/auth_service.dart';
@@ -30,14 +31,12 @@ final class SystemMissionOrientationCoordinator
 
   @override
   Future<void> restoreSupportedOrientations() =>
-      SystemChrome.setPreferredOrientations(
-        const [
-          DeviceOrientation.portraitUp,
-          DeviceOrientation.portraitDown,
-          DeviceOrientation.landscapeLeft,
-          DeviceOrientation.landscapeRight,
-        ],
-      );
+      SystemChrome.setPreferredOrientations(const [
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
 }
 
 /// Lifecycle-owning shell for catalog-backed practice and assessment missions.
@@ -75,6 +74,8 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
   var _submitting = false;
   var _retryingEvidence = false;
   var _submitted = false;
+  var _leaving = false;
+  var _allowPop = false;
   String? _restoreFailure;
   String? _technicalFeedback;
 
@@ -100,13 +101,9 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
             ? MissionRuntimeMode.assessment
             : MissionRuntimeMode.practice,
         assessmentAttemptId: isAssessment ? activeSession!.attemptId : null,
-      ).copyWith(
-        currentPhaseId: firstPhaseId,
-      ),
+      ).copyWith(currentPhaseId: firstPhaseId),
       store: const SharedPreferencesMissionRuntimeStore(),
-      evidenceGateway: MissionEvidenceGateway(
-        transport: evidenceTransport,
-      ),
+      evidenceGateway: MissionEvidenceGateway(transport: evidenceTransport),
       restoreReducer: MissionRuntimeActionReducer(widget.definition),
       submissionPhaseIds: {widget.definition.phases.last.id},
     );
@@ -128,9 +125,7 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
             'Saved progress references a mission phase that is no longer '
             'available.';
       }
-    } catch (error, stackTrace) {
-      debugPrint('[ByteQuest restore] screen failure: $error');
-      debugPrintStack(stackTrace: stackTrace);
+    } catch (_) {
       _restoreFailure =
           'Saved progress could not be restored for this mission session.';
     } finally {
@@ -153,9 +148,7 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
       _restoreFailure = null;
       _technicalFeedback = null;
       _submitted = false;
-    } catch (error, stackTrace) {
-      debugPrint('[ByteQuest restore] reset failure: $error');
-      debugPrintStack(stackTrace: stackTrace);
+    } catch (_) {
       _restoreFailure =
           'Saved progress could not be reset. Retry or return to the mission '
           'list.';
@@ -173,9 +166,10 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
     }
   }
 
-  Future<void> _persistForLifecycle() async {
+  Future<bool> _persistForLifecycle() async {
     try {
       await _controller.persist();
+      return true;
     } catch (_) {
       if (mounted) {
         setState(() {
@@ -183,6 +177,7 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
               'Progress could not be saved. Keep the mission open and retry.';
         });
       }
+      return false;
     }
   }
 
@@ -194,11 +189,17 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
   }
 
   @override
-  Widget build(BuildContext context) {
-    if (_restoring) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+  Widget build(BuildContext context) => PopScope(
+        canPop: _allowPop,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) unawaited(_leave());
+        },
+        child: _buildScreen(context),
       );
+
+  Widget _buildScreen(BuildContext context) {
+    if (_restoring) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (_restoreFailure case final failure?) {
@@ -233,12 +234,9 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
       enabled:
           !_writing && phase.primaryInteraction != InteractionFamily.review,
       onObjectSelected: (objectId) => unawaited(
-        _recordAction(
-          phase,
-          'object_inspected',
-          objectId,
-          const {'input_method': 'scene'},
-        ),
+        _recordAction(phase, 'object_inspected', objectId, const {
+          'input_method': 'scene',
+        }),
       ),
     );
 
@@ -376,9 +374,8 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
     return index;
   }
 
-  bool _hasKnownPhase(String? phaseId) => widget.definition.phases.any(
-        (phase) => phase.id == phaseId,
-      );
+  bool _hasKnownPhase(String? phaseId) =>
+      widget.definition.phases.any((phase) => phase.id == phaseId);
 
   Future<void> _recordAction(
     MissionPhaseDefinition phase,
@@ -395,10 +392,7 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
         phaseId: phase.id,
         actionType: _adaptActionType(phase, emittedActionType),
         target: target,
-        value: {
-          ...value,
-          'runtime_action_type': emittedActionType,
-        },
+        value: {...value, 'runtime_action_type': emittedActionType},
         transition: (state) {
           final interactionTransition = queuedTransition ??
               (runtime) => MissionRuntimeActionReducer.transitionForAction(
@@ -505,11 +499,20 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
     if (_submitting || _submitted || !_controller.canSubmit) return;
     setState(() => _submitting = true);
     try {
-      final callback = widget.onSubmit ?? _submitAuthoritatively;
-      await callback();
+      if (widget.onSubmit case final callback?) {
+        await callback();
+      } else if (_state.mode == MissionRuntimeMode.practice) {
+        // Practice evidence has already been persisted locally and synced by
+        // the runtime gateway. Confirming review must never create an
+        // authoritative result or award competency.
+        await _controller.persist();
+      } else {
+        await _submitAuthoritatively();
+      }
       _submitted = true;
-      _technicalFeedback =
-          'Evidence submitted for authoritative evaluation and review.';
+      _technicalFeedback = _state.mode == MissionRuntimeMode.practice
+          ? 'Practice evidence saved. Official competency is unchanged.'
+          : 'Evidence submitted for authoritative evaluation and review.';
     } catch (_) {
       _technicalFeedback =
           'Evidence could not be submitted. Your mission progress is preserved.';
@@ -547,14 +550,25 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
     if (assessment.activeSession == null) {
       throw StateError('No authoritative attempt is active.');
     }
-    await assessment.submitAttempt(finalEvidence: {
-      'mission_id': widget.definition.id,
-      'runtime_schema_version': MissionRuntimeState.schemaVersion,
-    });
+    await assessment.submitAttempt(
+      finalEvidence: {
+        'mission_id': widget.definition.id,
+        'runtime_schema_version': MissionRuntimeState.schemaVersion,
+      },
+    );
   }
 
   Future<void> _leave() async {
-    await _persistForLifecycle();
+    if (_leaving) return;
+    setState(() => _leaving = true);
+    final saved = await _persistForLifecycle();
+    if (!mounted) return;
+    if (!saved) {
+      setState(() => _leaving = false);
+      return;
+    }
+    setState(() => _allowPop = true);
+    await WidgetsBinding.instance.endOfFrame;
     if (mounted) await Navigator.of(context).maybePop();
   }
 }
@@ -752,8 +766,9 @@ class MissionPhaseInteraction extends StatelessWidget {
       InteractionFamily.sequence => _nonEmptyList(data['items']),
       InteractionFamily.place =>
         _nonEmptyList(data['items']) && _nonEmptyList(data['destinations']),
-      InteractionFamily.troubleshoot =>
-        _nonEmptyList(data['diagnostic_actions']),
+      InteractionFamily.troubleshoot => _nonEmptyList(
+          data['diagnostic_actions'],
+        ),
       InteractionFamily.decide => _nonEmptyList(data['choices']),
       InteractionFamily.testRun ||
       InteractionFamily.observe ||
@@ -865,7 +880,7 @@ class _MissionHeader extends StatelessWidget {
         child: Row(
           children: [
             IconButton(
-              tooltip: 'Leave mission',
+              tooltip: 'Save and exit mission',
               onPressed: onBack,
               icon: const Icon(Icons.arrow_back_rounded),
             ),
@@ -889,6 +904,8 @@ class _MissionHeader extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
+            const SimulationFullscreenButton(),
+            const SizedBox(width: 4),
             Semantics(
               label: 'Phase ${phaseIndex + 1} of $phaseCount',
               child: Text(

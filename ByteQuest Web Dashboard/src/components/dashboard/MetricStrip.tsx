@@ -93,10 +93,14 @@ function MetricCard({ metric }: { metric: Metric }) {
   const cardClassName = cn(
     "group relative flex min-h-[142px] min-w-0 flex-col overflow-hidden rounded-2xl border bg-card p-4 shadow-card sm:p-[18px]",
     metric.featured
-      ? "border-primary/30 bg-gradient-to-br from-primary/[0.08] via-card to-card"
+      ? "border-primary bg-primary text-primary-foreground"
       : "border-border/75 text-foreground",
     metric.href &&
-      "cursor-pointer transition-[border-color,box-shadow,background-color,transform] duration-200 ease-out hover:-translate-y-0.5 hover:border-primary/30 hover:bg-card hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transform-none motion-reduce:transition-none",
+      "cursor-pointer transition-[border-color,box-shadow,background-color,transform] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transform-none motion-reduce:transition-none",
+    metric.href &&
+      (metric.featured
+        ? "hover:border-primary hover:bg-primary/90"
+        : "hover:border-primary/30 hover:bg-card"),
   );
 
   const content = (
@@ -105,7 +109,7 @@ function MetricCard({ metric }: { metric: Metric }) {
         <p
           className={cn(
             "min-w-0 text-[12px] font-semibold leading-5 tracking-[0.01em]",
-            metric.featured ? "text-primary/80" : "text-muted-foreground",
+            metric.featured ? "text-primary-foreground/80" : "text-muted-foreground",
           )}
         >
           {metric.label}
@@ -113,7 +117,9 @@ function MetricCard({ metric }: { metric: Metric }) {
         <span
           className={cn(
             "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1",
-            toneStyles[tone],
+            metric.featured
+              ? "bg-primary-foreground/10 text-primary-foreground ring-primary-foreground/20"
+              : toneStyles[tone],
           )}
         >
           <Icon className="h-4 w-4" aria-hidden={true} />
@@ -123,7 +129,7 @@ function MetricCard({ metric }: { metric: Metric }) {
       <p
         className={cn(
           "mt-4 break-words text-[clamp(1.5rem,2.5vw,1.75rem)] font-bold leading-none tabular-nums tracking-[-0.035em]",
-          "text-foreground",
+          metric.featured ? "text-primary-foreground" : "text-foreground",
         )}
       >
         {metric.value}
@@ -135,7 +141,9 @@ function MetricCard({ metric }: { metric: Metric }) {
             <p
               className={cn(
                 "line-clamp-2 text-[11px] leading-5",
-                "text-muted-foreground",
+                metric.featured
+                  ? "text-primary-foreground/75"
+                  : "text-muted-foreground",
               )}
             >
               {metric.helper}
@@ -155,7 +163,9 @@ function MetricCard({ metric }: { metric: Metric }) {
         {metric.href ? (
           <span
             className={cn(
-              "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-primary opacity-35 transition-[opacity,background-color] duration-200 group-hover:bg-primary/[0.07] group-hover:opacity-100 group-focus-visible:bg-primary/[0.07] group-focus-visible:opacity-100 motion-reduce:transition-none",
+              metric.featured
+                ? "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-primary-foreground opacity-70 transition-[opacity,background-color] duration-200 group-hover:bg-primary-foreground/10 group-hover:opacity-100 group-focus-visible:bg-primary-foreground/10 group-focus-visible:opacity-100 motion-reduce:transition-none"
+                : "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-primary opacity-35 transition-[opacity,background-color] duration-200 group-hover:bg-primary/[0.07] group-hover:opacity-100 group-focus-visible:bg-primary/[0.07] group-focus-visible:opacity-100 motion-reduce:transition-none",
             )}
           >
             <ArrowUpRight className="h-4 w-4" aria-hidden={true} />
@@ -197,7 +207,7 @@ export function MetricStripSkeleton({
         <div
           key={index}
           aria-hidden="true"
-          className="flex min-h-[142px] flex-col rounded-2xl border border-border/70 bg-card p-4 shadow-card sm:p-[18px]"
+          className="flex min-h-[132px] flex-col rounded-2xl border border-border/70 bg-card p-4 shadow-card sm:min-h-[142px] sm:p-[18px]"
         >
           <div className="flex items-start justify-between gap-4">
             <div className="h-4 w-28 animate-pulse rounded-md bg-muted" />

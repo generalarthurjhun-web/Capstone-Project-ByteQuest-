@@ -501,7 +501,7 @@ class _COC1M2ScreenState extends State<COC1M2Screen> {
                 child: AppButton.primary(
                   label: 'Finish Mission',
                   icon: Icons.check_circle,
-                  onPressed: _allTasksCompleted ? _finishMission : () {},
+                  onPressed: _allTasksCompleted ? _finishMission : null,
                   width: double.infinity,
                 ),
               ),

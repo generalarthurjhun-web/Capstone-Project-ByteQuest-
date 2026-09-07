@@ -201,8 +201,6 @@ class _COC1M2ScreenEnhancedState extends State<COC1M2ScreenEnhanced> {
           });
         }
       });
-      debugPrint(
-          'Loaded simulation state. Starting at step index: $_currentStep');
     }
   }
 
@@ -251,8 +249,8 @@ class _COC1M2ScreenEnhancedState extends State<COC1M2ScreenEnhanced> {
         userId: userId,
         missionId: widget.mission.id,
       );
-    } catch (e) {
-      debugPrint('Error saving internal component results: $e');
+    } catch (_) {
+      // Completion remains visible; cleanup can be retried safely later.
     } finally {
       if (mounted) {
         setState(() {

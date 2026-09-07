@@ -165,7 +165,7 @@ Final command results are recorded after the full regression run below.
 | Flutter focused simulation/contract/widget suite | PASS | Scene registry, presentation resolver, hotspot, tool/multi-select, sequence, configuration, troubleshooting, drag and accessible connection, compact/landscape/tablet/large-text checks |
 | Flutter full suite | PASS | 48/48 tests passed after the final interaction-test expansion |
 | Flutter analyzer | PASS | `flutter analyze --no-fatal-infos` exited 0; no analyzer errors or warnings; 214 legacy informational notices remain |
-| Android debug APK | PASS | `ByteQuest Mobile App/build/app/outputs/flutter-apk/app-debug.apk` produced successfully |
+| Android debug APK | PASS | `ByteQuest-Mobile-App/build/app/outputs/flutter-apk/app-debug.apk` produced successfully |
 | Live mission package/version audit | PASS | 20 published authoritative activities, 20 approved rubrics, 98 criteria; learner payloads contain no evaluator answers |
 | COC1 authenticated lifecycle | PASS | 5/5 missions; 10 correct/incorrect attempts; learner finalization denied; analytics/progress updated |
 | COC2 remaining-mission lifecycle | PASS | M1/M3/M4/M5; 8 correct/incorrect attempts; learner finalization denied; analytics/progress updated |

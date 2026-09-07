@@ -274,7 +274,7 @@ flutter build apk --release
 flutter build appbundle --release
 
 # Output location
-# ByteQuest Mobile App/build/app/outputs/flutter-apk/app-release.apk
+# ByteQuest-Mobile-App/build/app/outputs/flutter-apk/app-release.apk
 ```
 
 ## ðŸŽ¯ Key Features Implemented

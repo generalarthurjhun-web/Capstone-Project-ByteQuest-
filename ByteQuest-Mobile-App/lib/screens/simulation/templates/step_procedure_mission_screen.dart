@@ -110,7 +110,6 @@ class _StepProcedureMissionScreenState
         _completedSteps.addAll(progress.completedSteps);
         _completionOrder.addAll(progress.completionOrder);
       });
-      debugPrint('Loaded state for step procedure.');
     }
   }
 
@@ -507,7 +506,7 @@ class _StepProcedureMissionScreenState
                         icon: Icons.check,
                         onPressed: _completedSteps.length >= requiredSteps
                             ? _validateProcedure
-                            : () {},
+                            : null,
                         width: double.infinity,
                       ),
                     ],
@@ -673,5 +672,4 @@ class _StepProcedureMissionScreenState
     final remainingSeconds = seconds % 60;
     return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
-
 }

@@ -13,33 +13,33 @@ void main() {
   });
 
   testWidgets(
-      'header shows title and COC mission identifier without fullscreen',
-      (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: PracticeMissionHeader(
-            mission: _mission,
-            onBackPressed: () {},
+    'header shows title and COC mission identifier without fullscreen',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PracticeMissionHeader(
+              mission: _mission,
+              onBackPressed: () {},
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    expect(find.text(_mission.title), findsOneWidget);
-    expect(find.text('COC2 M1'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('simulation-fullscreen-button')),
-      findsNothing,
-    );
-  });
+      expect(find.text(_mission.title), findsOneWidget);
+      expect(find.text('COC2 M1'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('simulation-fullscreen-button')),
+        findsNothing,
+      );
+    },
+  );
 
   testWidgets('back exits immediately when no progress exists', (tester) async {
-    var discarded = false;
-    await tester.pumpWidget(_exitHost(
-      hasProgress: () => false,
-      onDiscard: () async => discarded = true,
-    ));
+    var saved = false;
+    await tester.pumpWidget(
+      _exitHost(hasProgress: () => false, onSave: () async => saved = true),
+    );
 
     await tester.tap(find.text('Open mission'));
     await tester.pumpAndSettle();
@@ -47,69 +47,66 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Mission body'), findsNothing);
-    expect(find.text('Exit Mission?'), findsNothing);
-    expect(discarded, isFalse);
+    expect(find.text('Save and Exit Mission?'), findsNothing);
+    expect(saved, isFalse);
   });
 
   testWidgets('cancel keeps the mission and its progress', (tester) async {
-    var discarded = false;
-    await tester.pumpWidget(_exitHost(
-      hasProgress: () => true,
-      onDiscard: () async => discarded = true,
-    ));
+    var saved = false;
+    await tester.pumpWidget(
+      _exitHost(hasProgress: () => true, onSave: () async => saved = true),
+    );
 
     await tester.tap(find.text('Open mission'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Leave mission'));
     await tester.pumpAndSettle();
-    expect(find.text('Exit Mission?'), findsOneWidget);
+    expect(find.text('Save and Exit Mission?'), findsOneWidget);
 
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
 
     expect(find.text('Mission body'), findsOneWidget);
-    expect(discarded, isFalse);
+    expect(saved, isFalse);
   });
 
-  testWidgets('confirmed exit discards progress before leaving',
-      (tester) async {
-    var discarded = false;
-    await tester.pumpWidget(_exitHost(
-      hasProgress: () => true,
-      onDiscard: () async => discarded = true,
-    ));
+  testWidgets('confirmed exit saves progress before leaving', (tester) async {
+    var saved = false;
+    await tester.pumpWidget(
+      _exitHost(hasProgress: () => true, onSave: () async => saved = true),
+    );
 
     await tester.tap(find.text('Open mission'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Leave mission'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Exit'));
+    await tester.tap(find.text('Save and Exit'));
     await tester.pumpAndSettle();
 
     expect(find.text('Mission body'), findsNothing);
-    expect(discarded, isTrue);
+    expect(saved, isTrue);
   });
 
-  testWidgets('system back uses the same progress-aware exit contract',
-      (tester) async {
-    await tester.pumpWidget(_exitHost(
-      hasProgress: () => true,
-      onDiscard: () async {},
-    ));
+  testWidgets('system back uses the same progress-aware exit contract', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _exitHost(hasProgress: () => true, onSave: () async {}),
+    );
     await tester.tap(find.text('Open mission'));
     await tester.pumpAndSettle();
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 
-    expect(find.text('Exit Mission?'), findsOneWidget);
+    expect(find.text('Save and Exit Mission?'), findsOneWidget);
     expect(find.text('Mission body'), findsOneWidget);
   });
 }
 
 Widget _exitHost({
   required bool Function() hasProgress,
-  required Future<void> Function() onDiscard,
+  required Future<void> Function() onSave,
 }) {
   return MaterialApp(
     home: Builder(
@@ -121,7 +118,7 @@ Widget _exitHost({
                 builder: (_) => PracticeMissionExitGuard(
                   mission: _mission,
                   hasProgress: hasProgress,
-                  onDiscard: onDiscard,
+                  onSave: onSave,
                   builder: (context, requestExit) => Scaffold(
                     appBar: AppBar(
                       leading: IconButton(

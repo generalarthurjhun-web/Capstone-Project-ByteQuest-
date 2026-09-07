@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,6 +12,11 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!url || !publicKey || !serviceKey) throw new Error("Supabase E2E configuration is unavailable.");
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
+const databaseTarget = ["127.0.0.1", "localhost"].includes(new URL(url).hostname)
+  ? "--local"
+  : "--linked";
+const projectConfig = readFileSync(join(repositoryRoot, "supabase", "config.toml"), "utf8");
+const projectId = projectConfig.match(/^project_id\s*=\s*"([A-Za-z0-9_-]+)"/m)?.[1];
 
 const runId = `quiz-learner-e2e-${new Date().toISOString().replace(/\D/g, "").slice(0, 14)}-${randomUUID().slice(0, 8)}`;
 const password = process.env.BYTEQUEST_E2E_PASSWORD;
@@ -47,6 +52,10 @@ async function subscribe(client, table, event, callback) {
       }
     });
   });
+  // The channel join acknowledgement can arrive just before the Postgres CDC
+  // subscription is visible. Avoid emitting the fixture's first event in that
+  // narrow registration window.
+  await delay(300);
 }
 
 async function waitFor(description, predicate) {
@@ -79,7 +88,7 @@ async function createAccount(key, role) {
   const client = createClient(url, publicKey, { auth: { autoRefreshToken: false, persistSession: false } });
   const session = await client.auth.signInWithPassword({ email, password });
   if (session.error || session.data.user?.id !== data.user.id) throw new Error(`Could not authenticate ${key}`);
-  client.realtime.setAuth(session.data.session.access_token);
+  await client.realtime.setAuth(session.data.session.access_token);
   clients.set(key, client);
 }
 
@@ -327,8 +336,9 @@ async function cleanup() {
       ? `delete from public.${table} where ${column} in (${uuidList(ids)});`
       : "";
     const maintenanceSql = [
-      "begin;",
-      "set local session_replication_role = replica;",
+      "do $bytequest_cleanup$",
+      "begin",
+      "perform set_config('session_replication_role', 'replica', true);",
       deleteWhere("quiz_results", "quiz_attempt_id", attemptIds),
       deleteWhere("quiz_answers", "quiz_attempt_id", attemptIds),
       deleteWhere("quiz_attempts", "id", attemptIds),
@@ -340,28 +350,51 @@ async function cleanup() {
       deleteWhere("assignments", "class_id", classIds),
       deleteWhere("class_memberships", "class_id", classIds),
       deleteWhere("classes", "id", classIds),
-      "commit;",
+      "end",
+      "$bytequest_cleanup$;",
     ].filter(Boolean).join("\n");
-    const cleanupDirectory = mkdtempSync(join(tmpdir(), "bytequest-quiz-cleanup-"));
-    const cleanupFile = join(cleanupDirectory, "cleanup.sql");
-    try {
-      writeFileSync(cleanupFile, maintenanceSql, { encoding: "utf8", mode: 0o600 });
-      const command = process.platform === "win32" ? "powershell.exe" : "supabase";
-      const args = process.platform === "win32"
-        ? ["-NoProfile", "-NonInteractive", "-Command", "& supabase db query --linked --file $args[0] --output json", cleanupFile]
-        : ["db", "query", "--linked", "--file", cleanupFile, "--output", "json"];
-      execFileSync(command, args, {
-        cwd: repositoryRoot,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-      });
-    } catch (error) {
-      errors.push(`scoped database cleanup failed: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      rmSync(cleanupDirectory, { recursive: true, force: true });
+    if (databaseTarget === "--local") {
+      try {
+        if (!projectId) throw new Error("Could not resolve the local Supabase project ID.");
+        execFileSync(
+          "docker",
+          ["exec", "-i", `supabase_db_${projectId}`, "psql", "-U", "supabase_admin", "-d", "postgres", "-v", "ON_ERROR_STOP=1"],
+          {
+            cwd: repositoryRoot,
+            encoding: "utf8",
+            input: maintenanceSql,
+            stdio: ["pipe", "pipe", "pipe"],
+          },
+        );
+      } catch (error) {
+        errors.push(`scoped local database cleanup failed: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    } else {
+      const cleanupDirectory = mkdtempSync(join(tmpdir(), "bytequest-quiz-cleanup-"));
+      const cleanupFile = join(cleanupDirectory, "cleanup.sql");
+      try {
+        writeFileSync(cleanupFile, maintenanceSql, { encoding: "utf8", mode: 0o600 });
+        const command = process.platform === "win32" ? "powershell.exe" : "supabase";
+        const args = process.platform === "win32"
+          ? ["-NoProfile", "-NonInteractive", "-Command", "& supabase db query --linked --file $args[0] --output json", cleanupFile]
+          : ["db", "query", "--linked", "--file", cleanupFile, "--output", "json"];
+        execFileSync(command, args, {
+          cwd: repositoryRoot,
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "pipe"],
+        });
+      } catch (error) {
+        errors.push(`scoped database cleanup failed: ${error instanceof Error ? error.message : String(error)}`);
+      } finally {
+        rmSync(cleanupDirectory, { recursive: true, force: true });
+      }
     }
   }
-  for (const client of clients.values()) await client.auth.signOut();
+  for (const client of clients.values()) {
+    await client.auth.signOut();
+    client.realtime.disconnect();
+  }
+  service.realtime.disconnect();
   for (const id of [...users.values()].reverse()) {
     const deleted = await service.auth.admin.deleteUser(id, false);
     if (deleted.error) errors.push(deleted.error.message);

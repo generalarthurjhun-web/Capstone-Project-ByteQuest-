@@ -135,7 +135,7 @@ No Supabase query, RLS policy, authentication rule, assessment RPC, learner evid
 - `flutter test`: PASS â€” 28 tests.
 - `flutter analyze --no-fatal-infos`: PASS â€” no errors or warnings; 217 informational lint/deprecation notices remain.
 - `flutter build apk --debug`: PASS.
-- Impeccable design detector: PASS â€” zero findings across `ByteQuest Mobile App/lib`.
+- Impeccable design detector: PASS â€” zero findings across `ByteQuest-Mobile-App/lib`.
 - Android runtime/emulator visual inspection: not run, per project-owner instruction on 2026-08-12.
 
 The 32-screen capability audit is tracked in

@@ -6,23 +6,19 @@ class HardwareItem {
   final String name;
   final String imagePath;
 
-  HardwareItem({
-    required this.id,
-    required this.name,
-    required this.imagePath,
-  });
+  HardwareItem({required this.id, required this.name, required this.imagePath});
 }
 
 /// Mission Content Data
 /// Contains questions, components, steps, and scenarios for all missions
 class MissionContentData {
-  static const exitMissionTitle = 'Exit Mission?';
+  static const exitMissionTitle = 'Save and Exit Mission?';
   static const exitMissionMessage =
-      'Exit will discard this mission progress. Force-close and app interruption recovery are unaffected.';
+      'Your current mission progress will remain available when you return.';
   static const cancelExitLabel = 'Cancel';
-  static const confirmExitLabel = 'Exit';
-  static const discardProgressFailedMessage =
-      'Mission progress could not be reset. Please try again.';
+  static const confirmExitLabel = 'Save and Exit';
+  static const saveProgressFailedMessage =
+      'Mission progress could not be saved. Keep the mission open and try again.';
   static const continueLabel = 'Continue';
   static const retryPendingEvidenceLabel = 'Retry pending evidence';
   static const retryingPendingEvidenceLabel = 'Retrying evidence…';
@@ -263,11 +259,7 @@ class MissionContentData {
         name: 'Anti-static Strap',
         imagePath: 'assets/COC1/Mission 1/anti_static_wrist_strap.png',
       ),
-      HardwareItem(
-        id: 'not_sure',
-        name: 'Not sure',
-        imagePath: '',
-      ),
+      HardwareItem(id: 'not_sure', name: 'Not sure', imagePath: ''),
     ];
   }
 
@@ -289,7 +281,7 @@ class MissionContentData {
           'Monitor',
           'Screwdriver',
           'Anti-static Strap',
-          'Not sure'
+          'Not sure',
         ],
         correctAnswer: 'RAM',
         explanation:
@@ -311,7 +303,7 @@ class MissionContentData {
           'Monitor',
           'Screwdriver',
           'Anti-static Strap',
-          'Not sure'
+          'Not sure',
         ],
         correctAnswer: 'PSU',
         explanation:
@@ -333,7 +325,7 @@ class MissionContentData {
           'Monitor',
           'Screwdriver',
           'Anti-static Strap',
-          'Not sure'
+          'Not sure',
         ],
         correctAnswer: 'Anti-static Strap',
         explanation:
@@ -355,7 +347,7 @@ class MissionContentData {
           'Monitor',
           'Screwdriver',
           'Anti-static Strap',
-          'Not sure'
+          'Not sure',
         ],
         correctAnswer: 'Motherboard',
         explanation:
@@ -377,7 +369,7 @@ class MissionContentData {
           'Monitor',
           'Screwdriver',
           'Anti-static Strap',
-          'Not sure'
+          'Not sure',
         ],
         correctAnswer: 'CPU',
         explanation:
@@ -399,7 +391,7 @@ class MissionContentData {
           'Monitor',
           'Screwdriver',
           'Anti-static Strap',
-          'Not sure'
+          'Not sure',
         ],
         correctAnswer: 'SSD',
         explanation:
@@ -421,7 +413,7 @@ class MissionContentData {
           'Monitor',
           'Screwdriver',
           'Anti-static Strap',
-          'Not sure'
+          'Not sure',
         ],
         correctAnswer: 'HDD',
         explanation:
@@ -443,7 +435,7 @@ class MissionContentData {
           'Monitor',
           'Screwdriver',
           'Anti-static Strap',
-          'Not sure'
+          'Not sure',
         ],
         correctAnswer: 'Screwdriver',
         explanation:
@@ -465,7 +457,7 @@ class MissionContentData {
           'Monitor',
           'Screwdriver',
           'Anti-static Strap',
-          'Not sure'
+          'Not sure',
         ],
         correctAnswer: 'Monitor',
         explanation:
@@ -487,7 +479,7 @@ class MissionContentData {
           'Monitor',
           'Screwdriver',
           'Anti-static Strap',
-          'Not sure'
+          'Not sure',
         ],
         correctAnswer: 'Keyboard',
         explanation:
@@ -552,11 +544,7 @@ class MissionContentData {
         name: 'CPU Cooling Area',
         acceptedComponents: ['cpu_cooler'],
       ),
-      DropZone(
-        id: 'ram_slot',
-        name: 'RAM Slots',
-        acceptedComponents: ['ram'],
-      ),
+      DropZone(id: 'ram_slot', name: 'RAM Slots', acceptedComponents: ['ram']),
       DropZone(
         id: 'drive_bay',
         name: 'Drive Bay',
@@ -1034,7 +1022,7 @@ class MissionContentData {
           'Game Disc',
           'Server OS Installer',
           'Application CD',
-          'Driver Disc'
+          'Driver Disc',
         ],
         correctAnswer: 'Server OS Installer',
         explanation:
@@ -1056,7 +1044,7 @@ class MissionContentData {
           'User Manual',
           'Configuration Checklist',
           'Warranty Card',
-          'Receipt'
+          'Receipt',
         ],
         correctAnswer: 'Configuration Checklist',
         explanation: 'Checklist ensures all setup steps are completed.',
@@ -1180,7 +1168,7 @@ class MissionContentData {
           'Loose display cable',
           'RAM not seated',
           'Power issue',
-          'Broken mouse'
+          'Broken mouse',
         ],
         'correctCause': 'Loose display cable',
         'points': 10,
@@ -1191,7 +1179,7 @@ class MissionContentData {
           'Too many startup programs',
           'Low storage space',
           'Good RAM',
-          'Fast CPU'
+          'Fast CPU',
         ],
         'correctCause': 'Too many startup programs',
         'points': 10,
@@ -1202,7 +1190,7 @@ class MissionContentData {
           'Wrong IP address',
           'Correct DNS',
           'Good cable',
-          'Fast speed'
+          'Fast speed',
         ],
         'correctCause': 'Wrong IP address',
         'points': 10,
@@ -1213,7 +1201,7 @@ class MissionContentData {
           'Clean fans',
           'Dusty cooling fan',
           'Good airflow',
-          'Low temperature'
+          'Low temperature',
         ],
         'correctCause': 'Dusty cooling fan',
         'points': 10,
@@ -1224,7 +1212,7 @@ class MissionContentData {
           'Printer driver missing',
           'Paper loaded',
           'Ink full',
-          'Cable connected'
+          'Cable connected',
         ],
         'correctCause': 'Printer driver missing',
         'points': 10,
@@ -1241,7 +1229,7 @@ class MissionContentData {
           'Wrong boot order',
           'Good BIOS',
           'Detected HDD',
-          'Working PSU'
+          'Working PSU',
         ],
         'correctCause': 'Wrong boot order',
         'points': 10,
@@ -1252,7 +1240,7 @@ class MissionContentData {
           'Audio driver issue',
           'Good speakers',
           'Volume up',
-          'Cable OK'
+          'Cable OK',
         ],
         'correctCause': 'Audio driver issue',
         'points': 10,
@@ -1263,7 +1251,7 @@ class MissionContentData {
           'USB port issue',
           'Good connection',
           'Clean keys',
-          'New keyboard'
+          'New keyboard',
         ],
         'correctCause': 'USB port issue',
         'points': 10,
@@ -1274,7 +1262,7 @@ class MissionContentData {
           'Network congestion',
           'Fast router',
           'Good cable',
-          'Strong signal'
+          'Strong signal',
         ],
         'correctCause': 'Network congestion',
         'points': 10,

@@ -37,7 +37,7 @@ class AppButton extends StatelessWidget {
   const AppButton.primary({
     super.key,
     required String this.label,
-    required VoidCallback this.onPressed,
+    required this.onPressed,
     this.icon,
     this.suffixIcon,
     this.isLoading = false,
@@ -53,7 +53,7 @@ class AppButton extends StatelessWidget {
   const AppButton.secondary({
     super.key,
     required String this.label,
-    required VoidCallback this.onPressed,
+    required this.onPressed,
     this.icon,
     this.suffixIcon,
     this.isLoading = false,
@@ -69,7 +69,7 @@ class AppButton extends StatelessWidget {
   const AppButton.outline({
     super.key,
     required String this.label,
-    required VoidCallback this.onPressed,
+    required this.onPressed,
     this.icon,
     this.suffixIcon,
     this.isLoading = false,
@@ -85,7 +85,7 @@ class AppButton extends StatelessWidget {
   const AppButton.danger({
     super.key,
     required String this.label,
-    required VoidCallback this.onPressed,
+    required this.onPressed,
     this.icon,
     this.suffixIcon,
     this.isLoading = false,
@@ -101,7 +101,7 @@ class AppButton extends StatelessWidget {
   const AppButton.icon({
     super.key,
     required IconData this.icon,
-    required VoidCallback this.onPressed,
+    required this.onPressed,
     this.width,
     this.height,
     this.variant = AppButtonVariant.primary,
@@ -117,7 +117,7 @@ class AppButton extends StatelessWidget {
   const AppButton.text({
     super.key,
     required String this.label,
-    required VoidCallback this.onPressed,
+    required this.onPressed,
     this.icon,
     this.suffixIcon,
     this.size = AppButtonSize.small,
@@ -131,12 +131,14 @@ class AppButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final effectivelyDisabled = isDisabled || onPressed == null;
     // Handle text button variant
     if (variant == AppButtonVariant.text) {
       return TextButton(
-        onPressed: isDisabled ? null : onPressed,
+        onPressed: effectivelyDisabled ? null : onPressed,
         style: TextButton.styleFrom(
-          padding: padding ?? EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: padding ??
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(borderRadius ?? 12),
           ),
@@ -155,7 +157,7 @@ class AppButton extends StatelessWidget {
         width: width ?? buttonSize.iconSize,
         height: height ?? buttonSize.iconSize,
         decoration: BoxDecoration(
-          color: isDisabled
+          color: effectivelyDisabled
               ? config.disabledBackgroundColor
               : config.backgroundColor,
           borderRadius: BorderRadius.circular(
@@ -163,12 +165,12 @@ class AppButton extends StatelessWidget {
           border: config.borderColor != null
               ? Border.all(color: config.borderColor!, width: 2)
               : null,
-          boxShadow: isDisabled ? null : config.shadow,
+          boxShadow: effectivelyDisabled ? null : config.shadow,
         ),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: isDisabled || isLoading ? null : onPressed,
+            onTap: effectivelyDisabled || isLoading ? null : onPressed,
             borderRadius: BorderRadius.circular(
                 borderRadius ?? buttonSize.iconBorderRadius),
             child: Center(
@@ -183,7 +185,7 @@ class AppButton extends StatelessWidget {
                     )
                   : Icon(
                       icon,
-                      color: isDisabled
+                      color: effectivelyDisabled
                           ? config.disabledTextColor
                           : config.textColor,
                       size: buttonSize.iconContentSize,
@@ -199,7 +201,7 @@ class AppButton extends StatelessWidget {
       width: width,
       height: height ?? buttonSize.height,
       decoration: BoxDecoration(
-        color: isDisabled
+        color: effectivelyDisabled
             ? config.disabledBackgroundColor
             : config.backgroundColor,
         borderRadius:
@@ -207,24 +209,32 @@ class AppButton extends StatelessWidget {
         border: config.borderColor != null
             ? Border.all(color: config.borderColor!, width: 2)
             : null,
-        boxShadow: isDisabled ? null : config.shadow,
+        boxShadow: effectivelyDisabled ? null : config.shadow,
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: isDisabled || isLoading ? null : onPressed,
+          onTap: effectivelyDisabled || isLoading ? null : onPressed,
           borderRadius:
               BorderRadius.circular(borderRadius ?? buttonSize.borderRadius),
           child: Padding(
             padding: padding ?? buttonSize.padding,
-            child: _buildButtonContent(config, buttonSize),
+            child: _buildButtonContent(
+              config,
+              buttonSize,
+              disabled: effectivelyDisabled,
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildButtonContent(_ButtonConfig config, _ButtonSize buttonSize) {
+  Widget _buildButtonContent(
+    _ButtonConfig config,
+    _ButtonSize buttonSize, {
+    required bool disabled,
+  }) {
     if (isLoading) {
       return Center(
         child: SizedBox(
@@ -245,7 +255,7 @@ class AppButton extends StatelessWidget {
         if (icon != null) ...[
           Icon(
             icon,
-            color: isDisabled ? config.disabledTextColor : config.textColor,
+            color: disabled ? config.disabledTextColor : config.textColor,
             size: buttonSize.iconContentSize,
           ),
           SizedBox(width: buttonSize.iconSpacing),
@@ -255,7 +265,7 @@ class AppButton extends StatelessWidget {
             child: Text(
               label!,
               style: buttonSize.textStyle.copyWith(
-                color: isDisabled ? config.disabledTextColor : config.textColor,
+                color: disabled ? config.disabledTextColor : config.textColor,
               ),
               textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
@@ -265,7 +275,7 @@ class AppButton extends StatelessWidget {
           SizedBox(width: buttonSize.iconSpacing),
           Icon(
             suffixIcon,
-            color: isDisabled ? config.disabledTextColor : config.textColor,
+            color: disabled ? config.disabledTextColor : config.textColor,
             size: buttonSize.iconContentSize,
           ),
         ],
@@ -302,7 +312,7 @@ class AppButton extends StatelessWidget {
         return _ButtonConfig(
           backgroundColor: AppTheme.primaryBlue,
           textColor: Colors.white,
-          disabledBackgroundColor: AppTheme.textLight.withOpacity(0.2),
+          disabledBackgroundColor: AppTheme.textLight.withValues(alpha: 0.2),
           disabledTextColor: AppTheme.textLight,
           shadow: AppTheme.elevatedShadow,
         );
@@ -311,7 +321,7 @@ class AppButton extends StatelessWidget {
         return _ButtonConfig(
           backgroundColor: AppTheme.cardWhite,
           textColor: AppTheme.textDark,
-          disabledBackgroundColor: AppTheme.textLight.withOpacity(0.1),
+          disabledBackgroundColor: AppTheme.textLight.withValues(alpha: 0.1),
           disabledTextColor: AppTheme.textLight,
           shadow: AppTheme.softShadow,
         );
@@ -330,11 +340,11 @@ class AppButton extends StatelessWidget {
         return _ButtonConfig(
           backgroundColor: AppTheme.errorRed,
           textColor: Colors.white,
-          disabledBackgroundColor: AppTheme.textLight.withOpacity(0.2),
+          disabledBackgroundColor: AppTheme.textLight.withValues(alpha: 0.2),
           disabledTextColor: AppTheme.textLight,
           shadow: [
             BoxShadow(
-              color: AppTheme.errorRed.withOpacity(0.3),
+              color: AppTheme.errorRed.withValues(alpha: 0.3),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
