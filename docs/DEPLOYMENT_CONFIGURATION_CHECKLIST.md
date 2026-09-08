@@ -18,6 +18,7 @@ Required runtime variables (names only):
 Optional verification variables:
 
 - `BYTEQUEST_WEB_BASE_URL`
+- `BYTEQUEST_DEMO_INSTRUCTOR_EMAIL`
 - `BYTEQUEST_DEMO_INSTRUCTOR_PASSWORD`
 - `BYTEQUEST_DEMO_LEARNER_PASSWORD`
 - `BYTEQUEST_TEST_RUN_ID`
@@ -70,7 +71,7 @@ Remove-Item Env:BYTEQUEST_ALLOW_DEBUG_SIGNING
 - Run Flutter tests, analyzer, debug build, and a signed release build.
 - Record Android process-kill/resume and browser responsive QA in
   `docs/FINAL_CAPSTONE_ACCEPTANCE_WALKTHROUGH.md`.
-- Keep the Supabase rollback suite marked `BLOCKED` until its isolated fixture
-  role can run without weakening production RLS.
+- Run `supabase test db` against an isolated local stack and require every
+  rollback/RLS/RBAC test to pass before deployment.
 
 

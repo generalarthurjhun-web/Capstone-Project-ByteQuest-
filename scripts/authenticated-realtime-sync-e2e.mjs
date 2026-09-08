@@ -35,6 +35,7 @@ const assignmentIds = [];
 const attemptIds = [];
 const resourceIds = [];
 const storagePaths = [];
+const notificationIds = [];
 const results = [];
 
 function assert(condition, message) {
@@ -210,6 +211,41 @@ async function exerciseRealtime() {
   await waitFor("Learner B enrollment event", () => membershipEventsB.length === 1);
   record("Enrollment Realtime is learner-scoped", "Each Learner received only its own membership INSERT.");
 
+  const notificationEventsA = [];
+  const notificationEventsB = [];
+  await subscribe(
+    learnerA,
+    "notifications",
+    "INSERT",
+    `user_id=eq.${users.get("learnerA")}`,
+    (payload) => notificationEventsA.push(payload),
+  );
+  await subscribe(
+    learnerB,
+    "notifications",
+    "INSERT",
+    `user_id=eq.${users.get("learnerB")}`,
+    (payload) => notificationEventsB.push(payload),
+  );
+  const notificationId = randomUUID();
+  notificationIds.push(notificationId);
+  const notification = await service.from("notifications").insert({
+    id: notificationId,
+    user_id: users.get("learnerA"),
+    title: "Realtime learner notification",
+    message: "Disposable learner-scoped Realtime acceptance notification.",
+    type: "system",
+    metadata: { test_run: runId },
+  });
+  if (notification.error) throw notification.error;
+  await waitFor("Learner A notification event", () => notificationEventsA.length === 1);
+  await delay(800);
+  assert(notificationEventsB.length === 0, "Learner B received Learner A notification payload.");
+  record(
+    "Notification Realtime is learner-scoped",
+    "Owning Learner received the notification; isolated Learner received nothing.",
+  );
+
   const assignmentEventsA = [];
   const assignmentEventsB = [];
   await subscribe(learnerA, "assignments", "INSERT", null, (payload) => assignmentEventsA.push(payload));
@@ -349,6 +385,10 @@ async function cleanup() {
     if (response.error && !response.error.message.toLowerCase().includes("not found")) {
       errors.push(response.error.message);
     }
+  }
+  if (notificationIds.length) {
+    const response = await service.from("notifications").delete().in("id", notificationIds);
+    if (response.error) errors.push(`notifications: ${response.error.message}`);
   }
   const instructor = clients.get("instructor");
   if (instructor) {

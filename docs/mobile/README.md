@@ -83,7 +83,7 @@ SUPABASE_ANON_KEY=your-anon-key
 ### 2. Install Dependencies
 
 ```bash
-cd C:\Users\Acer\AndroidStudioProjects\CapstoneByteQuest
+cd ByteQuest-Mobile-App
 flutter pub get
 ```
 

@@ -125,7 +125,7 @@
 
 - Operation: Run the focused responsive scene and framework widget tests.
 - Command: Flutter SDK `dart.exe` invoking `flutter_tools.snapshot test test/simulation_scene_test.dart test/simulation_framework_test.dart --no-pub`.
-- Affected location: Flutter SDK cache `C:\Users\Drooo\flutter\bin\cache\libimobiledevice.stamp`; code line not applicable.
+- Affected location: Flutter SDK cache `<flutter-sdk>/bin/cache/libimobiledevice.stamp`; code line not applicable.
 - Observed result: Flutter exited before test discovery because it could not write the SDK stamp file.
 - Root cause: The managed workspace sandbox permits project writes but not Flutter SDK-cache writes outside the workspace.
 - Primary solution: Rerun the same focused test command in the approved Flutter SDK-cache execution context.
@@ -267,9 +267,9 @@
 ## 2026-08-21 15:04:50 +08:00 — Task 9 UI guidance search launcher failure
 
 - Operation: Query the local UI/UX guidance for drag alternatives, reduced motion, and Flutter semantics before implementing the accessibility pass.
-- Command: `py -3 C:\Users\Drooo\.agents\skills\ui-ux-pro-max\scripts\search.py ...` for the three targeted searches.
+- Command: `python <skill-root>/ui-ux-pro-max/scripts/search.py ...` for the three targeted searches.
 - Affected location: Local Python launcher configuration; application code line not applicable.
-- Observed result: All three searches exited before running because `py -3` referenced a missing `C:\Users\Drooo\AppData\Local\Programs\Python\Python311\python.exe`.
+- Observed result: All three searches exited before running because the configured Python interpreter was missing.
 - Root cause: The registered Python 3 launcher target is stale or unavailable in the managed environment.
 - Primary solution: Retry the same local search script with an available Python executable if one is discoverable, otherwise apply the skill's documented built-in accessibility defaults and repository acceptance criteria.
 - Alternatives: Repair the Python launcher registration; run the script from a known working virtual environment; consult the checked-in quick reference directly.
@@ -425,7 +425,7 @@
 - Affected location: Repository context lookup; application code line not applicable.
 - Observed result: PowerShell reported that both files were absent from the isolated worktree.
 - Root cause: `CODEX_STATE.md`, `bytequest.md`, and `AGENTS.md` were added independently on `Dro-branch` after the feature worktree diverged from their common base.
-- Primary solution: Read the canonical tracked copies from `C:\Users\Drooo\Desktop\ByteQuest-Capstone-Project` before continuing, then reconcile the documentation branches during final integration.
+- Primary solution: Read the canonical tracked copies from the repository root before continuing, then reconcile the documentation branches during final integration.
 - Alternatives: Merge `Dro-branch` into the feature branch after resolving the duplicated mobile-folder rename; or create a fresh worktree from `Dro-branch` and transplant the reviewed feature commits.
 - Status: Resolved for Task 10 context; all required documents were read in full from the canonical root checkout, with branch reconciliation deferred until implementation and QA are complete.
 

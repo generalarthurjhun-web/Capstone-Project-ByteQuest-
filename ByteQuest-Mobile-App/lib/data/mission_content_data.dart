@@ -28,6 +28,25 @@ class MissionContentData {
       'Pending evidence synchronized.';
   static const pendingEvidenceRetryFailedFeedback =
       'Pending evidence is still saved locally. Check the connection and retry.';
+  static const practiceEvidenceUnavailableMessage =
+      'Practice evidence capture is unavailable. Keep the mission open and retry before leaving.';
+  static const practiceEvidencePendingMessage =
+      'Practice evidence is saved locally but has not synchronized yet.';
+  static const retryEvidenceLabel = 'Retry evidence sync';
+  static const assessmentPlacementsRecordedLabel =
+      'Placements recorded for review';
+  static const troubleshootingDiagnosticsLabel = 'Troubleshooting diagnostics';
+  static const reportedSymptomLabel = 'Reported symptom';
+  static const serviceCasesLabel = 'Service cases';
+  static const possibleCausesLabel = 'Possible causes';
+  static const diagnosticActionsLabel = 'Diagnostic actions';
+  static const recordedFindingsLabel = 'Recorded findings';
+  static const inspectLabel = 'Inspect';
+  static const applyCorrectionLabel = 'Apply correction';
+  static const retestLabel = 'Retest';
+  static const serviceCaseLabel = 'Service case';
+  static const correctConnectionLabel = 'Correct';
+  static const reviewConnectionLabel = 'Review';
 
   /// Learner-visible technical feedback keyed by stable mission and feedback
   /// identifiers. Evaluation outcomes remain owned by authoritative services.
@@ -1266,6 +1285,80 @@ class MissionContentData {
         ],
         'correctCause': 'Network congestion',
         'points': 10,
+      },
+    ];
+  }
+
+  /// Project-approved COC4 M5 service queue retained from the original
+  /// ByteQuest mission. These are practice troubleshooting cases, not TESDA
+  /// scoring rules; [points] is preserved only for legacy content parity and
+  /// is never used for authoritative evaluation.
+  static List<Map<String, dynamic>> getCOC4M5Scenarios() {
+    return const [
+      {
+        'id': 'printer_driver',
+        'symptom': 'Printer not printing',
+        'causes': [
+          'Driver not installed',
+          'Paper loaded',
+          'Ink full',
+          'Power on',
+        ],
+        'correctCause': 'Driver not installed',
+        'explanation': 'Install the correct printer driver.',
+        'points': 20,
+      },
+      {
+        'id': 'usb_port',
+        'symptom': 'USB device not recognized',
+        'causes': [
+          'USB port damaged',
+          'Device working',
+          'Cable good',
+          'Driver present',
+        ],
+        'correctCause': 'USB port damaged',
+        'explanation': 'Try a different USB port.',
+        'points': 20,
+      },
+      {
+        'id': 'audio_driver',
+        'symptom': 'Audio not working',
+        'causes': [
+          'Audio driver missing',
+          'Speakers on',
+          'Volume up',
+          'Cable connected',
+        ],
+        'correctCause': 'Audio driver missing',
+        'explanation': 'Install or update the audio driver.',
+        'points': 20,
+      },
+      {
+        'id': 'video_cable',
+        'symptom': 'Monitor shows "No Signal"',
+        'causes': [
+          'Video cable disconnected',
+          'Monitor on',
+          'Computer on',
+          'GPU installed',
+        ],
+        'correctCause': 'Video cable disconnected',
+        'explanation': 'Reconnect the video cable securely.',
+        'points': 20,
+      },
+      {
+        'id': 'windows_update',
+        'symptom': 'System slow after Windows update',
+        'causes': [
+          'Background updates running',
+          'Good RAM',
+          'Fast SSD',
+          'Clean system',
+        ],
+        'correctCause': 'Background updates running',
+        'explanation': 'Wait for updates to complete or restart the system.',
+        'points': 20,
       },
     ];
   }

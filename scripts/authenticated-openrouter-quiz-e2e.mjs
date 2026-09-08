@@ -8,7 +8,7 @@ const publishableKey =
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const openRouterKeyConfigured = Boolean(process.env.OPENROUTER_API_KEY?.trim());
 const expectedModel = process.env.OPENROUTER_MODEL?.trim() || "openrouter/free";
-const instructorEmail = process.env.BYTEQUEST_DEMO_INSTRUCTOR_EMAIL ?? "instructor@dnsc.edu.ph";
+const instructorEmail = process.env.BYTEQUEST_DEMO_INSTRUCTOR_EMAIL;
 const instructorPassword = process.env.BYTEQUEST_DEMO_INSTRUCTOR_PASSWORD;
 const webBaseUrl = process.env.BYTEQUEST_WEB_BASE_URL ?? "http://127.0.0.1:3000";
 
@@ -16,6 +16,7 @@ const missingConfiguration = [
   ["NEXT_PUBLIC_SUPABASE_URL", url],
   ["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", publishableKey],
   ["SUPABASE_SERVICE_ROLE_KEY", serviceRoleKey],
+  ["BYTEQUEST_DEMO_INSTRUCTOR_EMAIL", instructorEmail],
   ["BYTEQUEST_DEMO_INSTRUCTOR_PASSWORD", instructorPassword],
   ["OPENROUTER_API_KEY", openRouterKeyConfigured],
 ]

@@ -1,3 +1,5 @@
+import 'dart:ui' show SemanticsAction;
+
 import 'package:bytequest/models/mission_model.dart';
 import 'package:bytequest/core/widgets/simulation_fullscreen_button.dart';
 import 'package:bytequest/screens/simulation/templates/coc1_m2_screen_enhanced.dart';
@@ -134,6 +136,102 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  testWidgets(
+      'compact cable pins expose connection state and TalkBack place/remove actions',
+      (tester) async {
+    await tester.pumpWidget(_compactCableHarness());
+    await tester.pump();
+
+    Finder declaredSemantics(String label) => find.byWidgetPredicate(
+          (widget) => widget is Semantics && widget.properties.label == label,
+        );
+
+    final emptyPin = declaredSemantics('Pin 1, empty');
+    expect(emptyPin, findsOneWidget);
+    final pinSize =
+        tester.getSize(find.byKey(const ValueKey('drop-zone-pin_1')));
+    expect(pinSize.width, greaterThanOrEqualTo(48));
+    expect(pinSize.height, greaterThanOrEqualTo(48));
+
+    final wire = declaredSemantics('Orange-white wire');
+    await tester.ensureVisible(wire);
+    await tester.pump();
+    await tester.tap(wire);
+    await tester.pump();
+    await tester.ensureVisible(emptyPin);
+    await tester.pump();
+    await tester.tap(emptyPin);
+    await tester.pump();
+
+    final connectedPin =
+        declaredSemantics('Pin 1, connected to Orange-white wire');
+    expect(connectedPin, findsOneWidget);
+    expect(
+      tester.getSemantics(connectedPin).getSemanticsData().hasAction(
+            SemanticsAction.longPress,
+          ),
+      isTrue,
+    );
+
+    await tester.longPress(connectedPin);
+    await tester.pump();
+    expect(declaredSemantics('Pin 1, empty'), findsOneWidget);
+  });
+
+  testWidgets(
+      'compact cable validation uses icons and text but hides correctness in assessment mode',
+      (tester) async {
+    Finder declaredSemantics(String label) => find.byWidgetPredicate(
+          (widget) => widget is Semantics && widget.properties.label == label,
+        );
+
+    await tester.pumpWidget(_compactCableHarness());
+    await tester.pump();
+    for (var index = 1; index <= 8; index++) {
+      final wire = declaredSemantics(_wireName(index));
+      await tester.ensureVisible(wire);
+      await tester.pump();
+      await tester.tap(wire);
+      await tester.pump();
+      final pin = declaredSemantics('Pin $index, empty');
+      await tester.ensureVisible(pin);
+      await tester.pump();
+      await tester.tap(pin);
+      await tester.pump();
+    }
+    await tester.tap(find.text('Check Placements'));
+    await tester.pump();
+    expect(
+      declaredSemantics(
+          'Pin 1, connected to Orange-white wire, correct connection'),
+      findsOneWidget,
+    );
+    expect(find.byIcon(Icons.check_circle), findsWidgets);
+    expect(find.text('Correct'), findsWidgets);
+
+    await tester.pumpWidget(_compactCableHarness(assessmentMode: true));
+    await tester.pump();
+    for (var index = 1; index <= 8; index++) {
+      final wire = declaredSemantics(_wireName(index));
+      await tester.ensureVisible(wire);
+      await tester.pump();
+      await tester.tap(wire);
+      await tester.pump();
+      final pin = declaredSemantics('Pin $index, empty');
+      await tester.ensureVisible(pin);
+      await tester.pump();
+      await tester.tap(pin);
+      await tester.pump();
+    }
+    await tester.tap(find.text('Check Placements'));
+    await tester.pump();
+    expect(
+      find.bySemanticsLabel(RegExp(r'correct|incorrect connection')),
+      findsNothing,
+    );
+    expect(find.text('Correct'), findsNothing);
+  });
+
   testWidgets('full-screen control is explicit, semantic, and reversible',
       (tester) async {
     final platformCalls = <MethodCall>[];
@@ -243,3 +341,50 @@ void main() {
     }
   });
 }
+
+Widget _compactCableHarness({bool assessmentMode = false}) {
+  final components = [
+    for (var index = 1; index <= 8; index++)
+      DraggableComponent(
+        id: 'wire_$index',
+        name: _wireName(index),
+        targetZone: 'pin_$index',
+      ),
+  ];
+  return MaterialApp(
+    home: DragDropMissionScreen(
+      key: ValueKey('compact-cable-$assessmentMode'),
+      mission: Mission(
+        id: 'coc2_m2',
+        cocId: 'coc2',
+        missionCode: 'COC2-M2',
+        missionNumber: 2,
+        title: 'Create Network Cables',
+        missionType: MissionType.dragAndDrop,
+        orderIndex: 2,
+      ),
+      components: components,
+      dropZones: [
+        for (var index = 1; index <= 8; index++)
+          DropZone(
+            id: 'pin_$index',
+            name: 'Pin $index',
+            acceptedComponents: ['wire_$index'],
+          ),
+      ],
+      assessmentModeOverride: assessmentMode,
+    ),
+  );
+}
+
+String _wireName(int index) => switch (index) {
+      1 => 'Orange-white wire',
+      2 => 'Orange wire',
+      3 => 'Green-white wire',
+      4 => 'Blue wire',
+      5 => 'Blue-white wire',
+      6 => 'Green wire',
+      7 => 'Brown-white wire',
+      8 => 'Brown wire',
+      _ => 'Wire $index',
+    };

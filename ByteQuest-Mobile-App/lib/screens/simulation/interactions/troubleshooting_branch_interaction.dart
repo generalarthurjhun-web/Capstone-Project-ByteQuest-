@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../data/mission_content_data.dart';
 import '../components/tool_tray.dart';
 import '../runtime/mission_runtime_models.dart';
 
@@ -27,6 +28,7 @@ class TroubleshootingBranchInteraction extends StatelessWidget {
     final symptom = presentation['symptom'] as String? ?? phase.instruction;
     final facts = _stringMap(presentation['facts']);
     final actions = _mapList(presentation['diagnostic_actions']);
+    final serviceCases = _mapList(presentation['service_cases']);
     final requiredFacts =
         _stringList(presentation['required_fact_ids']).toSet();
     final correction = _map(presentation['correction']);
@@ -41,27 +43,50 @@ class TroubleshootingBranchInteraction extends StatelessWidget {
 
     return Semantics(
       container: true,
-      label: 'Troubleshooting diagnostics',
+      label: MissionContentData.troubleshootingDiagnosticsLabel,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Reported symptom', style: AppTheme.labelLarge),
+          Text(
+            MissionContentData.reportedSymptomLabel,
+            style: AppTheme.labelLarge,
+          ),
           const SizedBox(height: 6),
           Text(symptom, style: AppTheme.bodyLarge),
+          if (serviceCases.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(
+              MissionContentData.serviceCasesLabel,
+              style: AppTheme.labelLarge,
+            ),
+            const SizedBox(height: 8),
+            for (final serviceCase in serviceCases) ...[
+              _ServiceCaseCard(serviceCase: serviceCase),
+              const SizedBox(height: 8),
+            ],
+          ],
           const SizedBox(height: 16),
-          Text('Diagnostic actions', style: AppTheme.labelLarge),
+          Text(
+            MissionContentData.diagnosticActionsLabel,
+            style: AppTheme.labelLarge,
+          ),
           const SizedBox(height: 8),
           for (final action in actions) ...[
             OutlinedButton.icon(
               onPressed: enabled ? () => _recordDiagnostic(action) : null,
               icon: const Icon(Icons.search_rounded),
-              label: Text(action['label'] as String? ?? 'Inspect'),
+              label: Text(
+                action['label'] as String? ?? MissionContentData.inspectLabel,
+              ),
             ),
             const SizedBox(height: 8),
           ],
           if (state.revealedFactIds.any(facts.containsKey)) ...[
             const SizedBox(height: 4),
-            Text('Recorded findings', style: AppTheme.labelLarge),
+            Text(
+              MissionContentData.recordedFindingsLabel,
+              style: AppTheme.labelLarge,
+            ),
             const SizedBox(height: 8),
             for (final factId in state.revealedFactIds)
               if (facts[factId] case final fact?)
@@ -79,7 +104,10 @@ class TroubleshootingBranchInteraction extends StatelessWidget {
               onPressed:
                   canCorrect ? () => _recordCorrection(correction) : null,
               icon: const Icon(Icons.build_outlined),
-              label: Text(correction['label'] as String? ?? 'Apply correction'),
+              label: Text(
+                correction['label'] as String? ??
+                    MissionContentData.applyCorrectionLabel,
+              ),
             ),
           ],
           if (retest['id'] is String) ...[
@@ -87,7 +115,9 @@ class TroubleshootingBranchInteraction extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: canRetest ? () => _recordRetest(retest) : null,
               icon: const Icon(Icons.replay_rounded),
-              label: Text(retest['label'] as String? ?? 'Retest'),
+              label: Text(
+                retest['label'] as String? ?? MissionContentData.retestLabel,
+              ),
             ),
           ],
         ],
@@ -119,6 +149,45 @@ class TroubleshootingBranchInteraction extends StatelessWidget {
     unawaited(onAction('retest_requested', id, const {
       'input_method': 'tap',
     }));
+  }
+}
+
+class _ServiceCaseCard extends StatelessWidget {
+  const _ServiceCaseCard({required this.serviceCase});
+
+  final Map<String, dynamic> serviceCase;
+
+  @override
+  Widget build(BuildContext context) {
+    final symptom = serviceCase['symptom'] as String? ??
+        MissionContentData.serviceCaseLabel;
+    final causes = _stringList(serviceCase['causes']);
+    return Semantics(
+      container: true,
+      label:
+          '$symptom. ${MissionContentData.possibleCausesLabel}: ${causes.join(', ')}',
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppTheme.cardWhite,
+          border: Border.all(color: AppTheme.borderLight),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(symptom, style: AppTheme.labelLarge),
+              const SizedBox(height: 6),
+              Text(
+                '${MissionContentData.possibleCausesLabel}: ${causes.join(' • ')}',
+                style: AppTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

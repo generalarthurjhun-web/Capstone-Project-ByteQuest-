@@ -77,7 +77,7 @@ final List<MissionSimulationDefinition> _coc4Definitions = [
   ),
   _mission(
     id: 'coc4_m2',
-    title: 'Diagnose and Repair a Component Fault',
+    title: 'Perform Preventive Maintenance',
     scenario:
         'A workstation component reports an intermittent operating fault.',
     environmentLabel: 'Hardware diagnostic bay',
@@ -178,7 +178,7 @@ final List<MissionSimulationDefinition> _coc4Definitions = [
   ),
   _mission(
     id: 'coc4_m3',
-    title: 'Run Progressive Software and Network Diagnostics',
+    title: 'Diagnose Hardware and Software Faults',
     scenario:
         'A workstation has application and network symptoms with no confirmed root cause.',
     environmentLabel: 'Software and network diagnostic console',
@@ -265,7 +265,7 @@ final List<MissionSimulationDefinition> _coc4Definitions = [
   ),
   _mission(
     id: 'coc4_m4',
-    title: 'Replace and Reconfigure a Faulty Component',
+    title: 'Troubleshoot Network Issues',
     scenario:
         'Replace a diagnosed component and restore its operating configuration.',
     environmentLabel: 'Repair and replacement bench',
@@ -359,7 +359,7 @@ final List<MissionSimulationDefinition> _coc4Definitions = [
   ),
   _mission(
     id: 'coc4_m5',
-    title: 'Complete Maintenance and Service Reporting',
+    title: 'Apply Repair Action and Create Report',
     scenario:
         'Complete a prioritized maintenance request and prepare its service report.',
     environmentLabel: 'Maintenance and reporting station',
@@ -375,56 +375,31 @@ final List<MissionSimulationDefinition> _coc4Definitions = [
     phases: [
       _phase(
           'Inspect request and system',
-          'Inspect the request, system condition, and maintenance context.',
+          'Inspect all five service requests before selecting diagnostic actions.',
           InteractionFamily.troubleshoot,
           'inspect_request_system',
-          presentation: _progressiveDiagnostics(
-            symptom:
-                'A maintenance request reports heat, fan noise, and overdue preventive service.',
-            actions: const [
-              (
-                'inspect_request_details',
-                'Inspect request details',
-                'request_details_fact',
-                'The request records fan noise under load and two thermal warning events this week.'
-              ),
-              (
-                'inspect_visible_condition',
-                'Inspect visible system condition',
-                'visible_condition_fact',
-                'The intake grille has a visible dust layer while the CPU fan connector remains closed and seated.'
-              ),
-            ],
-          )),
+          presentation: _coc4M5ServiceDiagnostics()),
       _phase(
         'Prioritize issue and tool',
-        'Use diagnostic facts to prioritize the issue and choose a tool.',
+        'Use the recorded findings to select the next safe service action.',
         InteractionFamily.decide,
         'prioritize_issue_and_tool',
-        presentation: _progressiveDiagnostics(
-          symptom:
-              'The service request includes multiple maintenance observations.',
-          actions: const [
-            (
-              'inspect_request_history',
-              'Inspect request history',
-              'request_history_fact',
-              'The previous service entry records fan cleaning 190 operating days ago.'
-            ),
-            (
-              'inspect_system_health',
-              'Inspect system health',
-              'system_health_fact',
-              'The monitor reports 88 °C CPU temperature and 900 RPM fan speed under load.'
-            ),
-            (
-              'inspect_maintenance_due',
-              'Inspect maintenance schedule',
-              'maintenance_due_fact',
-              'The schedule marks the cooling-system inspection 10 days overdue.'
-            ),
+        presentation: const {
+          'choices': [
+            {
+              'id': 'service_verified_faults',
+              'label': 'Service the faults supported by diagnostic evidence',
+            },
+            {
+              'id': 'replace_unverified_hardware',
+              'label': 'Replace hardware without isolating the cause',
+            },
+            {
+              'id': 'close_requests_without_test',
+              'label': 'Close all requests without corrective action',
+            },
           ],
-        ),
+        },
       ),
       _phase(
         'Maintain and repair configuration',

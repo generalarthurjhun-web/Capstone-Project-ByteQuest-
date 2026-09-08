@@ -1,0 +1,7 @@
+-- Intentionally empty.
+--
+-- The four COCs and twenty mission catalog records are created by the
+-- versioned catalog migration so fresh installs and existing-main upgrades
+-- converge on the same identities. Authoritative activity and rubric
+-- packages require an authenticated Admin publisher and are never fabricated
+-- by an anonymous local seed.

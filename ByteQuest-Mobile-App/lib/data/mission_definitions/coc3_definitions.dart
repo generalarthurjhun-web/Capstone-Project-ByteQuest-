@@ -3,7 +3,7 @@ part of '../mission_simulation_definitions.dart';
 final List<MissionSimulationDefinition> _coc3Definitions = [
   _mission(
     id: 'coc3_m1',
-    title: 'Prepare a Server Workspace',
+    title: 'Prepare Server Setup Requirements',
     scenario: 'Validate a server workspace before installation begins.',
     environmentLabel: 'Server preparation room',
     practiceGuidance:
@@ -78,7 +78,7 @@ final List<MissionSimulationDefinition> _coc3Definitions = [
   ),
   _mission(
     id: 'coc3_m2',
-    title: 'Install and Configure a Server OS',
+    title: 'Install and Configure Server OS',
     scenario: 'Install a server operating system for a defined service role.',
     environmentLabel: 'Server installation console',
     practiceGuidance:
@@ -145,7 +145,7 @@ final List<MissionSimulationDefinition> _coc3Definitions = [
   ),
   _mission(
     id: 'coc3_m3',
-    title: 'Configure Accounts and Permissions',
+    title: 'Configure Server Network Settings',
     scenario: 'Prepare role-based access for a shared server resource.',
     environmentLabel: 'Identity and access console',
     practiceGuidance:
@@ -254,7 +254,7 @@ final List<MissionSimulationDefinition> _coc3Definitions = [
   ),
   _mission(
     id: 'coc3_m4',
-    title: 'Configure and Operate Server Services',
+    title: 'Create Users, Groups, and Permissions',
     scenario: 'Configure a server service and verify access from a client.',
     environmentLabel: 'Service administration console',
     practiceGuidance:
@@ -338,7 +338,7 @@ final List<MissionSimulationDefinition> _coc3Definitions = [
   ),
   _mission(
     id: 'coc3_m5',
-    title: 'Recover Client-Server Access',
+    title: 'Test Client Access and Document Setup',
     scenario:
         'A client loses access to a previously available server resource.',
     environmentLabel: 'Client-server recovery console',

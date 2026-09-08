@@ -777,6 +777,8 @@ void main() {
 
     expect(find.text('Review assessment submission'), findsOneWidget);
     expect(find.text('1 synchronized evidence event'), findsOneWidget);
+    expect(find.textContaining('Object inspected'), findsOneWidget);
+    expect(find.text('Simulation activity'), findsNothing);
     expect(find.text('Your official result will appear only after release.'),
         findsOneWidget);
     final submit =
@@ -786,6 +788,50 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Submit recorded evidence?'), findsOneWidget);
     expect(find.text('Submit evidence'), findsOneWidget);
+  });
+
+  testWidgets('result review blocks submission when no evidence was recorded',
+      (tester) async {
+    final service = AuthoritativeAssessmentService.forTesting(
+      activeSession: AttemptSession(
+        attemptId: 'attempt-empty',
+        assignmentId: 'assignment-empty',
+        assignmentType: 'assessment',
+        preferenceScope: 'learner',
+        startedAt: DateTime(2026),
+        submissionKey: 'submission-empty',
+      ),
+      rpc: (_, __) async => <String, dynamic>{},
+      activeActions: () async => [
+        {'sequence_number': 1, 'action_type': 'attempt_started'},
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ResultScreen(
+          mission: _mission,
+          result: MissionResult(
+            missionId: 'mission',
+            score: 0,
+            percentage: 0,
+            passed: false,
+            xpEarned: 0,
+            timeSpent: 20,
+            rating: '',
+            competencyStatus: '',
+          ),
+          assessmentService: service,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final submit = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Submit recorded evidence'),
+    );
+    expect(submit.onPressed, isNull);
+    expect(find.text('0 completed phases'), findsOneWidget);
+    expect(find.text('0 synchronized evidence events'), findsOneWidget);
   });
 
   testWidgets('advanced controls remain scrollable with large text',

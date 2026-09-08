@@ -5,10 +5,10 @@ const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const instructorPassword = process.env.BYTEQUEST_DEMO_INSTRUCTOR_PASSWORD;
-const instructorEmail = process.env.BYTEQUEST_DEMO_INSTRUCTOR_EMAIL ?? "instructor@dnsc.edu.ph";
+const instructorEmail = process.env.BYTEQUEST_DEMO_INSTRUCTOR_EMAIL;
 
-if (!url || !publishableKey || !serviceRoleKey || !instructorPassword) {
-  throw new Error("Supabase configuration and BYTEQUEST_DEMO_INSTRUCTOR_PASSWORD are required.");
+if (!url || !publishableKey || !serviceRoleKey || !instructorEmail || !instructorPassword) {
+  throw new Error("Supabase configuration and BYTEQUEST_DEMO_INSTRUCTOR_EMAIL/PASSWORD are required.");
 }
 
 const runId = `quiz-e2e-${new Date().toISOString().replace(/\D/g, "").slice(0, 14)}-${randomUUID().slice(0, 8)}`;

@@ -528,6 +528,30 @@ void main() {
     }
   });
 
+  test('COC4 M5 retains the five approved service troubleshooting cases', () {
+    final cases = MissionContentData.getCOC4M5Scenarios();
+    expect(cases, hasLength(5));
+    expect(
+      cases.map((item) => item['symptom']),
+      [
+        'Printer not printing',
+        'USB device not recognized',
+        'Audio not working',
+        'Monitor shows "No Signal"',
+        'System slow after Windows update',
+      ],
+    );
+    expect(cases.every((item) => item['points'] == 20), isTrue);
+    expect(cases.every((item) => (item['causes'] as List).length == 4), isTrue);
+
+    final diagnostics =
+        MissionSimulationDefinitions.byId('coc4_m5').phases.first.presentation;
+    expect(diagnostics['diagnostic_actions'], hasLength(5));
+    expect(diagnostics['service_cases'], hasLength(5));
+    expect(diagnostics, isNot(contains('correctCause')));
+    expect(diagnostics, isNot(contains('points')));
+  });
+
   test('diagnostic actions reveal concrete technical observations', () {
     const invalidFacts = [
       'Access.',

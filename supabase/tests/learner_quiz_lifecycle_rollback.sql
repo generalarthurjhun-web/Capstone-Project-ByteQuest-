@@ -1,6 +1,7 @@
 -- Trusted learner quiz lifecycle, scope, answer-key privacy, and idempotency.
 -- Requires 20260812120000_learner_quiz_lifecycle.sql. All fixtures roll back.
 
+\echo 1..1
 begin;
 
 create temporary table bytequest_quiz_test_context as
@@ -174,3 +175,4 @@ $$;
 
 reset role;
 rollback;
+\echo ok 1 - learner quiz lifecycle rollback

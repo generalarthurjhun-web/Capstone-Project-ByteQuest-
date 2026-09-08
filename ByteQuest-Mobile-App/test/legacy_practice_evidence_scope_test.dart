@@ -93,6 +93,12 @@ void main() {
         'stable-offline-1');
     expect(
         store.saved?.pendingEvidence.single.clientActionId, 'stable-offline-1');
+    expect(
+      find.text(
+          'Practice evidence is saved locally but has not synchronized yet.'),
+      findsOneWidget,
+    );
+    expect(find.text('Retry evidence sync'), findsOneWidget);
 
     transport.online = true;
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
@@ -101,6 +107,7 @@ void main() {
     expect(transport.actions.single.clientActionId, 'stable-offline-1');
     expect(controller.state.pendingEvidence, isEmpty);
     expect(controller.state.acceptedEvidenceIds, {'stable-offline-1'});
+    expect(find.text('Retry evidence sync'), findsNothing);
   });
 
   testWidgets('restores a force-closed pending action without duplication',

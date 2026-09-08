@@ -32,6 +32,9 @@ class _ResultScreenState extends State<ResultScreen> {
   bool _loadingEvidence = false;
   bool _evidenceLoadFailed = false;
   int _evidenceCount = 0;
+  int _pendingEvidenceCount = 0;
+  int _failedEvidenceCount = 0;
+  List<String> _completedPhaseTitles = const [];
   List<Map<String, dynamic>> _evidence = const [];
   String? _submissionError;
 
@@ -52,15 +55,18 @@ class _ResultScreenState extends State<ResultScreen> {
       _submissionError = null;
     });
     try {
+      await _assessmentService.settleActionQueue();
       final actions = await _assessmentService.getActiveAttemptActions();
       if (!mounted) return;
+      final evidence = actions
+          .where((action) => action['action_type'] != 'attempt_started')
+          .toList(growable: false);
       setState(() {
-        _evidenceCount = actions
-            .where((action) => action['action_type'] != 'attempt_started')
-            .length;
-        _evidence = actions
-            .where((action) => action['action_type'] != 'attempt_started')
-            .toList(growable: false);
+        _evidenceCount = evidence.length;
+        _evidence = evidence;
+        _completedPhaseTitles = _phaseTitlesFromEvidence(evidence);
+        _pendingEvidenceCount = _assessmentService.pendingActionCount;
+        _failedEvidenceCount = _assessmentService.failedActionCount;
         _loadingEvidence = false;
         _evidenceLoadFailed = false;
       });
@@ -366,11 +372,15 @@ class _ResultScreenState extends State<ResultScreen> {
           const Divider(),
           const SizedBox(height: 14),
           EvidenceReviewPanel(
-            completedPhaseTitles: const ['Simulation activity'],
+            completedPhaseTitles: _completedPhaseTitles,
             authoritativeEvidenceCount: _evidenceCount,
-            pendingEvidenceCount: 0,
-            failedEvidenceCount: 0,
-            canSubmit: !_loadingEvidence && !_evidenceLoadFailed,
+            pendingEvidenceCount: _pendingEvidenceCount,
+            failedEvidenceCount: _failedEvidenceCount,
+            canSubmit: !_loadingEvidence &&
+                !_evidenceLoadFailed &&
+                _evidenceCount > 0 &&
+                _pendingEvidenceCount == 0 &&
+                _failedEvidenceCount == 0,
             confirmLabel: 'Submit recorded evidence',
             returnLabel: 'Review activity',
             onConfirm: _confirmSubmission,
@@ -408,4 +418,28 @@ class _ResultScreenState extends State<ResultScreen> {
           textAlign: TextAlign.center)
     ]);
   }
+}
+
+List<String> _phaseTitlesFromEvidence(List<Map<String, dynamic>> evidence) {
+  final titles = <String>[];
+  for (final action in evidence) {
+    final value = Map<String, dynamic>.from(
+      action['value'] as Map? ?? const <String, dynamic>{},
+    );
+    final rawPhase = value['phase_id']?.toString().trim();
+    final rawType = action['action_type']?.toString().trim();
+    final source = rawPhase?.isNotEmpty == true ? rawPhase! : rawType;
+    if (source == null || source.isEmpty) continue;
+    final words = source
+        .split(RegExp(r'[_\-\s]+'))
+        .where((word) => word.isNotEmpty)
+        .toList(growable: false);
+    if (words.isEmpty) continue;
+    final title = [
+      '${words.first[0].toUpperCase()}${words.first.substring(1)}',
+      ...words.skip(1).map((word) => word.toLowerCase()),
+    ].join(' ');
+    if (!titles.contains(title)) titles.add(title);
+  }
+  return List.unmodifiable(titles);
 }

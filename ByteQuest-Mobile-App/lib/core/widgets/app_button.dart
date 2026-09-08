@@ -16,6 +16,7 @@ class AppButton extends StatelessWidget {
   final double? height;
   final EdgeInsetsGeometry? padding;
   final double? borderRadius;
+  final String? semanticsLabel;
 
   const AppButton({
     super.key,
@@ -31,6 +32,7 @@ class AppButton extends StatelessWidget {
     this.height,
     this.padding,
     this.borderRadius,
+    this.semanticsLabel,
   });
 
   /// Primary button - for main actions (Login, Sign Up, Continue, Start)
@@ -44,6 +46,7 @@ class AppButton extends StatelessWidget {
     this.width,
     this.height,
     this.size = AppButtonSize.large,
+    this.semanticsLabel,
   })  : isDisabled = false,
         variant = AppButtonVariant.primary,
         padding = null,
@@ -60,6 +63,7 @@ class AppButton extends StatelessWidget {
     this.width,
     this.height,
     this.size = AppButtonSize.large,
+    this.semanticsLabel,
   })  : isDisabled = false,
         variant = AppButtonVariant.secondary,
         padding = null,
@@ -76,6 +80,7 @@ class AppButton extends StatelessWidget {
     this.width,
     this.height,
     this.size = AppButtonSize.large,
+    this.semanticsLabel,
   })  : isDisabled = false,
         variant = AppButtonVariant.outline,
         padding = null,
@@ -92,6 +97,7 @@ class AppButton extends StatelessWidget {
     this.width,
     this.height,
     this.size = AppButtonSize.large,
+    this.semanticsLabel,
   })  : isDisabled = false,
         variant = AppButtonVariant.danger,
         padding = null,
@@ -106,6 +112,7 @@ class AppButton extends StatelessWidget {
     this.height,
     this.variant = AppButtonVariant.primary,
     this.size = AppButtonSize.small,
+    this.semanticsLabel,
   })  : label = null,
         suffixIcon = null,
         isLoading = false,
@@ -121,6 +128,7 @@ class AppButton extends StatelessWidget {
     this.icon,
     this.suffixIcon,
     this.size = AppButtonSize.small,
+    this.semanticsLabel,
   })  : isLoading = false,
         isDisabled = false,
         variant = AppButtonVariant.text,
@@ -137,6 +145,7 @@ class AppButton extends StatelessWidget {
       return TextButton(
         onPressed: effectivelyDisabled ? null : onPressed,
         style: TextButton.styleFrom(
+          minimumSize: const Size(48, 48),
           padding: padding ??
               const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           shape: RoundedRectangleBorder(
@@ -153,15 +162,74 @@ class AppButton extends StatelessWidget {
 
     // Handle icon-only button
     if (label == null && icon != null) {
-      return Container(
-        width: width ?? buttonSize.iconSize,
-        height: height ?? buttonSize.iconSize,
+      final canActivate = !effectivelyDisabled && !isLoading;
+      return Semantics(
+        button: true,
+        enabled: canActivate,
+        label: semanticsLabel ?? 'Button',
+        onTap: canActivate ? onPressed : null,
+        excludeSemantics: true,
+        child: Container(
+          width: width ?? buttonSize.iconSize,
+          height: height ?? buttonSize.iconSize,
+          decoration: BoxDecoration(
+            color: effectivelyDisabled
+                ? config.disabledBackgroundColor
+                : config.backgroundColor,
+            borderRadius: BorderRadius.circular(
+                borderRadius ?? buttonSize.iconBorderRadius),
+            border: config.borderColor != null
+                ? Border.all(color: config.borderColor!, width: 2)
+                : null,
+            boxShadow: effectivelyDisabled ? null : config.shadow,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: canActivate ? onPressed : null,
+              borderRadius: BorderRadius.circular(
+                  borderRadius ?? buttonSize.iconBorderRadius),
+              child: Center(
+                child: isLoading
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: config.textColor,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Icon(
+                        icon,
+                        color: effectivelyDisabled
+                            ? config.disabledTextColor
+                            : config.textColor,
+                        size: buttonSize.iconContentSize,
+                      ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Standard button with label
+    final canActivate = !effectivelyDisabled && !isLoading;
+    return Semantics(
+      button: true,
+      enabled: canActivate,
+      label: semanticsLabel ?? label!,
+      onTap: canActivate ? onPressed : null,
+      excludeSemantics: true,
+      child: Container(
+        width: width,
+        height: height ?? buttonSize.height,
         decoration: BoxDecoration(
           color: effectivelyDisabled
               ? config.disabledBackgroundColor
               : config.backgroundColor,
-          borderRadius: BorderRadius.circular(
-              borderRadius ?? buttonSize.iconBorderRadius),
+          borderRadius:
+              BorderRadius.circular(borderRadius ?? buttonSize.borderRadius),
           border: config.borderColor != null
               ? Border.all(color: config.borderColor!, width: 2)
               : null,
@@ -170,59 +238,16 @@ class AppButton extends StatelessWidget {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: effectivelyDisabled || isLoading ? null : onPressed,
-            borderRadius: BorderRadius.circular(
-                borderRadius ?? buttonSize.iconBorderRadius),
-            child: Center(
-              child: isLoading
-                  ? SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: config.textColor,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : Icon(
-                      icon,
-                      color: effectivelyDisabled
-                          ? config.disabledTextColor
-                          : config.textColor,
-                      size: buttonSize.iconContentSize,
-                    ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    // Standard button with label
-    return Container(
-      width: width,
-      height: height ?? buttonSize.height,
-      decoration: BoxDecoration(
-        color: effectivelyDisabled
-            ? config.disabledBackgroundColor
-            : config.backgroundColor,
-        borderRadius:
-            BorderRadius.circular(borderRadius ?? buttonSize.borderRadius),
-        border: config.borderColor != null
-            ? Border.all(color: config.borderColor!, width: 2)
-            : null,
-        boxShadow: effectivelyDisabled ? null : config.shadow,
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: effectivelyDisabled || isLoading ? null : onPressed,
-          borderRadius:
-              BorderRadius.circular(borderRadius ?? buttonSize.borderRadius),
-          child: Padding(
-            padding: padding ?? buttonSize.padding,
-            child: _buildButtonContent(
-              config,
-              buttonSize,
-              disabled: effectivelyDisabled,
+            onTap: canActivate ? onPressed : null,
+            borderRadius:
+                BorderRadius.circular(borderRadius ?? buttonSize.borderRadius),
+            child: Padding(
+              padding: padding ?? buttonSize.padding,
+              child: _buildButtonContent(
+                config,
+                buttonSize,
+                disabled: effectivelyDisabled,
+              ),
             ),
           ),
         ),
@@ -366,13 +391,13 @@ class AppButton extends StatelessWidget {
     switch (size) {
       case AppButtonSize.small:
         return _ButtonSize(
-          height: 40,
+          height: 48,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           borderRadius: 12,
           textStyle: AppTheme.labelMedium.copyWith(fontWeight: FontWeight.w600),
           iconContentSize: 18,
           iconSpacing: 6,
-          iconSize: 40,
+          iconSize: 48,
           iconBorderRadius: 12,
         );
 

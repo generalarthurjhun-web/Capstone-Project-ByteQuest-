@@ -180,7 +180,7 @@ void main() {
   });
 
   test(
-    'all catalog missions provide a bundled visual asset for their scene',
+    'catalog missions use technical assets without cover-image hotspot fallbacks',
     () {
       for (final definition in MissionSimulationDefinitions.all) {
         expect(
@@ -189,14 +189,15 @@ void main() {
           reason: definition.id,
         );
         for (final object in definition.scene.objects) {
+          final imageAsset = object.metadata['imageAsset'];
           expect(
-            object.metadata['imageAsset'],
-            isA<String>(),
+            imageAsset == null || imageAsset is String,
+            isTrue,
             reason: '${definition.id}/${object.id}',
           );
           expect(
-            (object.metadata['imageAsset'] as String).isNotEmpty,
-            isTrue,
+            imageAsset,
+            isNot(definition.scene.backgroundAsset),
             reason: '${definition.id}/${object.id}',
           );
         }
@@ -230,7 +231,7 @@ void main() {
         final paths = <String>{
           definition.scene.backgroundAsset!,
           for (final object in definition.scene.objects)
-            object.metadata['imageAsset'] as String,
+            if (object.metadata['imageAsset'] case final String asset) asset,
         };
         for (final path in paths) {
           await rootBundle.load(path);
@@ -238,6 +239,28 @@ void main() {
       }
     },
   );
+
+  testWidgets('background image renders above the opaque schematic paint',
+      (tester) async {
+    final definition = MissionSimulationDefinitions.byId('coc1_m1');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SimulationScene(
+            scene: definition.scene,
+            onObjectSelected: (_) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final layers = tester.widget<Stack>(
+      find.byKey(const Key('scene-background-layers')),
+    );
+    expect(layers.children.first, isA<CustomPaint>());
+    expect(find.byKey(const Key('scene-background-image')), findsOneWidget);
+  });
 }
 
 Widget _sceneHarness({ValueChanged<String>? onSelected}) => MaterialApp(

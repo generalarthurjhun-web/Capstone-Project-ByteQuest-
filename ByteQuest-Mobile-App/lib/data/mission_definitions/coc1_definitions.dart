@@ -3,7 +3,7 @@ part of '../mission_simulation_definitions.dart';
 final List<MissionSimulationDefinition> _coc1Definitions = [
   _mission(
     id: 'coc1_m1',
-    title: 'Inspect Computer Hardware',
+    title: 'Identify Computer Parts and Tools',
     scenario: 'Prepare a desktop workstation for safe servicing.',
     environmentLabel: 'Hardware inspection bench',
     practiceGuidance:
@@ -219,7 +219,7 @@ final List<MissionSimulationDefinition> _coc1Definitions = [
   ),
   _mission(
     id: 'coc1_m4',
-    title: 'Connect and Test Peripherals',
+    title: 'Configure BIOS/UEFI and Install OS',
     scenario: 'Prepare workstation peripherals for functional testing.',
     environmentLabel: 'Peripheral connection station',
     practiceGuidance:
@@ -314,7 +314,7 @@ final List<MissionSimulationDefinition> _coc1Definitions = [
   ),
   _mission(
     id: 'coc1_m5',
-    title: 'Diagnose Workstation Integration',
+    title: 'Install Drivers and Test the System',
     scenario: 'A newly assembled workstation reports an integration fault.',
     environmentLabel: 'Workstation diagnostic bay',
     practiceGuidance:

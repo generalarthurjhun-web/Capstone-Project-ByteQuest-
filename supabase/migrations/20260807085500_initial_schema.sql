@@ -67,6 +67,67 @@ exception when duplicate_object then null;
 end
 $$;
 
+do $$
+begin
+  create type public.competency_status as enum (
+    'competent', 'not_yet_competent'
+  );
+exception when duplicate_object then null;
+end
+$$;
+
+do $$
+begin
+  create type public.condition_type as enum (
+    'mission_count', 'coc_completion', 'streak', 'score_threshold',
+    'time_based', 'perfect_score', 'no_mistake', 'special'
+  );
+exception when duplicate_object then null;
+end
+$$;
+
+do $$
+begin
+  create type public.leaderboard_type as enum (
+    'overall', 'coc', 'mission', 'weekly', 'monthly'
+  );
+exception when duplicate_object then null;
+end
+$$;
+
+do $$
+begin
+  create type public.notification_type as enum (
+    'mission', 'badge', 'achievement', 'progress', 'system', 'admin_message'
+  );
+exception when duplicate_object then null;
+end
+$$;
+
+do $$
+begin
+  create type public.report_type as enum (
+    'individual_learner', 'class_summary', 'coc_performance',
+    'mission_result', 'competency_achievement', 'progress_report',
+    'pass_fail_summary', 'analytics_dashboard'
+  );
+exception when duplicate_object then null;
+end
+$$;
+
+-- Kept for compatibility with the generated database contract and historical
+-- task records. The current simulation_tasks.task_type column intentionally
+-- uses mission_type, matching the deployed schema.
+do $$
+begin
+  create type public.task_type as enum (
+    'select_image', 'drag_drop', 'arrange_sequence', 'form_input',
+    'matching', 'checklist', 'decision_tree'
+  );
+exception when duplicate_object then null;
+end
+$$;
+
 alter type public.account_status add value if not exists 'deactivated';
 
 create schema if not exists private;
@@ -209,7 +270,7 @@ create table if not exists public.badges (
   title text not null,
   description text,
   icon_url text,
-  condition_type text not null,
+  condition_type public.condition_type not null,
   condition_value jsonb not null default '{}'::jsonb,
   xp_reward integer not null default 0 check (xp_reward >= 0),
   created_at timestamptz not null default now(),
@@ -222,7 +283,7 @@ create table if not exists public.achievements (
   title text not null,
   description text,
   icon_url text,
-  condition_type text not null,
+  condition_type public.condition_type not null,
   condition_value jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -242,7 +303,7 @@ create table if not exists public.mission_results (
   xp_earned integer not null default 0,
   passed boolean not null default false,
   rating public.rating_type,
-  competency_status text,
+  competency_status public.competency_status,
   completed_tasks integer not null default 0,
   total_tasks integer not null default 0,
   incorrect_attempts integer not null default 0,
@@ -328,7 +389,7 @@ create table if not exists public.leaderboard_entries (
   time_spent_seconds integer not null default 0,
   incorrect_attempts integer not null default 0,
   ranking_points numeric(12, 2) not null default 0,
-  leaderboard_type text not null default 'overall',
+  leaderboard_type public.leaderboard_type not null default 'overall',
   completed_at timestamptz,
   created_at timestamptz not null default now()
 );
@@ -338,7 +399,7 @@ create table if not exists public.notifications (
   user_id uuid not null references auth.users(id) on delete cascade,
   title text not null,
   message text not null,
-  type text not null default 'system',
+  type public.notification_type not null default 'system',
   is_read boolean not null default false,
   related_mission_id uuid references public.missions(id) on delete set null,
   related_coc_id uuid references public.coc_modules(id) on delete set null,
@@ -362,7 +423,7 @@ create table if not exists public.user_settings (
 create table if not exists public.reports (
   id uuid primary key default gen_random_uuid(),
   generated_by uuid references auth.users(id) on delete set null,
-  report_type text not null,
+  report_type public.report_type not null,
   title text not null,
   filters jsonb not null default '{}'::jsonb,
   data jsonb not null default '{}'::jsonb,

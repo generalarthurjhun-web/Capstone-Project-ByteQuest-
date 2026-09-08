@@ -3,6 +3,7 @@ import 'dart:async';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/soft_card.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../data/mission_content_data.dart';
 import '../../../models/mission_model.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/progress_resume_service.dart';
@@ -18,12 +19,14 @@ class DragDropMissionScreen extends StatefulWidget {
   final Mission mission;
   final List<DraggableComponent> components;
   final List<DropZone> dropZones;
+  final bool? assessmentModeOverride;
 
   const DragDropMissionScreen({
     super.key,
     required this.mission,
     required this.components,
     required this.dropZones,
+    this.assessmentModeOverride,
   });
 
   @override
@@ -39,11 +42,13 @@ class _DragDropMissionScreenState extends State<DragDropMissionScreen> {
   int _correctPlacements = 0;
   List<String> _mistakes = [];
   String? _selectedComponentId;
+  bool _assessmentPlacementsRecorded = false;
 
   bool get _hasProgress =>
       _placedComponents.values.any((value) => value != null) ||
       _selectedComponentId != null ||
       _showValidation ||
+      _assessmentPlacementsRecorded ||
       _mistakes.isNotEmpty;
 
   bool get _isEightPinLayout =>
@@ -148,6 +153,7 @@ class _DragDropMissionScreenState extends State<DragDropMissionScreen> {
       // Place in new zone
       _placedComponents[zoneId] = componentId;
       _showValidation = false;
+      _assessmentPlacementsRecorded = false;
       _componentValidation.clear();
       _selectedComponentId = null;
     });
@@ -170,6 +176,7 @@ class _DragDropMissionScreenState extends State<DragDropMissionScreen> {
     setState(() {
       _placedComponents[zoneId] = null;
       _showValidation = false;
+      _assessmentPlacementsRecorded = false;
       _componentValidation.clear();
     });
     unawaited(LegacyPracticeEvidenceScope.record(
@@ -186,31 +193,43 @@ class _DragDropMissionScreenState extends State<DragDropMissionScreen> {
   }
 
   void _validatePlacements() {
-    setState(() {
-      _showValidation = true;
-      _correctPlacements = 0;
-      _mistakes.clear();
+    final assessmentMode = widget.assessmentModeOverride ??
+        AuthoritativeAssessmentService.instance.isAssessmentMode;
+    if (assessmentMode) {
+      setState(() {
+        _showValidation = false;
+        _assessmentPlacementsRecorded = true;
+        _correctPlacements = 0;
+        _componentValidation.clear();
+        _mistakes.clear();
+      });
+    } else {
+      setState(() {
+        _showValidation = true;
+        _correctPlacements = 0;
+        _mistakes.clear();
 
-      for (var zone in widget.dropZones) {
-        final placedId = _placedComponents[zone.id];
-        if (placedId != null) {
-          final isCorrect = zone.acceptedComponents.contains(placedId);
-          _componentValidation[zone.id] = isCorrect;
+        for (var zone in widget.dropZones) {
+          final placedId = _placedComponents[zone.id];
+          if (placedId != null) {
+            final isCorrect = zone.acceptedComponents.contains(placedId);
+            _componentValidation[zone.id] = isCorrect;
 
-          if (isCorrect) {
-            _correctPlacements++;
+            if (isCorrect) {
+              _correctPlacements++;
+            } else {
+              final component =
+                  widget.components.firstWhere((c) => c.id == placedId);
+              _mistakes
+                  .add('${component.name} placed incorrectly in ${zone.name}');
+            }
           } else {
-            final component =
-                widget.components.firstWhere((c) => c.id == placedId);
-            _mistakes
-                .add('${component.name} placed incorrectly in ${zone.name}');
+            _componentValidation[zone.id] = false;
+            _mistakes.add('${zone.name} is empty');
           }
-        } else {
-          _componentValidation[zone.id] = false;
-          _mistakes.add('${zone.name} is empty');
         }
-      }
-    });
+      });
+    }
     unawaited(LegacyPracticeEvidenceScope.record(
       context,
       phaseId: 'placement_review',
@@ -221,15 +240,6 @@ class _DragDropMissionScreenState extends State<DragDropMissionScreen> {
       },
     ));
     _saveProgressState();
-
-    // If all correct, auto-finish after 2 seconds
-    if (_correctPlacements == widget.dropZones.length) {
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) {
-          _finishMission();
-        }
-      });
-    }
   }
 
   void _finishMission() {
@@ -270,7 +280,7 @@ class _DragDropMissionScreenState extends State<DragDropMissionScreen> {
   @override
   Widget build(BuildContext context) {
     final allPlaced = widget.components.every((c) => _isComponentPlaced(c.id));
-    final assessmentMode =
+    final assessmentMode = widget.assessmentModeOverride ??
         AuthoritativeAssessmentService.instance.isAssessmentMode;
     final compactHeight = MediaQuery.sizeOf(context).height < 480;
 
@@ -293,37 +303,38 @@ class _DragDropMissionScreenState extends State<DragDropMissionScreen> {
         body: StableMissionFeedbackOverlay(
           top: null,
           bottom: 84,
-          feedback:
-              _showValidation && _correctPlacements < widget.dropZones.length
-                  ? Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppTheme.accentOrange.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppTheme.accentOrange.withValues(alpha: 0.25),
+          feedback: !assessmentMode &&
+                  _showValidation &&
+                  _correctPlacements < widget.dropZones.length
+              ? Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentOrange.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppTheme.accentOrange.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: AppTheme.accentOrange,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Some components are incorrectly placed. Review and try again.',
+                          style: AppTheme.bodySmall.copyWith(
+                            color: AppTheme.accentOrange,
+                          ),
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            color: AppTheme.accentOrange,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Some components are incorrectly placed. Review and try again.',
-                              style: AppTheme.bodySmall.copyWith(
-                                color: AppTheme.accentOrange,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : null,
+                    ],
+                  ),
+                )
+              : null,
           child: SafeArea(
             child: Column(
               children: [
@@ -388,7 +399,7 @@ class _DragDropMissionScreenState extends State<DragDropMissionScreen> {
                                     ),
                                   ],
                                 ),
-                                if (_showValidation) ...[
+                                if (_showValidation && !assessmentMode) ...[
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 12,
@@ -542,7 +553,8 @@ class _DragDropMissionScreenState extends State<DragDropMissionScreen> {
                                 final zoneIndex = entry.key;
                                 final zone = entry.value;
                                 final placedId = _placedComponents[zone.id];
-                                final showFeedback = _showValidation &&
+                                final showFeedback = !assessmentMode &&
+                                    _showValidation &&
                                     _componentValidation.containsKey(zone.id);
                                 final isCorrect =
                                     _componentValidation[zone.id] ?? false;
@@ -796,12 +808,24 @@ class _DragDropMissionScreenState extends State<DragDropMissionScreen> {
                     child: Column(
                       children: [
                         AppButton.primary(
-                          label: _showValidation &&
-                                  _correctPlacements == widget.dropZones.length
-                              ? 'View Results'
-                              : 'Check Placements',
+                          label: _assessmentPlacementsRecorded
+                              ? MissionContentData
+                                  .assessmentPlacementsRecordedLabel
+                              : _showValidation &&
+                                      _correctPlacements ==
+                                          widget.dropZones.length
+                                  ? 'View Results'
+                                  : 'Check Placements',
                           icon: Icons.check,
-                          onPressed: allPlaced ? _validatePlacements : null,
+                          onPressed: _assessmentPlacementsRecorded
+                              ? null
+                              : allPlaced
+                                  ? _showValidation &&
+                                          _correctPlacements ==
+                                              widget.dropZones.length
+                                      ? _finishMission
+                                      : _validatePlacements
+                                  : null,
                           width: double.infinity,
                         ),
                       ],
@@ -836,11 +860,14 @@ class _DragDropMissionScreenState extends State<DragDropMissionScreen> {
                   crossAxisCount: wide ? 8 : 4,
                   crossAxisSpacing: 8,
                   mainAxisSpacing: 8,
-                  childAspectRatio: wide ? 1.2 : 1.05,
+                  childAspectRatio: wide ? .85 : .85,
                 ),
                 itemCount: widget.dropZones.length,
-                itemBuilder: (context, index) =>
-                    _buildCompactPin(widget.dropZones[index], index),
+                itemBuilder: (context, index) => _buildCompactPin(
+                  widget.dropZones[index],
+                  index,
+                  assessmentMode: assessmentMode,
+                ),
               ),
               const SizedBox(height: 24),
               Text(
@@ -906,20 +933,45 @@ class _DragDropMissionScreenState extends State<DragDropMissionScreen> {
         },
       );
 
-  Widget _buildCompactPin(DropZone zone, int index) {
+  Widget _buildCompactPin(
+    DropZone zone,
+    int index, {
+    required bool assessmentMode,
+  }) {
     final placedId = _placedComponents[zone.id];
     final isCorrect = _componentValidation[zone.id] ?? false;
+    final showFeedback = _showValidation && !assessmentMode;
+    final connectedName = placedId == null
+        ? null
+        : widget.components.firstWhere((item) => item.id == placedId).name;
+    final placeSelected = _selectedComponentId == null
+        ? null
+        : () => _placeComponent(
+              zone.id,
+              _selectedComponentId!,
+              interactionMethod: 'select_then_place',
+            );
+    final removeConnected =
+        placedId == null ? null : () => _removeComponent(zone.id);
+    final stateLabel = placedId == null
+        ? 'Pin ${index + 1}, empty'
+        : 'Pin ${index + 1}, connected to $connectedName'
+            '${showFeedback ? (isCorrect ? ', correct connection' : ', incorrect connection') : ''}';
     return Semantics(
       button: true,
-      label: '${zone.name}${placedId == null ? ", empty" : ", occupied"}',
+      enabled: placeSelected != null || removeConnected != null,
+      label: stateLabel,
+      hint: placeSelected != null
+          ? 'Double tap to connect the selected wire. Long press to remove the current wire.'
+          : placedId == null
+              ? 'Select a wire, then return to this pin to connect it.'
+              : 'Long press to remove this wire.',
+      onTap: placeSelected,
+      onLongPress: removeConnected,
       child: GestureDetector(
-        onTap: _selectedComponentId == null
-            ? null
-            : () => _placeComponent(
-                  zone.id,
-                  _selectedComponentId!,
-                  interactionMethod: 'select_then_place',
-                ),
+        behavior: HitTestBehavior.opaque,
+        onTap: placeSelected,
+        onLongPress: removeConnected,
         child: DragTarget<String>(
           onWillAcceptWithDetails: (_) => true,
           onAcceptWithDetails: (details) =>
@@ -934,7 +986,7 @@ class _DragDropMissionScreenState extends State<DragDropMissionScreen> {
                   : Colors.white,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: _showValidation
+                color: showFeedback
                     ? (isCorrect ? AppTheme.accentGreen : AppTheme.errorRed)
                     : AppTheme.borderLight,
                 width: 2,
@@ -953,13 +1005,29 @@ class _DragDropMissionScreenState extends State<DragDropMissionScreen> {
                 ),
                 if (placedId != null)
                   Text(
-                    widget.components
-                        .firstWhere((item) => item.id == placedId)
-                        .name,
+                    connectedName!,
                     style: AppTheme.captionSmall,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                if (showFeedback) ...[
+                  const SizedBox(height: 4),
+                  Icon(
+                    isCorrect ? Icons.check_circle : Icons.error_outline,
+                    color: isCorrect ? AppTheme.accentGreen : AppTheme.errorRed,
+                    size: 18,
+                  ),
+                  Text(
+                    isCorrect
+                        ? MissionContentData.correctConnectionLabel
+                        : MissionContentData.reviewConnectionLabel,
+                    style: AppTheme.captionSmall.copyWith(
+                      color:
+                          isCorrect ? AppTheme.accentGreen : AppTheme.errorRed,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

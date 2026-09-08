@@ -43,7 +43,7 @@ CODEX_STATE.md            Live handoff state — update after every work session
 
 ### 2.2 Critical file — do not overwrite without reading first
 
-`ByteQuest-Mobile-App/lib/screens/simulation/simulation_framework.dart` — the simulation engine
+`ByteQuest-Mobile-App/lib/screens/simulation/components/simulation_framework.dart` — the simulation engine
 that all mission screens compose. Read it before touching any simulation screen.
 
 ### 2.3 Mobile app internal structure
@@ -239,10 +239,14 @@ If you are unsure whether something is done, check the source file before implem
 
 | COC | M1 | M2 | M3 | M4 | M5 |
 |-----|----|----|----|----|-----|
-| COC1 | MISSING | Partial | Partial (enhanced) | MISSING | MISSING |
-| COC2 | MISSING | Partial (cable) | MISSING | MISSING | MISSING |
-| COC3 | MISSING | MISSING | MISSING | MISSING | MISSING |
-| COC4 | MISSING | MISSING | MISSING | MISSING | MISSING |
+| COC1 | Runtime | Runtime | Runtime | Runtime | Runtime |
+| COC2 | Runtime | Runtime + cable assessment | Runtime | Runtime | Runtime |
+| COC3 | Runtime | Runtime | Runtime | Runtime | Runtime |
+| COC4 | Runtime | Runtime | Runtime | Runtime | Runtime |
+
+`Runtime` means the production practice route resolves through the typed 2D
+simulation engine. It does not replace the required automated, device,
+accessibility, backend, and instructor-release validation gates.
 
 Existing templates in `screens/simulation/templates/`:
 `coc1_m2_screen.dart`, `coc1_m2_screen_enhanced.dart`, `coc1_m3_screen_enhanced.dart`,

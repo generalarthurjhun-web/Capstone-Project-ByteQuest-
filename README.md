@@ -12,6 +12,11 @@ ByteQuest is a complete capstone project: a gamified Computer Systems Servicing 
 
 Supabase Auth and PostgreSQL are the shared identity and data authority. Roles are `learner`, `instructor`, and `admin`; assessment evaluation, criterion results, finalization, release, audit events, and gamification-side effects remain database-authoritative.
 
+All 20 catalog mission IDs use the typed 2D `MissionSimulationScreen` for the
+normal learner practice path. Server-issued `authoritative_mission_v1`
+activities and the protected COC2 cable assessment retain their explicit
+authoritative adapters; unknown mission IDs and template names fail closed.
+
 The root `package.json` contains only the Node dependencies needed by repository-level Supabase and lifecycle scripts; the dashboard has its own package manifest and lockfile.
 
 ## Development commands
@@ -47,11 +52,25 @@ Mobile verification:
 cd "ByteQuest-Mobile-App"
 flutter pub get
 flutter test
-flutter analyze --no-fatal-infos
+flutter analyze
 flutter build apk --debug
 ```
 
-Shared Supabase commands are run from the repository root when required. For example, the rollback-only lifecycle test is `supabase/tests/foundation_lifecycle_rollback.sql`; execute it only through an authorized connection to the intended project. It creates fixtures in one transaction and ends with `ROLLBACK`.
+Shared Supabase commands are run from the repository root. The
+`20260807085500_initial_schema.sql` artifact bootstraps an empty local database;
+an existing database that already records migration version `20260807085500`
+skips that baseline and receives only later forward migrations. Never use
+`migration repair` or `db push --include-all` to make the histories agree.
+
+For an isolated local stack:
+
+```bash
+supabase db reset --local
+supabase test db
+```
+
+The rollback tests create fixtures inside transactions and leave the local
+database unchanged. Do not point these commands at the live project.
 
 Authenticated web/database lifecycle checks are exposed as scripts in `scripts/` and package commands in `ByteQuest Web Dashboard/package.json`. They require the local dashboard environment and appropriate test credentials.
 

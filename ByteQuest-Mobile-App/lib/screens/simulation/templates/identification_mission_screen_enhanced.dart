@@ -70,7 +70,9 @@ class _IdentificationMissionScreenEnhancedState
     super.initState();
     _optionOrder = PracticeOptionOrder.create(
       sourceOptions: _sourceOptions,
-      seed: DateTime.now().microsecondsSinceEpoch & 0x7fffffff,
+      seed: PracticeOptionOrder.stableSeed(
+        '${widget.mission.id}:${AuthService().currentUserId ?? 'anonymous-practice'}',
+      ),
     );
     _startTimer();
     _loadProgressState();

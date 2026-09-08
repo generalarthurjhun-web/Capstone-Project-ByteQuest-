@@ -2,6 +2,7 @@
 -- client EXECUTE access to handle_new_user() is removed. All fixture data is
 -- rolled back, including the auth.users row and its triggered profile row.
 
+\echo 1..1
 begin;
 
 do $$
@@ -88,3 +89,4 @@ end
 $$;
 
 rollback;
+\echo ok 1 - auth profile provisioning rollback

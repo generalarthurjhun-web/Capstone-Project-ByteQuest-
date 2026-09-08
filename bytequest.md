@@ -1,4 +1,4 @@
-w# ByteQuest — Build Context for Codex / Kiro
+# ByteQuest — Build Context for Codex / Kiro
 
 ## Project Overview
 
@@ -56,12 +56,14 @@ lib/
     resources/      resource_viewer_screen
     settings/       change_password, edit_profile, help_center, settings, terms_privacy screens
     simulation/
-      components/   mission_simulation_profile.dart
+      components/   simulation_framework.dart, simulation_scene.dart,
+                    hotspot_widget.dart, tool_tray.dart
+      interactions/ reusable evidence-producing interaction widgets
+      runtime/      typed state, reducer, evidence gateway, persistence controller
       templates/    (see Mission Templates below)
       mission_launcher.dart
       result_screen.dart
       simulation_screen.dart
-      simulation_framework.dart   <- CRITICAL FILE
     splash/         splash_screen.dart
   services/
     auth_service.dart
@@ -156,7 +158,7 @@ Build these as composable Flutter widgets, NOT as one-off per-mission code.
 
 ---
 
-### Missing Mission Screens (15-17 of 20)
+### Production Mission Runtime Status (20 of 20 routed)
 
 Use existing templates as base. Extend, do NOT build from scratch.
 
@@ -164,41 +166,41 @@ Use existing templates as base. Extend, do NOT build from scratch.
 
 | Mission | Status | Interaction Types Required |
 |---|---|---|
-| M1 — Hardware Inspection | MISSING | TapInspect, MultiSelect, ObservationRecord, Verification |
-| M2 — Controlled Assembly | Partial (has basic screen) | ControlledPlacement, CompatibilityValidation, SequenceValidation, OrientationCheck |
-| M3 — Installation/Config Workflow | Partial (enhanced exists) | Sequencing, ConfigurationPanel, IncorrectConfigDetection, ResultInterpretation |
-| M4 — Peripheral/Device Config | MISSING | TapInspect, ToolSelection, ConnectionInteraction, TestRun, ResultInterpretation |
-| M5 — Integration/Troubleshooting | MISSING | SymptomInspect, DiagnosticToolSelection, TroubleshootingBranch, CorrectiveAction, FinalVerification |
+| M1 — Hardware Inspection | Runtime | TapInspect, MultiSelect, ObservationRecord, Verification |
+| M2 — Controlled Assembly | Runtime | ControlledPlacement, CompatibilityValidation, SequenceValidation, OrientationCheck |
+| M3 — Installation/Config Workflow | Runtime | Sequencing, ConfigurationPanel, IncorrectConfigDetection, ResultInterpretation |
+| M4 — Peripheral/Device Config | Runtime | TapInspect, ToolSelection, ConnectionInteraction, TestRun, ResultInterpretation |
+| M5 — Integration/Troubleshooting | Runtime | SymptomInspect, DiagnosticToolSelection, TroubleshootingBranch, CorrectiveAction, FinalVerification |
 
 #### COC2 — Set Up Computer Networks
 
 | Mission | Status | Interaction Types Required |
 |---|---|---|
-| M1 — Cabling/Network Prep | MISSING | DeviceIdentification, CableSelection, ToolSelection, Sequencing, ConnectionInteraction, TestRun, ResultInterpretation |
-| M2 — Golden/Reference Mission | Partial (cable screen exists) | Preserve existing evaluation rules. Topology, DeviceSelection, ConnectionInteraction, ConfigActivity, ConnectivityTest |
-| M3 — Network Topology Construction | MISSING | NodeSelection, ConnectionInteraction, TopologyBuild, LinkStatusVerification, InvalidConnectionFix |
-| M4 — Network Configuration | MISSING | DeviceSelection, ConfigurationPanel, ConnectivityTest, ResultInterpretation, ErrorCorrection |
-| M5 — Network Troubleshooting | MISSING | TopologyInspect, TestConnection, ConfigInspect, TroubleshootingBranch (NOT single multiple-choice), ApplyFix, Retest |
+| M1 — Cabling/Network Prep | Runtime | DeviceIdentification, CableSelection, ToolSelection, Sequencing, ConnectionInteraction, TestRun, ResultInterpretation |
+| M2 — Golden/Reference Mission | Runtime + protected cable assessment | Preserve existing evaluation rules. Topology, DeviceSelection, ConnectionInteraction, ConfigActivity, ConnectivityTest |
+| M3 — Network Topology Construction | Runtime | NodeSelection, ConnectionInteraction, TopologyBuild, LinkStatusVerification, InvalidConnectionFix |
+| M4 — Network Configuration | Runtime | DeviceSelection, ConfigurationPanel, ConnectivityTest, ResultInterpretation, ErrorCorrection |
+| M5 — Network Troubleshooting | Runtime | TopologyInspect, TestConnection, ConfigInspect, TroubleshootingBranch (NOT single multiple-choice), ApplyFix, Retest |
 
 #### COC3 — Set Up Computer Servers
 
 | Mission | Status | Interaction Types Required |
 |---|---|---|
-| M1 — Server Preparation | MISSING | SceneInspect, RequirementsIdentification, RoleSelection, NetworkReadinessCheck, Sequencing, Validation |
-| M2 — Server Installation | MISSING | ConfigFlow, RoleSelection, ChoicesAffectState, ConfigBeforeInstall, SimulatedRestart, Verification |
-| M3 — Users/Groups/Permissions | MISSING | AccountCreation, RoleAssignment, PermissionAssignment, AccessInspect, AccessTest, PermissionErrorDiagnosis |
-| M4 — Server/Network Services | MISSING | ServiceInspect, ServiceConfig, StartStopService, ConfigValues, StatusInspect, ClientAccessTest, ServerResponseInterpretation |
-| M5 — Server Troubleshooting | MISSING | ClientInspect, ServerInspect, ServiceStateInspect, ConnectivityTest, PermissionConfigInspect, CorrectiveAction, Retest, VerifyRecovery |
+| M1 — Server Preparation | Runtime | SceneInspect, RequirementsIdentification, RoleSelection, NetworkReadinessCheck, Sequencing, Validation |
+| M2 — Server Installation | Runtime | ConfigFlow, RoleSelection, ChoicesAffectState, ConfigBeforeInstall, SimulatedRestart, Verification |
+| M3 — Users/Groups/Permissions | Runtime | AccountCreation, RoleAssignment, PermissionAssignment, AccessInspect, AccessTest, PermissionErrorDiagnosis |
+| M4 — Server/Network Services | Runtime | ServiceInspect, ServiceConfig, StartStopService, ConfigValues, StatusInspect, ClientAccessTest, ServerResponseInterpretation |
+| M5 — Server Troubleshooting | Runtime | ClientInspect, ServerInspect, ServiceStateInspect, ConnectivityTest, PermissionConfigInspect, CorrectiveAction, Retest, VerifyRecovery |
 
 #### COC4 — Maintain and Repair Computer Systems and Networks
 
 | Mission | Status | Interaction Types Required |
 |---|---|---|
-| M1 — Inspection | MISSING | EnvironmentInspect, SymptomIdentification, ComponentInspect, ObservationRecord, DiagnosticPriority, PreliminaryDiagnosis |
-| M2 — Hardware Diagnosis | MISSING | SymptomInspect, TestToolSelection, ComponentInspect, SimulatedTest, ResultInterpretation, FaultIdentification, RepairAction, Verification |
-| M3 — Software/Network Diagnosis | MISSING | TroubleshootingBranch (reveal info progressively), RequireInterpretation (each result), DoNotRevealRootCauseEarly |
-| M4 — Repair/Corrective Action | MISSING | ComponentSelection, ToolSelection, ControlledReplacement, Reconfiguration, RepairSequence, Verification, PostRepairTest |
-| M5 — Final Maintenance Scenario | MISSING | MaintenanceRequest, SystemInspect, IssueIdentification, FaultPrioritization, ToolSelection, PerformMaintenance, RepairConfig, SystemTest, ResultInterpretation, FinalVerification, SubmissionReport |
+| M1 — Inspection | Runtime | EnvironmentInspect, SymptomIdentification, ComponentInspect, ObservationRecord, DiagnosticPriority, PreliminaryDiagnosis |
+| M2 — Hardware Diagnosis | Runtime | SymptomInspect, TestToolSelection, ComponentInspect, SimulatedTest, ResultInterpretation, FaultIdentification, RepairAction, Verification |
+| M3 — Software/Network Diagnosis | Runtime | TroubleshootingBranch (reveal info progressively), RequireInterpretation (each result), DoNotRevealRootCauseEarly |
+| M4 — Repair/Corrective Action | Runtime | ComponentSelection, ToolSelection, ControlledReplacement, Reconfiguration, RepairSequence, Verification, PostRepairTest |
+| M5 — Final Maintenance Scenario | Runtime | MaintenanceRequest, SystemInspect, IssueIdentification, FaultPrioritization, ToolSelection, PerformMaintenance, RepairConfig, SystemTest, ResultInterpretation, FinalVerification, SubmissionReport |
 
 ---
 
@@ -402,20 +404,11 @@ For every mission (COC1-COC4, M1-M5), manually verify:
 
 ---
 
-## Build Priority Order
+## Current Maintenance Priority Order
 
-1. `simulation_scene.dart` + `hotspot_widget.dart` (2D scene engine)
-2. `tool_tray.dart` (tool system)
-3. Reusable interaction components (12 components listed above)
-4. COC1 M1, M4, M5 (missing missions)
-5. COC2 M1, M3, M4, M5 (missing missions)
-6. COC3 M1-M5 (all missing)
-7. COC4 M1-M5 (all missing)
-8. Technical feedback strings in `mission_content_data.dart`
-9. Scene state change animations
-10. Troubleshooting branching logic
-11. Submission review screen polish
-12. Accessibility pass (Semantics, tap targets, alternatives)
-13. Visual polish + animation pass
-14. Pause/resume verification across all 20 missions
-15. Full QA pass + scorecard
+1. Preserve explicit production routing for all 20 mission IDs.
+2. Keep the COC2 M2 protected assessment adapter and accessible cable controls.
+3. Maintain evidence idempotency, pause/resume, and accurate pre-submission review.
+4. Keep PostgreSQL evaluation, Instructor finalization, and release authoritative.
+5. Run the complete Flutter, Web, local migration, RLS, and RBAC gates after changes.
+6. Record device-only QA separately; never infer TalkBack or performance results from widget tests.

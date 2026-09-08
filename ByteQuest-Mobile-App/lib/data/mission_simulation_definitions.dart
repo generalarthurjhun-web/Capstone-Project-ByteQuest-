@@ -282,9 +282,7 @@ String? _imageAssetForObject(String missionId, String objectId) {
           'mouse': 'mouse.png',
         }[objectId],
     };
-    return filename == null
-        ? 'assets/images/COC1.png'
-        : 'assets/COC1/$folder/$filename';
+    return filename == null ? null : 'assets/COC1/$folder/$filename';
   }
   if (coc == 'coc2') {
     final filename = const {
@@ -298,11 +296,9 @@ String? _imageAssetForObject(String missionId, String objectId) {
       'modem': 'Modem.png',
       'network_adapter': 'NIC.png',
     }[objectId];
-    return filename == null
-        ? 'assets/images/COC2.png'
-        : 'assets/COC2/Mission 1/$filename';
+    return filename == null ? null : 'assets/COC2/Mission 1/$filename';
   }
-  return _backgroundAssetForMission(missionId);
+  return null;
 }
 
 Map<String, dynamic> _progressiveDiagnostics({
@@ -325,5 +321,53 @@ Map<String, dynamic> _progressiveDiagnostics({
       for (final action in actions) action.$3: action.$4,
     },
     'required_fact_ids': factIds,
+  };
+}
+
+Map<String, dynamic> _coc4M5ServiceDiagnostics() {
+  final cases = MissionContentData.getCOC4M5Scenarios();
+  const observations = <String, String>{
+    'printer_driver':
+        'The workstation driver list shows the required printer driver is unavailable.',
+    'usb_port':
+        'The USB device is unavailable on the damaged port but enumerates on another port.',
+    'audio_driver':
+        'The system audio device is unavailable because its driver is not installed.',
+    'video_cable':
+        'The monitor connection is down while the video cable is disconnected.',
+    'windows_update':
+        'The Windows background update service is running and consuming system resources.',
+  };
+  final actions = <Map<String, dynamic>>[];
+  final facts = <String, String>{};
+  final requiredFactIds = <String>[];
+
+  for (final serviceCase in cases) {
+    final id = serviceCase['id']! as String;
+    final factId = '${id}_finding';
+    requiredFactIds.add(factId);
+    actions.add({
+      'id': 'diagnose_$id',
+      'label': 'Diagnose ${serviceCase['symptom']}',
+      'reveals_fact_id': factId,
+      'case_id': id,
+    });
+    facts[factId] = '${observations[id]} ${serviceCase['explanation']}';
+  }
+
+  return {
+    'component': 'troubleshooting',
+    'symptom': 'Five service requests require separate diagnosis and repair.',
+    'service_cases': [
+      for (final serviceCase in cases)
+        {
+          'id': serviceCase['id'],
+          'symptom': serviceCase['symptom'],
+          'causes': serviceCase['causes'],
+        },
+    ],
+    'diagnostic_actions': actions,
+    'facts': facts,
+    'required_fact_ids': requiredFactIds,
   };
 }

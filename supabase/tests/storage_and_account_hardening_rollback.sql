@@ -1,6 +1,7 @@
 -- Destructive-safe verification for Storage metadata scope and Instructor
 -- learner-account deactivation. All fixture changes are rolled back.
 
+\echo 1..1
 begin;
 
 create temporary table bytequest_storage_test_context (
@@ -311,3 +312,4 @@ end
 $$;
 
 rollback;
+\echo ok 1 - storage and account hardening rollback

@@ -1,5 +1,6 @@
 import 'package:bytequest/models/mission_model.dart';
 import 'package:bytequest/data/mission_simulation_definitions.dart';
+import 'package:bytequest/data/missions_data.dart';
 import 'package:bytequest/screens/simulation/mission_launcher.dart';
 import 'package:bytequest/screens/simulation/mission_simulation_screen.dart';
 import 'package:bytequest/screens/simulation/templates/authoritative_mission_assessment_screen.dart';
@@ -7,18 +8,39 @@ import 'package:bytequest/screens/simulation/templates/coc2_cable_termination_as
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  const authoritativeMissionIds = <String>[
+    'coc1_m1',
+    'coc1_m2',
+    'coc1_m3',
+    'coc1_m4',
+    'coc1_m5',
+    'coc2_m1',
+    'coc2_m2',
+    'coc2_m3',
+    'coc2_m4',
+    'coc2_m5',
+    'coc3_m1',
+    'coc3_m2',
+    'coc3_m3',
+    'coc3_m4',
+    'coc3_m5',
+    'coc4_m1',
+    'coc4_m2',
+    'coc4_m3',
+    'coc4_m4',
+    'coc4_m5',
+  ];
+
   group('MissionLauncher.screenFor', () {
     test(
       'launches the typed production runtime for every practice mission',
       () {
-        final expectedIds = MissionSimulationDefinitions.all
-            .map((definition) => definition.id)
-            .toSet();
+        final expectedIds = authoritativeMissionIds.toSet();
 
         expect(MissionLauncher.productionRuntimeMissionIds, expectedIds);
         expect(expectedIds, hasLength(20));
 
-        for (final missionId in expectedIds) {
+        for (final missionId in authoritativeMissionIds) {
           final screen = MissionLauncher.screenFor(_mission(missionId));
           expect(screen, isA<MissionSimulationScreen>(), reason: missionId);
           final runtime = screen as MissionSimulationScreen;
@@ -28,6 +50,21 @@ void main() {
         }
       },
     );
+
+    test('runtime titles exactly match the authoritative mission catalog', () {
+      final catalog = {
+        for (final mission in MissionsData.getAllMissions())
+          mission.id: mission.title,
+      };
+      expect(catalog.keys.toSet(), authoritativeMissionIds.toSet());
+      for (final missionId in authoritativeMissionIds) {
+        expect(
+          MissionSimulationDefinitions.byId(missionId).title,
+          catalog[missionId],
+          reason: missionId,
+        );
+      }
+    });
 
     test('fails clearly for an unknown mission ID', () {
       expect(
@@ -59,9 +96,6 @@ void main() {
         );
       },
     );
-
-    test(
-        'retains opt-in adapters for protected legacy practice screens', () {});
 
     test('fails closed for an unknown server-provided simulation template', () {
       expect(

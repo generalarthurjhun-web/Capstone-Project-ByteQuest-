@@ -1,3 +1,5 @@
+import 'dart:ui' show SemanticsAction, SemanticsFlag;
+
 import 'package:bytequest/core/widgets/app_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,6 +18,13 @@ void main() {
     );
 
     expect(tester.widget<InkWell>(find.byType(InkWell)).onTap, isNull);
+    final semantics = tester
+        .getSemantics(find.bySemanticsLabel('Unavailable action'))
+        .getSemanticsData();
+    expect(semantics.hasFlag(SemanticsFlag.isButton), isTrue);
+    expect(semantics.hasFlag(SemanticsFlag.hasEnabledState), isTrue);
+    expect(semantics.hasFlag(SemanticsFlag.isEnabled), isFalse);
+    expect(semantics.hasAction(SemanticsAction.tap), isFalse);
   });
 
   testWidgets('available action remains operable', (tester) async {
@@ -33,5 +42,27 @@ void main() {
 
     await tester.tap(find.text('Available action'));
     expect(presses, 1);
+    final semantics = tester
+        .getSemantics(find.bySemanticsLabel('Available action'))
+        .getSemanticsData();
+    expect(semantics.hasFlag(SemanticsFlag.isEnabled), isTrue);
+    expect(semantics.hasAction(SemanticsAction.tap), isTrue);
+  });
+
+  testWidgets('small actions retain a 48 dp accessible target', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AppButton.text(
+            label: 'Inline action',
+            onPressed: () {},
+          ),
+        ),
+      ),
+    );
+
+    final size = tester.getSize(find.byType(TextButton));
+    expect(size.width, greaterThanOrEqualTo(48));
+    expect(size.height, greaterThanOrEqualTo(48));
   });
 }

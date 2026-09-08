@@ -412,25 +412,30 @@ class _SceneBackground extends StatelessWidget {
         label: 'Technical mission workspace',
         image: true,
         child: Stack(
+          key: const Key('scene-background-layers'),
           fit: StackFit.expand,
           children: [
-            if (assetPath != null)
-              Opacity(
-                opacity: .16,
-                child: Image.asset(
-                  assetPath!,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const ColoredBox(
-                      color: Color(0xFFFFE5E8),
-                      child: Center(child: Icon(Icons.broken_image_outlined)),
-                    );
-                  },
-                ),
-              ),
             CustomPaint(
+              key: const Key('scene-schematic-background'),
               painter: _SchematicScenePainter(kind: kind, objects: objects),
             ),
+            if (assetPath != null)
+              IgnorePointer(
+                child: Opacity(
+                  opacity: .16,
+                  child: Image.asset(
+                    key: const Key('scene-background-image'),
+                    assetPath!,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const ColoredBox(
+                        color: Color(0xFFFFE5E8),
+                        child: Center(child: Icon(Icons.broken_image_outlined)),
+                      );
+                    },
+                  ),
+                ),
+              ),
           ],
         ),
       );

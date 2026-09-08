@@ -3,7 +3,7 @@ part of '../mission_simulation_definitions.dart';
 final List<MissionSimulationDefinition> _coc2Definitions = [
   _mission(
     id: 'coc2_m1',
-    title: 'Prepare and Test Network Cabling',
+    title: 'Identify Network Devices and Tools',
     scenario: 'Prepare a cable run for a small workstation network.',
     environmentLabel: 'Network cabling bench',
     practiceGuidance:
@@ -124,7 +124,7 @@ final List<MissionSimulationDefinition> _coc2Definitions = [
   ),
   _mission(
     id: 'coc2_m2',
-    title: 'Build a Standards-Based Network Link',
+    title: 'Create Network Cables',
     scenario:
         'Prepare a standards-based cable and use it in a device topology.',
     environmentLabel: 'Cable and topology lab',
@@ -261,7 +261,7 @@ final List<MissionSimulationDefinition> _coc2Definitions = [
   ),
   _mission(
     id: 'coc2_m3',
-    title: 'Construct a Network Topology',
+    title: 'Test Cable Connectivity',
     scenario: 'Build and validate a small multi-node topology.',
     environmentLabel: 'Topology workspace',
     practiceGuidance:
@@ -335,7 +335,7 @@ final List<MissionSimulationDefinition> _coc2Definitions = [
   ),
   _mission(
     id: 'coc2_m4',
-    title: 'Configure Network Devices',
+    title: 'Connect Devices in Local Area Network',
     scenario: 'Configure a selected device and verify client connectivity.',
     environmentLabel: 'Device configuration console',
     practiceGuidance:
@@ -410,7 +410,7 @@ final List<MissionSimulationDefinition> _coc2Definitions = [
   ),
   _mission(
     id: 'coc2_m5',
-    title: 'Troubleshoot Network Connectivity',
+    title: 'Configure IP Settings and Test Connection',
     scenario: 'A workstation cannot reach a service across the local topology.',
     environmentLabel: 'Network diagnostic console',
     practiceGuidance:

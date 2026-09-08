@@ -70,9 +70,17 @@ class AuthoritativeAssessmentService implements MissionEvidenceTransport {
   Future<void> _actionQueue = Future<void>.value();
   Object? _actionWriteError;
   final Map<String, Object> _missionActionWriteErrors = <String, Object>{};
+  int _pendingActionCount = 0;
 
   AttemptSession? get activeSession => _activeSession;
   bool get isAssessmentMode => _activeSession?.isAssessment ?? false;
+  int get pendingActionCount => _pendingActionCount;
+  int get failedActionCount =>
+      (_actionWriteError == null ? 0 : 1) + _missionActionWriteErrors.length;
+
+  /// Waits until every locally queued append has either synchronized or been
+  /// retained as an explicit failure that blocks authoritative submission.
+  Future<void> settleActionQueue() => _actionQueue;
 
   @override
   Future<void> append(MissionEvidenceAction action) async {
@@ -216,6 +224,7 @@ class AuthoritativeAssessmentService implements MissionEvidenceTransport {
     _activeSession = session;
     _actionWriteError = null;
     _missionActionWriteErrors.clear();
+    _pendingActionCount = 0;
     if (lastSequence == 0) {
       await recordAction(
         actionType: 'attempt_started',
@@ -236,41 +245,171 @@ class AuthoritativeAssessmentService implements MissionEvidenceTransport {
     DateTime? occurredAt,
     String? clientActionId,
   }) async {
+    final stableOccurredAt = occurredAt ?? DateTime.now();
+    final stableValue = clientActionId == null
+        ? value
+        : <String, dynamic>{
+            ...value,
+            'client_action_id': clientActionId,
+          };
+    _pendingActionCount += 1;
     final completion = _actionQueue.then((_) => _recordActionNow(
           actionType: actionType,
           target: target,
-          value: value,
-          occurredAt: occurredAt,
+          value: stableValue,
+          occurredAt: stableOccurredAt,
+          clientActionId: clientActionId,
         ));
-    _actionQueue = completion.catchError((error) {
+    final trackedCompletion = completion.whenComplete(() {
+      _pendingActionCount -= 1;
+    });
+    _actionQueue = trackedCompletion.catchError((error) {
       if (clientActionId == null) {
         _actionWriteError ??= error;
       } else {
         _missionActionWriteErrors[clientActionId] = error;
       }
     });
-    return completion;
+    return trackedCompletion;
   }
 
   Future<void> _recordActionNow({
     required String actionType,
     String? target,
     required Map<String, dynamic> value,
-    DateTime? occurredAt,
+    required DateTime occurredAt,
+    String? clientActionId,
   }) async {
     final session = _activeSession;
     if (session == null) return;
     final sequence = session.nextSequence;
-    await _callRpc('append_attempt_action', {
-      'p_attempt_id': session.attemptId,
-      'p_sequence_number': sequence,
-      'p_action_type': actionType,
-      'p_target': target,
-      'p_value': value,
-      'p_client_occurred_at':
-          (occurredAt ?? DateTime.now()).toUtc().toIso8601String(),
-    });
-    session.nextSequence = sequence + 1;
+    final occurredAtUtc = occurredAt.toUtc();
+    try {
+      await _appendAttemptAction(
+        session: session,
+        sequence: sequence,
+        actionType: actionType,
+        target: target,
+        value: value,
+        occurredAt: occurredAtUtc,
+      );
+      session.nextSequence = sequence + 1;
+    } catch (error, stackTrace) {
+      final recovered = await _recoverAppendAfterFailure(
+        session: session,
+        attemptedSequence: sequence,
+        actionType: actionType,
+        target: target,
+        value: value,
+        occurredAt: occurredAtUtc,
+        clientActionId: clientActionId,
+      );
+      if (!recovered) {
+        Error.throwWithStackTrace(error, stackTrace);
+      }
+    }
+  }
+
+  Future<void> _appendAttemptAction({
+    required AttemptSession session,
+    required int sequence,
+    required String actionType,
+    required String? target,
+    required Map<String, dynamic> value,
+    required DateTime occurredAt,
+  }) =>
+      _callRpc('append_attempt_action', {
+        'p_attempt_id': session.attemptId,
+        'p_sequence_number': sequence,
+        'p_action_type': actionType,
+        'p_target': target,
+        'p_value': value,
+        'p_client_occurred_at': occurredAt.toIso8601String(),
+      });
+
+  Future<bool> _recoverAppendAfterFailure({
+    required AttemptSession session,
+    required int attemptedSequence,
+    required String actionType,
+    required String? target,
+    required Map<String, dynamic> value,
+    required DateTime occurredAt,
+    required String? clientActionId,
+  }) async {
+    List<Map<String, dynamic>> rows;
+    try {
+      rows = await getActiveAttemptActions();
+    } catch (_) {
+      return false;
+    }
+
+    var highestSequence = 0;
+    Map<String, dynamic>? candidate;
+    for (final row in rows) {
+      final sequence = row['sequence_number'] as int? ?? 0;
+      if (sequence > highestSequence) highestSequence = sequence;
+      final rowValue = Map<String, dynamic>.from(
+        row['value'] as Map? ?? const {},
+      );
+      if (clientActionId != null &&
+          rowValue['client_action_id'] == clientActionId) {
+        candidate = row;
+      } else if (clientActionId == null && sequence == attemptedSequence) {
+        candidate = row;
+      }
+    }
+    session.nextSequence = highestSequence + 1;
+
+    if (candidate != null) {
+      if (_matchesAttemptAction(
+        candidate,
+        actionType: actionType,
+        target: target,
+        value: value,
+        occurredAt: occurredAt,
+      )) {
+        return true;
+      }
+      if (clientActionId != null) {
+        throw StateError(
+          'The authoritative action identifier already belongs to different evidence.',
+        );
+      }
+    }
+
+    if (highestSequence < attemptedSequence) return false;
+    final retrySequence = highestSequence + 1;
+    await _appendAttemptAction(
+      session: session,
+      sequence: retrySequence,
+      actionType: actionType,
+      target: target,
+      value: value,
+      occurredAt: occurredAt,
+    );
+    session.nextSequence = retrySequence + 1;
+    return true;
+  }
+
+  bool _matchesAttemptAction(
+    Map<String, dynamic> row, {
+    required String actionType,
+    required String? target,
+    required Map<String, dynamic> value,
+    required DateTime occurredAt,
+  }) {
+    final rowOccurredAt = DateTime.tryParse(
+      row['client_occurred_at']?.toString() ?? '',
+    );
+    return row['action_type'] == actionType.trim() &&
+        row['target'] == _normalizedTarget(target) &&
+        _deepJsonEquals(row['value'], value) &&
+        rowOccurredAt?.toUtc() == occurredAt;
+  }
+
+  String? _normalizedTarget(String? target) {
+    final normalized = target?.trim();
+    return normalized == null || normalized.isEmpty ? null : normalized;
   }
 
   Future<String> submitAttempt(
@@ -470,4 +609,25 @@ class AuthoritativeAssessmentService implements MissionEvidenceTransport {
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList(growable: false);
   }
+}
+
+bool _deepJsonEquals(Object? left, Object? right) {
+  if (identical(left, right)) return true;
+  if (left is Map && right is Map) {
+    if (left.length != right.length) return false;
+    for (final key in left.keys) {
+      if (!right.containsKey(key) || !_deepJsonEquals(left[key], right[key])) {
+        return false;
+      }
+    }
+    return true;
+  }
+  if (left is List && right is List) {
+    if (left.length != right.length) return false;
+    for (var index = 0; index < left.length; index++) {
+      if (!_deepJsonEquals(left[index], right[index])) return false;
+    }
+    return true;
+  }
+  return left == right;
 }

@@ -1,6 +1,7 @@
 -- Destructive-safe integration test. Every fixture and state transition is
 -- rolled back. Any failed assertion aborts the script.
 
+\echo 1..1
 begin;
 
 create temporary table bytequest_test_context (
@@ -668,7 +669,10 @@ set action_id = (
     1,
     'test_action',
     'test_target',
-    jsonb_build_object('value', 'chronological evidence'),
+    jsonb_build_object(
+      'value', 'chronological evidence',
+      'client_action_id', 'rollback-authoritative-action-1'
+    ),
     context.action_at
   )
 );
@@ -685,13 +689,53 @@ begin
     1,
     'test_action',
     'test_target',
-    jsonb_build_object('value', 'chronological evidence'),
+    jsonb_build_object(
+      'value', 'chronological evidence',
+      'client_action_id', 'rollback-authoritative-action-1'
+    ),
     v_context.action_at
   );
 
   if v_second_action_id <> v_context.action_id then
     raise exception 'ACTION_IDEMPOTENCY_FAILED';
   end if;
+
+  select id into v_second_action_id
+  from public.append_attempt_action(
+    v_context.attempt_id,
+    2,
+    'test_action',
+    'test_target',
+    jsonb_build_object(
+      'value', 'chronological evidence',
+      'client_action_id', 'rollback-authoritative-action-1'
+    ),
+    v_context.action_at
+  );
+
+  if v_second_action_id <> v_context.action_id then
+    raise exception 'CLIENT_ACTION_ID_IDEMPOTENCY_FAILED';
+  end if;
+
+  begin
+    perform public.append_attempt_action(
+      v_context.attempt_id,
+      2,
+      'different_action',
+      'test_target',
+      jsonb_build_object(
+        'value', 'different evidence',
+        'client_action_id', 'rollback-authoritative-action-1'
+      ),
+      v_context.action_at
+    );
+    raise exception 'CLIENT_ACTION_ID_COLLISION_WAS_NOT_BLOCKED';
+  exception
+    when unique_violation then
+      if sqlerrm <> 'ACTION_ID_CONFLICT' then
+        raise;
+      end if;
+  end;
 end
 $$;
 
@@ -1271,6 +1315,7 @@ select jsonb_build_object(
     'coc_bypass_access_only',
     'attempt_start_idempotency',
     'ordered_action_idempotency',
+    'client_action_id_idempotency',
     'practice_evidence_idempotency',
     'practice_evidence_append_only',
     'instructor_practice_evidence_blocked',
@@ -1302,3 +1347,4 @@ select jsonb_build_object(
     'learner_released_result_visibility'
   )
 ) as lifecycle_test_result;
+\echo ok 1 - foundation lifecycle rollback

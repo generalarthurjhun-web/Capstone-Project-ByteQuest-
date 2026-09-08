@@ -1,6 +1,7 @@
 -- Admin account lifecycle, removal-readiness, and audit immutability checks.
 -- All target state changes and audit fixtures are rolled back.
 
+\echo 1..1
 begin;
 
 create temporary table bytequest_governance_test_context as
@@ -95,3 +96,4 @@ end
 $$;
 
 rollback;
+\echo ok 1 - governance safeguards rollback

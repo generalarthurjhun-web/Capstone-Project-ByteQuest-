@@ -6,10 +6,10 @@
 
 | Field | Value |
 |---|---|
-| Date | 2026-08-22 |
-| Active branch | `Dro-branch` |
-| Integrated implementation head | `0ec02ad` (`fix: close final simulation acceptance gaps`) |
-| Remote | `origin/Dro-branch` — local branch is ahead; nothing was pushed |
+| Date | 2026-09-08 |
+| Active branch | `integrate-dro` (to be fast-forwarded into local `main` after the final gate) |
+| Integrated implementation head | This file's integration commit, based on local `main` `9e42e0bd82fa14cafd91222aa44f18602cd7bb13` |
+| Remote | Starting `origin/main` `a162ecf767e9ce32a0749bfe6aa772d2d5f80acd`; starting `origin/Dro-branch` `10adcbda9eacdcd36174df3ecaa26a21832109a3`; nothing pushed |
 | Primary build target | Android APK (Flutter) |
 | Feature worktree | `.worktrees/bytequest-simulation-platform` preserved on `feature/bytequest-simulation-platform` |
 
@@ -255,7 +255,7 @@ Do not weaken authentication, RLS, backend evaluation, or instructor-release con
 
 ## Live authenticated evidence validation (2026-08-23)
 
-- Supplied learner credentials are valid. Supabase Auth returned user `de4c5944-c0e4-4aee-8ef6-0304914e9296`; authenticated profile read confirmed `role=learner` and `status=active`.
+- A prior authenticated learner smoke test confirmed a learner-scoped active profile. The live user identifier is intentionally not retained in source control.
 - Practice evidence validation is blocked by a new deployment issue BQ-QA-005: authenticated REST GET/POST/PATCH/DELETE requests for `practice_mission_actions` return HTTP 404 `PGRST205` (“table not found in schema cache”), despite linked PostgreSQL table, ACL, and RLS metadata being correct. Explicit PostgREST reload notifications did not clear it during this run.
 - No evidence row was created, and no update/delete/isolation behavior was bypassed or simulated with an elevated role. Attempt completion/retry/reconnect remains unverified for the same reason.
 - No Flutter or migration changes were made during this validation; no commit created.
@@ -390,3 +390,19 @@ Do not weaken authentication, RLS, backend evaluation, or instructor-release con
 - Security/cleanup: no committed or source-tree secret-like credential, unsafe `NEXT_PUBLIC_` secret, production empty callback, true conflict marker, simulation debug probe, or unfinished production marker was found. Mobile and web ignored environment files resolve to the same Supabase host. Removed obsolete `demonstration.mp4`, stale `QA_REPORT.md`, duplicate Kotlin Gradle files, and updated active documentation to `ByteQuest-Mobile-App`.
 - Manual QA still required: physical Android device, TalkBack, device landscape/large text/reduced motion, low-end hardware, production Supabase authenticated smoke, responsive browser viewport inspection, and release signing. These are validation gaps, not known P0/P1 defects.
 - Exact next action: review the final local commit and report, perform the listed human/device/production smoke tests, then explicitly authorize a normal push of local `main` if accepted. Do not force-push.
+
+## Dro integration hardening and local validation (2026-09-08)
+
+- Git safety: recorded starting `origin/main` at `a162ecf767e9ce32a0749bfe6aa772d2d5f80acd` and `origin/Dro-branch` at `10adcbda9eacdcd36174df3ecaa26a21832109a3`; performed all new work on `integrate-dro`. No branch was pushed and no remote database was contacted or mutated.
+- Production routing: the exact authoritative IDs `coc1_m1` through `coc4_m5` route to `MissionSimulationScreen`; explicit server-issued authoritative and COC2 cable assessment adapters remain separate and fail closed. Runtime titles now match `missions_data.dart`.
+- Mission/runtime hardening: restored five technically distinct COC4 M5 troubleshooting cases and legacy 20-point parity without making practice scores authoritative; fixed actual-background painting, removed unrelated cover-image hotspot fallbacks, stabilized option order, and made review readiness use actual completed phases and pending/failed server evidence.
+- Evidence and persistence: authoritative action append now uses stable client IDs, server reconciliation, one safe sequence resynchronization, and a forward-only uniqueness migration. Practice evidence initialization/sync failures remain locally queued and visibly retryable. System back/save-and-exit preserves snapshots; only explicit discard clears them.
+- Accessibility: shared buttons expose true disabled state and 48 dp targets. COC2 M2 pins have meaningful empty/connected semantics, tap and long-press actions, icon/text status cues, and withhold correctness during authoritative assessment.
+- Migration architecture: fresh local reset applied the complete chain from the already-deployed `20260807085500` foundation identity; the empty bootstrap seed avoids phantom forward data. A separate throwaway database built to the exact `origin/main` migration set accepted only the nine later integration migrations. No repair, include-all push, or migration-history manipulation was used.
+- Fresh local schema verification: PASS with 4 COCs, 4 modules, 20 missions, current generated enum values, 47/47 public tables protected by RLS, 53 policies, safe `SECURITY DEFINER` search paths, no anonymous privileged RPC access, and no nonzero authoritative passing score.
+- Upgrade verification: PASS with 4 COCs, 4 modules, 20 missions, neutral scoring, full RLS coverage, the authoritative client-action idempotency index, and denied anonymous finalize/release/admin operations.
+- Supabase tests: `supabase test db` PASS (5 files/5 TAP tests); local lint PASS. Local published packages contain 20 missions, 20 rubrics, and 98 criteria. COC1, COC2, COC3, COC4, golden COC2 M2, quiz save/resume/exactly-once submission, resource access, RBAC/isolation, analytics/audit, and Realtime lifecycle runners passed against the disposable local stack.
+- Mobile gate: `flutter pub get` PASS; `flutter analyze` PASS with zero errors (205 informational lints); full `flutter test` PASS (235/235); debug APK PASS. Release AAB remains not verified because production signing is not configured.
+- Web gate: frozen install, TypeScript, ESLint, analytics (4/4), metric-strip (3/3), OpenRouter contract (6/6), and Next.js production build (23 pages) PASS.
+- Repository cleanup: removed obsolete planning/report artifacts and dangerous stale account-maintenance scripts containing personal/live fixture references; sanitized remaining harness defaults and corrected current mobile paths. No committed secret-like credential, client service-role exposure, conflict marker, production empty callback, or release-path simulation debug probe remains.
+- Manual QA still required: physical Android device, TalkBack, physical large-text/landscape/reduced-motion behavior, low-end performance, real production-credential smoke testing, and production release signing. These are environment/manual gates, not known P0/P1 defects.

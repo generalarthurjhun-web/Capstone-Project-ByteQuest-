@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/config/supabase_config.dart';
+import '../../core/theme/app_theme.dart';
+import '../../data/mission_content_data.dart';
 import '../../models/mission_model.dart';
 import '../../services/authoritative_assessment_service.dart';
 import '../../services/practice_mission_evidence_service.dart';
@@ -66,7 +68,8 @@ class LegacyPracticeEvidenceScope extends StatefulWidget {
 class _LegacyPracticeEvidenceScopeState
     extends State<LegacyPracticeEvidenceScope> with WidgetsBindingObserver {
   MissionRuntimeController? _controller;
-  late final Future<void> _restoreOperation;
+  Future<void> _restoreOperation = Future<void>.value();
+  String? _syncWarning;
 
   @override
   void initState() {
@@ -85,7 +88,27 @@ class _LegacyPracticeEvidenceScopeState
       _restoreOperation = _restore();
     } catch (_) {
       _controller = null;
-      _restoreOperation = Future<void>.value();
+      _syncWarning = MissionContentData.practiceEvidenceUnavailableMessage;
+    }
+  }
+
+  Future<void> _retryInitialization() async {
+    if (_controller != null) {
+      await _retryPending();
+      return;
+    }
+    try {
+      final controller = _createController();
+      _controller = controller;
+      _restoreOperation = _restore();
+      await _restoreOperation;
+      if (mounted) setState(() => _syncWarning = null);
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _syncWarning = MissionContentData.practiceEvidenceUnavailableMessage;
+        });
+      }
     }
   }
 
@@ -124,7 +147,14 @@ class _LegacyPracticeEvidenceScopeState
   }) async {
     await _restoreOperation;
     final controller = _controller;
-    if (controller == null) return;
+    if (controller == null) {
+      if (mounted) {
+        setState(() {
+          _syncWarning = MissionContentData.practiceEvidenceUnavailableMessage;
+        });
+      }
+      return;
+    }
 
     try {
       await controller.dispatch(
@@ -136,7 +166,11 @@ class _LegacyPracticeEvidenceScopeState
       );
       await _retryPending();
     } catch (_) {
-      // Pending evidence remains queued in the persisted runtime snapshot.
+      if (mounted) {
+        setState(() {
+          _syncWarning = MissionContentData.practiceEvidencePendingMessage;
+        });
+      }
     }
   }
 
@@ -146,8 +180,13 @@ class _LegacyPracticeEvidenceScopeState
     if (controller == null) return;
     try {
       await controller.flushPending();
+      if (mounted) setState(() => _syncWarning = null);
     } catch (_) {
-      // Pending evidence remains queued for the next connectivity event.
+      if (mounted) {
+        setState(() {
+          _syncWarning = MissionContentData.practiceEvidencePendingMessage;
+        });
+      }
     }
   }
 
@@ -183,5 +222,46 @@ class _LegacyPracticeEvidenceScopeState
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) => Stack(
+        children: [
+          widget.child,
+          if (_syncWarning case final warning?)
+            SafeArea(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Semantics(
+                  container: true,
+                  liveRegion: true,
+                  label: warning,
+                  child: Material(
+                    color: AppTheme.warningYellow.withValues(alpha: 0.14),
+                    elevation: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.sync_problem_outlined),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(warning)),
+                          TextButton(
+                            onPressed: _retryInitialization,
+                            style: TextButton.styleFrom(
+                              minimumSize: const Size(48, 48),
+                            ),
+                            child: const Text(
+                              MissionContentData.retryEvidenceLabel,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      );
 }
