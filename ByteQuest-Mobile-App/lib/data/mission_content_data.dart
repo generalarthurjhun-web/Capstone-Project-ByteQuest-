@@ -17,6 +17,14 @@ class MissionContentData {
       'Your current mission progress will remain available when you return.';
   static const cancelExitLabel = 'Cancel';
   static const confirmExitLabel = 'Save and Exit';
+  static const runtimeExitMissionTitle = 'Exit Mission?';
+  static const exitMissionTooltip = 'Exit mission';
+  static const runtimeExitMissionMessage =
+      'Continue the mission, save your current progress, or explicitly discard this practice run.';
+  static const continueMissionLabel = 'Continue Mission';
+  static const discardProgressLabel = 'Discard Progress';
+  static const discardProgressFailedMessage =
+      'Practice progress could not be discarded. Keep the mission open and try again.';
   static const saveProgressFailedMessage =
       'Mission progress could not be saved. Keep the mission open and try again.';
   static const continueLabel = 'Continue';

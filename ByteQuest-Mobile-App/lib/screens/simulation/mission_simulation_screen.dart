@@ -21,6 +21,8 @@ import 'runtime/mission_runtime_models.dart';
 
 typedef MissionSubmitCallback = Future<void> Function();
 
+enum _MissionExitChoice { continueMission, saveAndExit, discardProgress }
+
 abstract interface class MissionOrientationCoordinator {
   Future<void> restoreSupportedOrientations();
 }
@@ -65,6 +67,7 @@ class MissionSimulationScreen extends StatefulWidget {
 
 class _MissionSimulationScreenState extends State<MissionSimulationScreen>
     with WidgetsBindingObserver {
+  PracticeMissionEvidenceService? _practiceEvidenceService;
   late final MissionRuntimeController _controller =
       widget.controller ?? _createController();
   late final MissionRuntimeState _initialState;
@@ -90,9 +93,15 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
     }
     final activeSession = assessment.activeSession;
     final isAssessment = activeSession?.isAssessment == true;
-    final evidenceTransport = activeSession == null
-        ? PracticeMissionEvidenceService(missionId: widget.definition.id)
-        : assessment;
+    final MissionEvidenceTransport evidenceTransport;
+    if (activeSession == null) {
+      final practiceService =
+          PracticeMissionEvidenceService(missionId: widget.definition.id);
+      _practiceEvidenceService = practiceService;
+      evidenceTransport = practiceService;
+    } else {
+      evidenceTransport = assessment;
+    }
     return MissionRuntimeController(
       userId: userId,
       initialState: MissionRuntimeState.initial(
@@ -561,12 +570,75 @@ class _MissionSimulationScreenState extends State<MissionSimulationScreen>
   Future<void> _leave() async {
     if (_leaving) return;
     setState(() => _leaving = true);
-    final saved = await _persistForLifecycle();
+    final choice = await showDialog<_MissionExitChoice>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(MissionContentData.runtimeExitMissionTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              _state.mode == MissionRuntimeMode.practice
+                  ? MissionContentData.runtimeExitMissionMessage
+                  : MissionContentData.exitMissionMessage,
+            ),
+            const SizedBox(height: 20),
+            OutlinedButton(
+              onPressed: () => Navigator.of(dialogContext)
+                  .pop(_MissionExitChoice.continueMission),
+              child: const Text(MissionContentData.continueMissionLabel),
+            ),
+            const SizedBox(height: 8),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext)
+                  .pop(_MissionExitChoice.saveAndExit),
+              child: const Text(MissionContentData.confirmExitLabel),
+            ),
+            if (_state.mode == MissionRuntimeMode.practice) ...[
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext)
+                    .pop(_MissionExitChoice.discardProgress),
+                style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
+                child: const Text(MissionContentData.discardProgressLabel),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
     if (!mounted) return;
-    if (!saved) {
+    if (choice == null || choice == _MissionExitChoice.continueMission) {
       setState(() => _leaving = false);
       return;
     }
+
+    if (choice == _MissionExitChoice.discardProgress) {
+      try {
+        await _practiceEvidenceService?.markProgressDiscarded(
+          phaseId: _state.currentPhaseId ?? widget.definition.phases.first.id,
+        );
+        await _controller.reset(_initialState);
+      } catch (_) {
+        if (mounted) {
+          setState(() {
+            _leaving = false;
+            _technicalFeedback =
+                MissionContentData.discardProgressFailedMessage;
+          });
+        }
+        return;
+      }
+    } else {
+      final saved = await _persistForLifecycle();
+      if (!mounted) return;
+      if (!saved) {
+        setState(() => _leaving = false);
+        return;
+      }
+    }
+
     setState(() => _allowPop = true);
     await WidgetsBinding.instance.endOfFrame;
     if (mounted) await Navigator.of(context).maybePop();
@@ -880,7 +952,7 @@ class _MissionHeader extends StatelessWidget {
         child: Row(
           children: [
             IconButton(
-              tooltip: 'Save and exit mission',
+              tooltip: MissionContentData.exitMissionTooltip,
               onPressed: onBack,
               icon: const Icon(Icons.arrow_back_rounded),
             ),

@@ -157,7 +157,10 @@ void main() {
       await tester.tap(find.text('Open mission'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byTooltip('Save and exit mission'));
+      await tester.tap(find.byTooltip('Exit mission'));
+      await tester.pumpAndSettle();
+      expect(find.text('Exit Mission?'), findsOneWidget);
+      await tester.tap(find.text('Save and Exit'));
       await tester.pumpAndSettle();
 
       expect(find.byType(MissionSimulationScreen), findsNothing);
@@ -178,7 +181,9 @@ void main() {
       await tester.tap(find.text('Open mission'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byTooltip('Save and exit mission'));
+      await tester.tap(find.byTooltip('Exit mission'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save and Exit'));
       await tester.pumpAndSettle();
 
       expect(find.byType(MissionSimulationScreen), findsOneWidget);
@@ -188,6 +193,55 @@ void main() {
         ),
         findsOneWidget,
       );
+    });
+
+    testWidgets('continue from exit dialog keeps practice progress open', (
+      tester,
+    ) async {
+      final definition = MissionSimulationDefinitions.byId('coc1_m1');
+      final store = _MemoryStore();
+
+      await tester.pumpWidget(
+        _routeHost(
+          definition,
+          controller: _controller(definition, store: store),
+        ),
+      );
+      await tester.tap(find.text('Open mission'));
+      await tester.pumpAndSettle();
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('Exit Mission?'), findsOneWidget);
+      await tester.tap(find.text('Continue Mission'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(MissionSimulationScreen), findsOneWidget);
+      expect(store.clearCount, 0);
+    });
+
+    testWidgets('explicit discard clears practice snapshot before exit', (
+      tester,
+    ) async {
+      final definition = MissionSimulationDefinitions.byId('coc1_m1');
+      final store = _MemoryStore();
+
+      await tester.pumpWidget(
+        _routeHost(
+          definition,
+          controller: _controller(definition, store: store),
+        ),
+      );
+      await tester.tap(find.text('Open mission'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Exit mission'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Discard Progress'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(MissionSimulationScreen), findsNothing);
+      expect(store.clearCount, 1);
     });
 
     testWidgets('does not force landscape and restores orientations on exit', (
